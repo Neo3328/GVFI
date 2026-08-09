@@ -7,6 +7,27 @@ Copyright © 2026 Mr. Gong. All Rights Reserved.
 
 ---
 
+## 📥 下载
+
+> 普通用户从这里下载可运行的软件（无需源码）：
+
+👉 **[Releases 最新版](https://github.com/Neo3328/GVFI/releases/latest)**
+
+进入后展开 **Assets**，选择一个下载：
+
+| 文件 | 适合人群 |
+|------|----------|
+| **`GVFI-Setup-1.0.0-x64.exe`** | 推荐：安装到系统、自动创建桌面快捷方式 |
+| **`GVFI-Portable-1.0.0-x64.exe`** | 免安装、解压即用 |
+
+**注意：**
+- 请下载 **Assets** 里的 `.exe`，**不要**点绿色「Code → Download ZIP」（那是源码）。
+- 本版**未代码签名**，Windows 可能提示「未知发布者」→ 点「**更多信息 → 仍要运行**」。
+- 系统要求：Windows 10/11（x64）。
+- 校验文件完整性：下载 `SHA256SUMS.txt`，用 `Get-FileHash .\文件名 -Algorithm SHA256` 比对。详见 [`releases/1.0.0/DOWNLOADS.md`](releases/1.0.0/DOWNLOADS.md)。
+
+---
+
 ## 功能概览
 
 | 模块 | 路由 | 说明 |
