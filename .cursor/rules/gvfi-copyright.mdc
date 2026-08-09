@@ -1,0 +1,42 @@
+---
+description: Preserve GVFI copyright and brand attribution in all new or modified code
+alwaysApply: true
+---
+
+# GVFI Copyright & Brand
+
+**Do not remove, replace, or duplicate** the following ownership identifiers.
+
+## Canonical text (from `@/lib/brand`)
+
+- **Developer:** Mr. Gong
+- **Line 1:** `Developed by Mr. Gong`
+- **Line 2:** `Copyright © 2026 Mr. Gong. All Rights Reserved.`
+- **App name:** GVFI
+
+## Rules
+
+1. **Import from `@/lib/brand`** — never hardcode copyright strings in UI.
+2. **UI footer:** use `<CopyrightFooter />` from `@/components/brand/copyright-footer`.
+3. **New source files** (TS/TSX/JS/CSS) — include file header:
+
+```
+/**
+ * GVFI — <module purpose>
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+```
+
+4. **Do not** add extra copyright blocks to files that already have the header.
+5. **Do not** change `Mr. Gong` or the 2026 copyright year without explicit user request.
+6. **About / Splash / Settings footer** must keep showing app name + both copyright lines.
+
+## Placement checklist for new features
+
+- Splash: `AppSplash` or `electron/splash.html`
+- About: `/app/settings/about`
+- Settings pages: inherit `app/app/settings/layout.tsx` footer
+- Landing: `LandingFooter`
+- Sidebar: compact footer in `WorkspaceShell`
+- `package.json` / electron-builder `copyright` field

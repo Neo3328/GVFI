@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GVFI</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: Inter, "Microsoft YaHei", system-ui, sans-serif;
+        color: #c8cee3;
+        background: linear-gradient(135deg, #070914, #101526 48%, #171f36);
+      }
+      .wrap {
+        display: flex;
+        height: 100%;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+      .card {
+        text-align: center;
+        padding: 32px 40px;
+        border-radius: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: linear-gradient(
+            135deg,
+            rgba(255, 255, 255, 0.13),
+            rgba(255, 255, 255, 0.035)
+          ),
+          rgba(18, 24, 44, 0.52);
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.36),
+          inset 0 1px 0 rgba(255, 255, 255, 0.24);
+        backdrop-filter: blur(24px) saturate(140%);
+        min-width: 280px;
+      }
+      .logo {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 16px;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(139, 125, 255, 0.18);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        font-weight: 700;
+        color: #f6f8ff;
+      }
+      h1 {
+        font-size: 22px;
+        font-weight: 600;
+        color: #f6f8ff;
+      }
+      .tagline {
+        margin-top: 6px;
+        font-size: 13px;
+        color: #7f89a8;
+      }
+      .meta {
+        margin-top: 20px;
+        font-size: 10px;
+        line-height: 1.6;
+        color: #7f89a8;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <div class="logo" aria-hidden="true">G</div>
+        <h1>GVFI</h1>
+        <p class="tagline">AI 视频工作站</p>
+        <div class="meta">
+          <div>Developed by Mr. Gong</div>
+          <div>Copyright © 2026 Mr. Gong. All Rights Reserved.</div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

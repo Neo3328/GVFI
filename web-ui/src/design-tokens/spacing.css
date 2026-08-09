@@ -1,0 +1,14 @@
+/**
+ * Spacing & radius — canonical aliases
+ */
+
+:root {
+  --lg-space-1: var(--space-1);
+  --lg-space-2: var(--space-2);
+  --lg-space-3: var(--space-3);
+  --lg-space-4: var(--space-4);
+  --lg-space-5: var(--space-5);
+  --lg-space-6: var(--space-6);
+  --lg-space-8: var(--space-8);
+  --radius: var(--radius-md);
+}

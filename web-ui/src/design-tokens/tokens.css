@@ -1,0 +1,228 @@
+/**
+ * GVFI — macOS Liquid Glass design tokens (Weather-app material language).
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ *
+ * Visual cues: frosted translucency, soft specular edge, layered ambient shadow,
+ * continuous corner curves — no weather imagery.
+ */
+
+:root {
+  /* Soft graphite depth — macOS desktop atmosphere */
+  --bg-0: #0b0d12;
+  --bg-1: #141820;
+  --bg-2: #1c222d;
+
+  /* Global typography — YouYuan default, overridable via display store */
+  --app-font-family: "YouYuan", "幼圆", "Microsoft YaHei UI", "Microsoft YaHei",
+    "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  --app-font-size: 13px;
+  --app-font-weight: 400;
+  --app-ui-scale: 1;
+  --app-text-color: #ffffff;
+  --app-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  --app-contrast-scrim: 0.12;
+
+  --text-strong: #ffffff;
+  --text-normal: #f0f0f2;
+  --text-muted: #b0b0b8;
+
+  /* System-like accents (macOS blue family, not neon purple) */
+  --accent: #0a84ff;
+  --accent-cyan: #64d2ff;
+  --success: #30d158;
+  --warning: #ffd60a;
+  --danger: #ff453a;
+
+  /* Liquid Glass material — restrained frost (no milky white slabs) */
+  --glass-opacity: 0.55;
+  --glass-blur: 20px;
+  --glass-shadow-blur: 30px;
+  --glass-border-opacity: 0.14;
+  --glass-shadow-opacity: 0.25;
+  --glass-fill: rgba(20, 24, 30, 0.55);
+  --glass-fill-clear: rgba(20, 24, 30, 0.35);
+  --glass-label: rgba(245, 245, 247, 0.96);
+  --glass-label-secondary: rgba(210, 210, 215, 0.88);
+
+  /*
+   * Continuous corner hierarchy (outer > inner):
+   * window 16 → panel 14 → card 12 → control 9
+   */
+  --window-radius: 16px;
+  --panel-radius: 14px;
+  --card-radius: 12px;
+  --control-radius: 9px;
+
+  /* Legacy aliases — always nest inside the layer above */
+  --radius-sm: var(--control-radius);
+  --radius-md: var(--card-radius);
+  --radius-lg: var(--panel-radius);
+  --radius-pill: 999px;
+  --radius-button: var(--control-radius);
+
+  --control-height: 28px;
+  --control-font: 13px;
+  --tab-icon-size: 17px;
+  --tab-label-weight: 590;
+
+  --text-xl-title-1: 40px;
+  --text-xl-title-2: 34px;
+  --text-large-title: 28px;
+  --text-title-1: 22px;
+  --text-title-2: 17px;
+  --text-title-3: 15px;
+  --text-headline: 13px;
+  --text-body: 13px;
+  --text-callout: 12px;
+  --text-subheadline: 12px;
+  --text-footnote: 11px;
+  --text-caption-1: 11px;
+  --text-caption-2: 10px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --duration-fast: 180ms;
+  --duration-normal: 280ms;
+  --ease-standard: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-spring: cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+:root[data-theme="studio"] {
+  /* Cool slate canvas — never opaque white / chalk slabs */
+  --bg-0: #5c6578;
+  --bg-1: #6b7488;
+  --bg-2: #7a8496;
+
+  --text-strong: #1d1d1f;
+  --text-normal: #2c2c2e;
+  --text-muted: #5c5c62;
+
+  --accent: #007aff;
+  --accent-cyan: #5ac8fa;
+  --success: #34c759;
+  --warning: #ff9f0a;
+  --danger: #ff3b30;
+
+  --glass-opacity: 0.48;
+  --glass-blur: 20px;
+  --glass-shadow-blur: 30px;
+  --glass-border-opacity: 0.18;
+  --glass-shadow-opacity: 0.14;
+  --glass-fill: rgba(120, 132, 152, 0.38);
+  --glass-fill-clear: rgba(120, 132, 152, 0.22);
+  --glass-label: rgba(29, 29, 31, 0.94);
+  --glass-label-secondary: rgba(58, 58, 60, 0.86);
+}
+
+:root[data-theme="dark"] {
+  --bg-0: #0b0d12;
+  --bg-1: #141820;
+  --bg-2: #1c222d;
+
+  --text-strong: #ffffff;
+  --text-normal: #f0f0f2;
+  --text-muted: #b0b0b8;
+
+  --accent: #0a84ff;
+  --accent-cyan: #64d2ff;
+  --success: #30d158;
+  --warning: #ffd60a;
+  --danger: #ff453a;
+
+  --glass-opacity: 0.55;
+  --glass-blur: 20px;
+  --glass-shadow-blur: 30px;
+  --glass-border-opacity: 0.14;
+  --glass-shadow-opacity: 0.25;
+  --glass-fill: rgba(20, 24, 30, 0.55);
+  --glass-fill-clear: rgba(20, 24, 30, 0.35);
+  --glass-label: rgba(245, 245, 247, 0.96);
+  --glass-label-secondary: rgba(210, 210, 215, 0.88);
+}
+
+:root[data-theme="ai"] {
+  --bg-0: #0a1018;
+  --bg-1: #101820;
+  --bg-2: #162028;
+
+  --text-strong: #ffffff;
+  --text-normal: #f0f0f2;
+  --text-muted: #a0aab8;
+
+  --accent: #0a84ff;
+  --accent-cyan: #64d2ff;
+  --success: #30d158;
+  --warning: #ffd60a;
+  --danger: #ff453a;
+
+  --glass-opacity: 0.55;
+  --glass-blur: 20px;
+  --glass-shadow-blur: 30px;
+  --glass-border-opacity: 0.14;
+  --glass-shadow-opacity: 0.25;
+  --glass-fill: rgba(20, 24, 30, 0.55);
+  --glass-fill-clear: rgba(20, 24, 30, 0.35);
+  --glass-label: rgba(245, 245, 247, 0.96);
+  --glass-label-secondary: rgba(210, 210, 215, 0.86);
+}
+
+:root[data-theme="kawaii"],
+:root[data-theme="cream"],
+:root[data-theme="blush"] {
+  --bg-0: #0b0d12;
+  --bg-1: #141820;
+  --bg-2: #1c222d;
+  --text-strong: #ffffff;
+  --text-normal: #f0f0f2;
+  --text-muted: #b0b0b8;
+  --accent: #0a84ff;
+  --accent-cyan: #64d2ff;
+}
+
+/* Utility type classes */
+.text-large-title {
+  font-size: var(--text-large-title);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.text-title-1 {
+  font-size: var(--text-title-1);
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+.text-title-2 {
+  font-size: var(--text-title-2);
+  font-weight: 600;
+}
+.text-headline {
+  font-size: var(--text-headline);
+  font-weight: 600;
+}
+.text-body {
+  font-size: var(--text-body);
+  font-weight: 400;
+  line-height: 1.45;
+}
+.text-subheadline {
+  font-size: var(--text-subheadline);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.text-footnote {
+  font-size: var(--text-footnote);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.text-caption-1 {
+  font-size: var(--text-caption-1);
+  font-weight: 400;
+  color: var(--text-muted);
+}

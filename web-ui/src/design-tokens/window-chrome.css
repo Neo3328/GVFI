@@ -1,0 +1,93 @@
+/**
+ * GVFI — Window / shell corner clip hierarchy.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ *
+ * Desktop: one outer clip layer (--window-radius) + transparent Electron chrome.
+ * Scroll lives on inner panes (#main-content), never on the radius clip shell.
+ */
+
+/* Atmosphere layers sit inside the frame (not position:fixed) so corners clip */
+.gvfi-window-frame {
+  position: relative;
+  z-index: 0;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  min-height: 100dvh;
+  min-height: 100svh;
+  background: transparent;
+  isolation: isolate;
+}
+
+.gvfi-window-atmosphere {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background-clip: padding-box;
+  overflow: hidden;
+}
+
+html[data-desktop-shell="true"],
+html[data-desktop-shell="true"] body {
+  background: transparent !important;
+}
+
+html[data-desktop-shell="true"] body.glass-main-shell {
+  overflow: hidden;
+}
+
+html[data-desktop-shell="true"] .gvfi-window-frame {
+  border-radius: var(--window-radius);
+  overflow: hidden;
+  /* Keep fill + border + clip on the same layer */
+  background-color: color-mix(in srgb, var(--bg-0) 92%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--glass-border) 70%, transparent);
+}
+
+/* Maximized / fullscreen: square to the monitor edge */
+html[data-desktop-shell="true"][data-window-maximized="true"] .gvfi-window-frame {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Browser preview: no fake OS window radius (avoids double chrome) */
+html:not([data-desktop-shell="true"]) .gvfi-window-frame {
+  border-radius: 0;
+  overflow: visible;
+}
+
+/* Page stage (sidebar / main glass) — panel layer under the window */
+[data-slot="app-shell"] > [data-slot="sidebar"].glass-panel,
+[data-slot="app-shell"] > [data-slot="stage-shell"],
+[data-slot="app-shell"] > .gvfi-stage-shell {
+  border-radius: var(--panel-radius);
+  overflow: hidden;
+  background-clip: padding-box;
+}
+
+/* Nested cards inside panels must stay visually inset */
+[data-slot="glass-panel"] .glass-panel,
+[data-slot="glass-card"],
+.glass-card {
+  border-radius: var(--card-radius);
+  background-clip: padding-box;
+}
+
+/* Controls nest inside cards */
+.glass-input,
+.glass-select,
+.glass-textarea,
+.glass-button,
+.glass-option,
+[data-slot="select-trigger"],
+[data-slot="glass-input"],
+[data-slot="input"].glass-input {
+  border-radius: var(--control-radius);
+  background-clip: padding-box;
+}

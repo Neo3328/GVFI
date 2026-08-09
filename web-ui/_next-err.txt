@@ -1,0 +1,298 @@
+[GVFI] starting packaged=true root=D:\BaiduNetdiskDownload\GVFI
+[GVFI] 启动 Next standalone: D:\BaiduNetdiskDownload\GVFI\web-ui\dist-gvfi\win-unpacked\resources\standalone\server.js
+[next] ▲ Next.js 16.2.12
+[next] - Local:         http://127.0.0.1:3456
+- Network:       http://127.0.0.1:3456
+✓ Ready in 0ms
+[GVFI] Web UI ready: http://127.0.0.1:3456/app/process/input
+[next] Failed to proxy http://127.0.0.1:8765/health Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[GVFI] API 未就绪，界面仍可打开
+[GVFI] loadURL http://127.0.0.1:3456/app/process/input
+[GVFI] did-finish-load
+[next] Failed to proxy http://127.0.0.1:8765/health Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/jobs Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Failed to proxy http://127.0.0.1:8765/health Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/health Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/jobs Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/health Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/jobs Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/health Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/jobs Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/health Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/jobs Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/health Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/health Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/jobs Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/health Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/jobs Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/health Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/jobs Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/health Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/jobs Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/jobs Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Failed to proxy http://127.0.0.1:8765/health Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/jobs Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Failed to proxy http://127.0.0.1:8765/health Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/jobs Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/health Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/jobs Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/health Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/jobs Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/health Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/jobs Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/health Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/jobs Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/health Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+[next] Failed to proxy http://127.0.0.1:8765/health Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}

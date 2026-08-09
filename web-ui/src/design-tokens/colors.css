@@ -1,0 +1,83 @@
+/**
+ * Semantic color aliases — derived from canonical tokens in tokens.css
+ */
+
+:root {
+  --lg-bg-base: var(--bg-0);
+  --lg-bg-elevated: var(--bg-2);
+  --lg-primary: var(--accent);
+  --lg-accent-ai: var(--accent-cyan);
+  --lg-success: var(--success);
+  --lg-warning: var(--warning);
+  --lg-error: var(--danger);
+  --lg-text-primary: var(--text-strong);
+  --lg-text-secondary: var(--text-muted);
+  --lg-text-on-glass: color-mix(in srgb, var(--text-strong) 92%, transparent);
+
+  --lg-glass-fill: var(--lg-panel-bg, rgba(20, 24, 30, 0.55));
+  --lg-glass-fill-2: var(--lg-panel-bg-strong, rgba(20, 24, 30, 0.72));
+  --lg-glass-border: var(--lg-border, rgba(255, 255, 255, 0.14));
+  --lg-glass-highlight: var(--lg-highlight, rgba(255, 255, 255, 0.08));
+
+  /* shadcn / Tailwind semantic */
+  --background: var(--bg-0);
+  --foreground: var(--text-strong);
+  --card: var(--lg-glass-fill);
+  --card-foreground: var(--text-strong);
+  --popover: var(--lg-glass-fill-2);
+  --popover-foreground: var(--text-strong);
+  --primary: var(--accent);
+  --primary-foreground: #ffffff;
+  --secondary: color-mix(in srgb, var(--bg-2) 35%, transparent);
+  --secondary-foreground: var(--text-strong);
+  --muted: color-mix(in srgb, var(--bg-2) 25%, transparent);
+  --muted-foreground: var(--text-muted);
+  --accent-foreground: #ffffff;
+  --destructive: var(--danger);
+  --border: color-mix(in srgb, var(--text-strong) 8%, transparent);
+  --separator: color-mix(in srgb, var(--text-strong) 12%, transparent);
+  --input: color-mix(in srgb, var(--text-strong) 8%, transparent);
+  --ring: var(--accent);
+  --surface: var(--bg-2);
+  --fill-tertiary: color-mix(in srgb, var(--text-strong) 6%, transparent);
+  --sidebar: var(--lg-glass-fill);
+  --sidebar-foreground: var(--text-strong);
+  --sidebar-primary: var(--accent);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: color-mix(in srgb, var(--bg-2) 40%, transparent);
+  --sidebar-accent-foreground: var(--text-strong);
+  --sidebar-border: var(--lg-glass-border);
+  --sidebar-ring: var(--accent);
+  --chart-1: var(--accent);
+  --chart-2: var(--success);
+  --chart-3: var(--warning);
+  --chart-4: var(--text-muted);
+  --chart-5: var(--text-strong);
+}
+
+:root[data-theme="studio"] {
+  --lg-glass-highlight: rgba(255, 255, 255, 0.12);
+  --border: rgba(15, 23, 42, 0.08);
+  --separator: rgba(15, 23, 42, 0.12);
+  --input: rgba(15, 23, 42, 0.08);
+}
+
+:root[data-theme="dark"] {
+  --lg-glass-highlight: rgba(255, 255, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.08);
+  --separator: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.1);
+}
+
+:root[data-theme="ai"] {
+  --lg-glass-highlight: rgba(255, 255, 255, 0.08);
+  --lg-glass-border: color-mix(
+    in srgb,
+    var(--accent) calc(var(--glass-border-opacity) * 70%),
+    transparent
+  );
+  --border: rgba(10, 132, 255, 0.14);
+  --separator: rgba(255, 255, 255, 0.1);
+  --input: rgba(10, 132, 255, 0.12);
+  --ring: var(--accent);
+}
