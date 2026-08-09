@@ -45,7 +45,7 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          $tag = "${GITHUB_REF#refs/tags/}"
+          $tag = $env:GITHUB_REF -replace '^refs/tags/', ''
           $ver = $tag -replace '^v', ''
           if (-not ($ver -match '^\d+\.\d+\.\d+(-[0-9A-Za-z\.-]+)?$')) {
             Write-Error "Tag '$tag' does not look like a semantic version (v1.2.3). Aborting."
@@ -99,28 +99,37 @@ jobs:
         working-directory: web-ui
         run: npx electron-builder --win nsis portable --x64
 
+      - name: List build output (diagnostics)
+        shell: pwsh
+        run: |
+          Write-Host "=== web-ui/dist-gvfi contents ==="
+          Get-ChildItem -Path web-ui/dist-gvfi -Recurse -File |
+            Select-Object @{N='Rel';E={$_.FullName.Replace((Resolve-Path '.').Path,'')}}, Length |
+            Format-Table -AutoSize
+
       - name: Verify artifacts exist
         id: verify
         shell: pwsh
-        working-directory: web-ui
         run: |
           $ver = "${{ steps.version.outputs.version }}"
-          $setup = "dist-gvfi/GVFI-Setup-$ver-x64.exe"
-          $portable = "dist-gvfi/GVFI-Portable-$ver-x64.exe"
-          if (-not (Test-Path $setup)) { Write-Error "Missing $setup"; exit 1 }
-          if (-not (Test-Path $portable)) { Write-Error "Missing $portable"; exit 1 }
+          $setup = "web-ui/dist-gvfi/GVFI-Setup-$ver-x64.exe"
+          $portable = "web-ui/dist-gvfi/GVFI-Portable-$ver-x64.exe"
+          foreach ($f in @($setup, $portable)) {
+            if (-not (Test-Path $f)) { Write-Error "Missing artifact: $f"; exit 1 }
+          }
           Write-Host "Artifacts verified:"
-          Get-Item $setup, $portable | Select-Object Name, Length
+          Get-Item $setup, $portable | Select-Object FullName, Length
 
       - name: Generate SHA256SUMS.txt
-        working-directory: web-ui
         shell: pwsh
         run: |
           $ver = "${{ steps.version.outputs.version }}"
-          $dist = Resolve-Path dist-gvfi
+          $dist = Resolve-Path "web-ui/dist-gvfi"
           $names = @("GVFI-Setup-$ver-x64.exe", "GVFI-Portable-$ver-x64.exe")
           $lines = foreach ($n in $names) {
-            $h = (Get-FileHash (Join-Path $dist $n) -Algorithm SHA256).Hash.ToLowerInvariant()
+            $p = Join-Path $dist $n
+            if (-not (Test-Path $p)) { Write-Error "Missing for checksum: $p"; exit 1 }
+            $h = (Get-FileHash $p -Algorithm SHA256).Hash.ToLowerInvariant()
             "$h  $n"
           }
           $lines | Set-Content (Join-Path $dist "SHA256SUMS.txt") -Encoding ASCII
@@ -129,10 +138,9 @@ jobs:
 
       - name: Check signing status
         shell: pwsh
-        working-directory: web-ui
         run: |
           $ver = "${{ steps.version.outputs.version }}"
-          $files = @("dist-gvfi/GVFI-Setup-$ver-x64.exe", "dist-gvfi/GVFI-Portable-$ver-x64.exe")
+          $files = @("web-ui/dist-gvfi/GVFI-Setup-$ver-x64.exe", "web-ui/dist-gvfi/GVFI-Portable-$ver-x64.exe")
           foreach ($f in $files) {
             $sig = Get-AuthenticodeSignature $f
             Write-Host "$f : $($sig.Status)"
@@ -140,6 +148,18 @@ jobs:
           if (-not $env:CSC_LINK) {
             Write-Host "::warning::CSC_LINK secret not configured. Release will be unsigned; SmartScreen may warn users."
           }
+
+      - name: Stage release assets
+        shell: pwsh
+        run: |
+          $ver = "${{ steps.version.outputs.version }}"
+          $stage = "release-assets"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item "web-ui/dist-gvfi/GVFI-Setup-$ver-x64.exe" $stage
+          Copy-Item "web-ui/dist-gvfi/GVFI-Portable-$ver-x64.exe" $stage
+          Copy-Item "web-ui/dist-gvfi/SHA256SUMS.txt" $stage
+          Write-Host "=== staged assets ==="
+          Get-ChildItem $stage -File | Select-Object Name, Length
 
       - name: Create GitHub Release
         id: create_release
@@ -152,7 +172,4 @@ jobs:
           generate_release_notes: false
           body_path: releases/${{ steps.version.outputs.version }}/RELEASE_NOTES.md
           fail_on_unmatched_files: true
-          files: |
-            web-ui/dist-gvfi/GVFI-Setup-${{ steps.version.outputs.version }}-x64.exe
-            web-ui/dist-gvfi/GVFI-Portable-${{ steps.version.outputs.version }}-x64.exe
-            web-ui/dist-gvfi/SHA256SUMS.txt
+          files: release-assets/*
