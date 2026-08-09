@@ -36,7 +36,13 @@ GitHub 附件托管于海外 CDN，国内访问可能偏慢或不稳定。建议
   aria2c -x 8 -c -o GVFI-Setup-1.0.0-x64.exe "https://github.com/Neo3328/GVFI/releases/download/v1.0.0/GVFI-Setup-1.0.0-x64.exe"
   ```
 
-**国内镜像：** _待补充_（将上传至国内网盘后在此提供直链）。
+**国内镜像（百度网盘）：**
+
+| 产物 | 链接 | 提取码 |
+|------|------|--------|
+| GVFI 1.0.0（Setup + Portable） | [百度网盘](https://pan.baidu.com/s/1hH8P9oHXKdHiNZsNBiM2ZA?pwd=x9n6) | `x9n6` |
+
+> ⚠️ 镜像为**本地构建版本**，SHA-256 与 GitHub Release **不同**（见 `releases/1.0.0/DOWNLOADS.md` 中的「本地构建」哈希）。功能一致，可正常使用。
 
 ---
 
