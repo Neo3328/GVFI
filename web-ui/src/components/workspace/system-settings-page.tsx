@@ -9,47 +9,51 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AppearancePanel } from "@/components/appearance-panel";
+import { FontDisplayPanel } from "@/components/settings/font-display-panel";
 import { DeveloperSettingsPanel } from "@/components/settings/developer-settings-panel";
 import { LogsPanel } from "@/components/logs-panel";
 import { CopyrightFooter } from "@/components/brand/copyright-footer";
 import { APP_NAME } from "@/lib/brand";
 import { useProcessWorkspace } from "@/components/process/process-workspace-context";
 import { useWorkspaceChrome } from "@/components/workspace/workspace-chrome-context";
+import { useT } from "@/hooks/use-t";
 import { cn } from "@/lib/utils";
 
-type SystemTab = "appearance" | "developer" | "logs" | "about";
+type SystemTab = "appearance" | "display" | "developer" | "logs" | "about";
 
 export function SystemSettingsPage() {
+  const t = useT();
   const { setChrome } = useWorkspaceChrome();
   const { taskLogs, errorLogs, appendTaskLog } = useProcessWorkspace();
   const [tab, setTab] = useState<SystemTab>("appearance");
 
   useEffect(() => {
     setChrome({
-      title: "系统设置",
+      title: t("system.chromeTitle"),
       breadcrumbs: [
-        { label: "GVFI", href: "/app/dashboard" },
-        { label: "系统" },
+        { label: t("common.app"), href: "/app/dashboard" },
+        { label: t("nav.system") },
       ],
       status: "idle",
     });
-  }, [setChrome]);
+  }, [setChrome, t]);
 
   const tabs: { id: SystemTab; label: string }[] = [
-    { id: "appearance", label: "外观" },
-    { id: "developer", label: "开发者" },
-    { id: "logs", label: "日志" },
-    { id: "about", label: "关于" },
+    { id: "appearance", label: t("system.tab.appearance") },
+    { id: "display", label: t("system.tab.display") },
+    { id: "developer", label: t("system.tab.developer") },
+    { id: "logs", label: t("system.tab.logs") },
+    { id: "about", label: t("system.tab.about") },
   ];
 
   return (
     <div className="flex flex-col gap-5">
       <header>
         <h1 className="text-[22px] font-semibold tracking-tight text-[var(--text-strong)]">
-          系统
+          {t("system.title")}
         </h1>
         <p className="mt-1 text-[13px] text-[var(--text-muted)]">
-          主题材质、开发者诊断、运行日志与版本信息
+          {t("system.subtitle")}
         </p>
       </header>
 
@@ -80,6 +84,8 @@ export function SystemSettingsPage() {
         <AppearancePanel onLog={appendTaskLog} />
       ) : null}
 
+      {tab === "display" ? <FontDisplayPanel /> : null}
+
       {tab === "developer" ? <DeveloperSettingsPanel /> : null}
 
       {tab === "logs" ? (
@@ -92,14 +98,14 @@ export function SystemSettingsPage() {
             {APP_NAME}
           </p>
           <p className="text-[13px] text-[var(--text-muted)]">
-            AI 视频补帧与大模型分析工作站
+            {t("system.about.blurb")}
           </p>
           <CopyrightFooter variant="stacked" align="left" />
           <Link
             href="/app/settings/about"
             className="text-[12px] text-[var(--accent-cyan)] underline-offset-2 hover:underline"
           >
-            打开完整关于页
+            {t("system.about.openFull")}
           </Link>
         </div>
       ) : null}

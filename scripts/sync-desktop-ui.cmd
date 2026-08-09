@@ -10,6 +10,13 @@ if errorlevel 1 exit /b 1
 
 set "SYNCED=0"
 
+if exist "dist-gvfi-fresh\win-unpacked\resources\standalone\server.js" (
+  echo [GVFI] 更新 dist-gvfi-fresh ...
+  robocopy ".next\standalone" "dist-gvfi-fresh\win-unpacked\resources\standalone" /MIR /NFL /NDL /NJH /NJS /nc /ns /np
+  if errorlevel 8 exit /b 1
+  set "SYNCED=1"
+)
+
 if exist "dist-gvfi\win-unpacked\resources\standalone\server.js" (
   echo [GVFI] 更新 dist-gvfi ...
   robocopy ".next\standalone" "dist-gvfi\win-unpacked\resources\standalone" /MIR /NFL /NDL /NJH /NJS /nc /ns /np

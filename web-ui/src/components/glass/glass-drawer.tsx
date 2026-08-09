@@ -9,6 +9,7 @@
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
 import { GlassButton } from "@/components/glass/glass-button";
+import { useT } from "@/hooks/use-t";
 import { cn } from "@/lib/utils";
 
 type GlassDrawerProps = {
@@ -28,6 +29,7 @@ export function GlassDrawer({
   children,
   className,
 }: GlassDrawerProps) {
+  const t = useT();
   if (!open) return null;
 
   return (
@@ -35,7 +37,7 @@ export function GlassDrawer({
       <button
         type="button"
         className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
-        aria-label="关闭抽屉"
+        aria-label={t("glass.closeDrawer")}
         onClick={() => onOpenChange(false)}
       />
       <aside
@@ -65,12 +67,14 @@ export function GlassDrawer({
             variant="ghost"
             size="xs"
             onClick={() => onOpenChange(false)}
-            aria-label="关闭"
+            aria-label={t("glass.close")}
           >
             <X className="size-4" aria-hidden />
           </GlassButton>
         </header>
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div data-slot="drawer-content" className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
+          {children}
+        </div>
       </aside>
     </div>
   );

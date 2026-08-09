@@ -1,5 +1,13 @@
-import type { ComponentProps } from "react";
+/**
+ * GVFI — Backward-compatible GlassButton alias.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
+"use client";
+
 import { GlassButton, type GlassButtonProps } from "@/components/glass/glass-button";
+import { useT } from "@/hooks/use-t";
 import { cn } from "@/lib/utils";
 
 type LegacyVariant = GlassButtonProps["variant"] | "outline" | "default" | "secondary";
@@ -17,11 +25,12 @@ function mapVariant(variant?: LegacyVariant): GlassButtonProps["variant"] {
 /** Backward-compatible alias over `GlassButton` */
 export function CuteButton({
   className,
-  children = "继续",
+  children,
   variant,
   size = "md",
   ...props
 }: CuteButtonProps) {
+  const t = useT();
   return (
     <GlassButton
       {...props}
@@ -30,7 +39,7 @@ export function CuteButton({
       data-slot="ios-button"
       className={cn(className)}
     >
-      {children}
+      {children ?? t("common.continue")}
     </GlassButton>
   );
 }

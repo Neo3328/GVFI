@@ -13,6 +13,7 @@ import {
   readJson,
 } from "@/lib/api-client";
 import type { CreateJobResponse } from "@/lib/gvfi-types";
+import { tr } from "@/lib/i18n/runtime";
 import type { LlmJobSettings, LlmTestResponse } from "@/lib/llm-types";
 import type { GatewayLlmJobRequest, GatewayLlmJobResult } from "@/services/ai-gateway/types";
 
@@ -20,7 +21,7 @@ export async function fetchAnalysisMarkdownViaGateway(
   absPath: string
 ): Promise<string> {
   const clean = absPath.trim();
-  if (!clean) throw new Error("报告路径为空");
+  if (!clean) throw new Error(tr("err.reportPathEmpty"));
   const query = `path=${encodeURIComponent(clean)}`;
   let response: Response;
   try {
@@ -32,7 +33,9 @@ export async function fetchAnalysisMarkdownViaGateway(
   }
   if (!response.ok) {
     const payload = await readJson<{ error?: string }>(response);
-    throw new Error(apiErrorMessage(payload, `读取报告失败 (${response.status})`));
+    throw new Error(
+      apiErrorMessage(payload, tr("err.reportRead", { status: response.status }))
+    );
   }
   return response.text();
 }
@@ -60,11 +63,19 @@ export async function testLlmViaLocalApi(options: {
       ok: Boolean(payload.ok),
       message:
         payload.message ||
-        apiErrorMessage(payload, `连接测试失败 (${response.status})`),
+        apiErrorMessage(
+          payload,
+          tr("err.connectTestFail", { status: response.status })
+        ),
     };
   }
   if (!response.ok) {
-    throw new Error(apiErrorMessage(payload, `连接测试失败 (${response.status})`));
+    throw new Error(
+      apiErrorMessage(
+        payload,
+        tr("err.connectTestFail", { status: response.status })
+      )
+    );
   }
   return payload;
 }
@@ -101,7 +112,7 @@ export async function createLlmJobViaGateway(
   const result = await readJson<CreateJobResponse>(response);
   if (!response.ok || !result.task?.id) {
     throw new Error(
-      apiErrorMessage(result, `LLM 任务启动失败 (${response.status})`)
+      apiErrorMessage(result, tr("err.llmStartFail", { status: response.status }))
     );
   }
   return { taskId: result.task.id };

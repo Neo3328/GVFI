@@ -3,6 +3,7 @@
 import { getRenderBackendPlugin } from "@/plugins/registry";
 import { registerGvfiLocalPlugin } from "@/plugins/builtins/gvfi-local";
 import type { RenderBackendId } from "@/plugins/types";
+import { tr } from "@/lib/i18n/runtime";
 import { useApiConfigStore } from "@/services/api-config-store";
 import {
   createCloudRenderService,
@@ -42,7 +43,7 @@ export function getRenderServiceForBackend(id: RenderBackendId): IRenderService 
   if (plugin) return plugin.createService();
   if (id === "local") return getLocalRenderService();
   if (id === "cloud") return new CloudRenderService();
-  throw new Error(`未知渲染后端: ${id}`);
+  throw new Error(tr("err.unknownRenderBackend", { id }));
 }
 
 export type { IRenderService, CloudRenderService };

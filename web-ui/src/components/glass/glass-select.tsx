@@ -18,6 +18,10 @@ import { cn } from "@/lib/utils";
 
 type GlassSelectProps = ComponentProps<typeof Select>;
 
+/**
+ * Prefer passing `items={{ value: label }}` so Select.Value shows
+ * localized labels instead of raw option values when the popup is closed.
+ */
 export function GlassSelect({ ...props }: GlassSelectProps) {
   return <Select {...props} />;
 }

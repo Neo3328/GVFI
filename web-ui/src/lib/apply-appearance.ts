@@ -1,4 +1,16 @@
+/**
+ * GVFI — Appearance apply helpers (theme / custom background).
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
 import type { AppearanceTheme, PyQtAppearanceHints } from "@/lib/gvfi-types";
+
+export type BackgroundImageMeta = {
+  fileName: string | null;
+  width: number | null;
+  height: number | null;
+};
 
 export const DEFAULT_APPEARANCE = {
   theme: "dark" as AppearanceTheme,
@@ -10,26 +22,37 @@ export const DEFAULT_APPEARANCE = {
     glowStrength: 12,
   },
   background: {
-    type: "preset" as "preset" | "image" | "gradient" | "video",
-    preset: "nebula" as "studio" | "aurora" | "nebula",
+    type: "none" as "none" | "image",
     customUrl: null as string | null,
-    serverPath: null as string | null,
+    fileName: null as string | null,
+    width: null as number | null,
+    height: null as number | null,
     opacity: 100,
     blur: 0,
   },
 };
 
+/** Map legacy persisted / PyQt theme ids → light | dark | image */
+export function normalizeAppearanceTheme(value: unknown): AppearanceTheme {
+  if (value === "light" || value === "dark" || value === "image") return value;
+  if (value === "studio") return "light";
+  if (value === "ai" || value === "blush" || value === "kawaii" || value === "cream") {
+    return "dark";
+  }
+  return "dark";
+}
+
 export function mapPyQtThemeToWeb(pyqtTheme: string): AppearanceTheme {
   switch (pyqtTheme) {
     case "liquid":
     case "aurora":
-      return "ai";
     case "midnight":
     case "graphite":
+      return "dark";
     case "kawaii":
     case "blush":
     case "cream":
-      return "dark";
+      return "light";
     default:
       return "dark";
   }
@@ -40,7 +63,7 @@ export function mergePyQtAppearanceHints(
 ): Partial<typeof DEFAULT_APPEARANCE> {
   const merged: Partial<typeof DEFAULT_APPEARANCE> = {};
   if (hints.web_theme) {
-    merged.theme = hints.web_theme;
+    merged.theme = normalizeAppearanceTheme(hints.web_theme);
   } else if (hints.theme) {
     merged.theme = mapPyQtThemeToWeb(hints.theme);
   }
@@ -50,14 +73,25 @@ export function mergePyQtAppearanceHints(
       opacity: Math.min(90, Math.max(10, hints.glass_opacity)),
     };
   }
-  if (hints.background_path) {
-    merged.background = {
-      ...DEFAULT_APPEARANCE.background,
-      type: "preset",
-      serverPath: hints.background_path,
-    };
-  }
+  /* Ignore server wallpaper paths — UI only uses user-uploaded custom images */
   return merged;
+}
+
+/** Theme default atmosphere (no bundled preset wallpapers). */
+export function themeDefaultBackgroundStyle(theme: AppearanceTheme): string {
+  if (theme === "light") {
+    return [
+      "radial-gradient(ellipse 70% 50% at 12% 18%, rgba(0,122,255,0.12), transparent 55%)",
+      "radial-gradient(ellipse 60% 45% at 88% 72%, rgba(90,200,250,0.1), transparent 50%)",
+      "linear-gradient(160deg, #5c6578 0%, #6b7488 46%, #7a8496 100%)",
+    ].join(", ");
+  }
+  /* dark + image fallback wash */
+  return [
+    "radial-gradient(ellipse 60% 45% at 20% 10%, rgba(255,255,255,0.06), transparent 55%)",
+    "radial-gradient(ellipse 50% 40% at 85% 80%, rgba(10,132,255,0.08), transparent 50%)",
+    "linear-gradient(160deg, #0b0d12, #141820 50%, #1c222d)",
+  ].join(", ");
 }
 
 export function applyAppearanceToDocument(config: {
@@ -66,29 +100,31 @@ export function applyAppearanceToDocument(config: {
   background: typeof DEFAULT_APPEARANCE.background;
 }) {
   const root = document.documentElement;
-  root.dataset.theme = config.theme;
-  root.classList.toggle("dark", config.theme !== "studio");
+  const theme = normalizeAppearanceTheme(config.theme);
+  /*
+   * Logical themes: light | dark | image.
+   * CSS tokens still use studio (light) / dark so we do not retouch global glass CSS.
+   */
+  root.dataset.theme = theme === "light" ? "studio" : "dark";
+  root.dataset.appearanceTheme = theme;
+  root.classList.toggle("dark", theme !== "light");
 
   const opacity = config.glass.opacity / 100;
   const borderOpacity = config.glass.borderBrightness / 100;
   const shadowOpacity = config.glass.shadowStrength / 100;
 
-  const hasCustomBg = Boolean(
-    config.background.customUrl || config.background.serverPath
-  );
-  /* Custom wallpaper: slightly clearer glass so the image reads through */
-  const effectiveOpacity = hasCustomBg
-    ? Math.min(opacity, Math.max(0.22, opacity * 0.78))
-    : opacity;
+  const hasImageBg = Boolean(config.background.customUrl);
+  const effectiveOpacity =
+    theme === "image" || hasImageBg
+      ? Math.min(opacity, Math.max(0.22, opacity * 0.78))
+      : opacity;
 
-  /* Canonical glass tokens */
   root.style.setProperty("--glass-opacity", String(effectiveOpacity));
   root.style.setProperty("--glass-blur", `${config.glass.blur}px`);
   root.style.setProperty("--glass-border-opacity", String(borderOpacity));
   root.style.setProperty("--glass-shadow-opacity", String(shadowOpacity));
-  root.dataset.customBg = hasCustomBg ? "true" : "false";
+  root.dataset.customBg = hasImageBg && theme === "image" ? "true" : "false";
 
-  /* Legacy aliases (derived in CSS, but runtime overrides need explicit sync) */
   root.style.setProperty("--lg-glass-opacity", String(effectiveOpacity));
   root.style.setProperty("--lg-glass-blur", `${config.glass.blur}px`);
   root.style.setProperty(
@@ -103,47 +139,18 @@ export function applyAppearanceToDocument(config: {
     "--lg-glow-strength",
     String(config.glass.glowStrength)
   );
-  root.style.setProperty("--lg-bg-opacity", String(config.background.opacity));
-  root.style.setProperty("--lg-bg-blur", `${config.background.blur}px`);
+  root.style.setProperty("--lg-bg-opacity", "1");
+  root.style.setProperty("--lg-bg-blur", "0px");
 
-  if (config.theme === "studio") {
+  if (theme === "light") {
     root.style.setProperty(
       "--lg-glass-border",
       `rgba(255, 255, 255, ${borderOpacity})`
     );
-  } else if (config.theme === "dark") {
+  } else {
     root.style.setProperty(
       "--lg-glass-border",
       `rgba(255, 255, 255, ${borderOpacity * 0.12})`
     );
-  } else {
-    root.style.setProperty(
-      "--lg-glass-border",
-      `rgba(0, 212, 255, ${borderOpacity * 0.15})`
-    );
-  }
-}
-
-/** Abstract graphite/soft-light atmospheres — no weather imagery */
-export function backgroundPresetStyle(
-  preset: "studio" | "aurora" | "nebula"
-): string {
-  switch (preset) {
-    case "aurora":
-      /* Soft light sheets — cool slate, not sky/aurora motifs */
-      return [
-        "radial-gradient(ellipse 70% 50% at 12% 18%, rgba(10,132,255,0.14), transparent 55%)",
-        "radial-gradient(ellipse 60% 45% at 88% 72%, rgba(100,210,255,0.1), transparent 50%)",
-        "linear-gradient(160deg, var(--bg-0) 0%, #12161f 46%, var(--bg-2) 100%)",
-      ].join(", ");
-    case "nebula":
-      /* Layered graphite depth — no celestial / landscape forms */
-      return [
-        "radial-gradient(ellipse 55% 40% at 30% 0%, rgba(255,255,255,0.07), transparent 50%)",
-        "radial-gradient(ellipse 50% 45% at 78% 100%, rgba(10,132,255,0.1), transparent 48%)",
-        "linear-gradient(145deg, #0a0c10 0%, var(--bg-1) 50%, #1a2030 100%)",
-      ].join(", ");
-    default:
-      return "linear-gradient(160deg, var(--bg-0), var(--bg-1) 50%, var(--bg-2))";
   }
 }

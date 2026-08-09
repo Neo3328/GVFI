@@ -48,20 +48,20 @@ export const glassButtonVariants = cva(
           liquidGlassSurface,
           "border-[color-mix(in_srgb,var(--danger)_35%,transparent)]",
           "bg-[color-mix(in_srgb,var(--danger)_22%,var(--bg-2))]",
-          "text-[#ffd0d8]"
+          "text-[color-mix(in_srgb,var(--danger)_72%,white)]"
         ),
         ai: cn(
           liquidGlassSurface,
           "border-[color-mix(in_srgb,var(--accent)_40%,transparent)]",
           "bg-[color-mix(in_srgb,var(--accent)_16%,var(--bg-2))]",
-          "text-[#d7ecff]"
+          "text-[color-mix(in_srgb,var(--accent)_55%,white)]"
         ),
       },
       size: {
-        xs: "h-8 min-w-8 rounded-[18px] px-3.5 text-[11px]",
-        sm: "h-9 min-w-9 rounded-[20px] px-4 text-[12px]",
-        md: "h-11 min-w-11 rounded-[var(--radius-button)] px-5 text-[13px]",
-        lg: "h-12 min-w-12 rounded-[24px] px-6 text-[15px]",
+        xs: "h-8 min-w-8 rounded-[var(--control-radius)] px-3.5 text-[11px]",
+        sm: "h-9 min-w-9 rounded-[var(--control-radius)] px-4 text-[12px]",
+        md: "h-11 min-w-11 rounded-[var(--control-radius)] px-5 text-[13px]",
+        lg: "h-12 min-w-12 rounded-[var(--control-radius)] px-6 text-[15px]",
       },
     },
     defaultVariants: {
@@ -117,9 +117,9 @@ const iconButtonVariants = cva(
           "border border-primary/20 bg-primary/15 text-[var(--text-strong)] hover:bg-primary/25",
       },
       size: {
-        sm: "size-9 rounded-[18px] [&_svg]:size-4",
-        md: "size-11 rounded-[var(--radius-button)] [&_svg]:size-5",
-        lg: "size-12 rounded-[24px] [&_svg]:size-5",
+        sm: "size-9 rounded-[var(--control-radius)] [&_svg]:size-4",
+        md: "size-11 rounded-[var(--control-radius)] [&_svg]:size-5",
+        lg: "size-12 rounded-[var(--control-radius)] [&_svg]:size-5",
       },
     },
     defaultVariants: {

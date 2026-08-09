@@ -1,10 +1,19 @@
+/**
+ * GVFI — Health polling hook for render service status.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
 "use client";
 
 import { useEffect } from "react";
 import { isTerminalStatus } from "@/lib/gvfi-api";
+import { t } from "@/lib/i18n/t";
+import type { MessageKey } from "@/lib/i18n/types";
 import type { GvfiGpu, GvfiModel } from "@/lib/gvfi-types";
 import type { IRenderService } from "@/services/render-service";
 import { useJobStore } from "@/stores/job-store";
+import { useLocaleStore } from "@/stores/locale-store";
 
 export interface UseHealthOptions {
   renderService: IRenderService;
@@ -16,7 +25,18 @@ export interface UseHealthOptions {
   }) => void;
 }
 
-/** 健康检查轮询 — 更新 job-store 中的服务/模型/GPU 状态 */
+function tr(
+  key: MessageKey,
+  params?: Record<string, string | number>
+): string {
+  return t(useLocaleStore.getState().locale, key, params);
+}
+
+function stageDetail(detailKey: MessageKey): string {
+  return tr("process.stage.wrap", { detail: tr(detailKey) });
+}
+
+/** Health poll — updates service / model / GPU state in job-store */
 export function useHealth({
   renderService,
   intervalMs = 10000,
@@ -43,12 +63,10 @@ export function useHealth({
       if (announce || prevReady !== ready) {
         if (ready) {
           const keep =
-            stageLabel.includes("提交") ||
-            stageLabel.includes("抽帧") ||
-            stageLabel.includes("插帧");
-          if (!keep) setStageLabel("● 当前工序：就绪");
+            /提交|抽帧|插帧|Submit|Extract|Interpolat|RIFE/i.test(stageLabel);
+          if (!keep) setStageLabel(stageDetail("process.stage.ready"));
         } else {
-          setStageLabel("● 当前工序：服务未就绪");
+          setStageLabel(stageDetail("process.stage.notReady"));
         }
       }
       setHealthData({
@@ -62,11 +80,18 @@ export function useHealth({
         outputDir: health.output_dir ?? "",
       });
       if (announce && health.warnings?.length) {
-        appendTaskLog(`服务警告：${health.warnings.join("；")}`);
+        appendTaskLog(
+          tr("process.health.warning", {
+            warnings: health.warnings.join("；"),
+          })
+        );
       }
       if (announce && ready) {
         appendTaskLog(
-          `已连接 GVFI · 模型 ${health.models.length} 个 · GPU ${health.gpus.length} 个`
+          tr("process.health.connected", {
+            models: health.models.length,
+            gpus: health.gpus.length,
+          })
         );
       }
       try {
@@ -82,11 +107,11 @@ export function useHealth({
     } catch (error) {
       setServiceReady(false);
       if (prevReady !== false || announce) {
-        setStageLabel("● 当前工序：无法连接 GVFI");
+        setStageLabel(stageDetail("process.stage.connectFail"));
         appendErrorLog(
           error instanceof Error
             ? error.message
-            : "无法连接 GVFI，请先运行 GVFI_API.cmd"
+            : tr("process.health.connectFailDetail")
         );
       }
       return null;

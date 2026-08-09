@@ -1,7 +1,11 @@
 /** Workspace layout & composite components */
 
 export { WorkspaceShell } from "./workspace-shell";
-export { WORKSPACE_NAV, pageTitleForPath } from "./workspace-nav";
+export {
+  WORKSPACE_NAV,
+  getWorkspaceNav,
+  pageTitleForPath,
+} from "./workspace-nav";
 export {
   WorkspaceChromeProvider,
   useWorkspaceChrome,

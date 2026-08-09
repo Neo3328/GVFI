@@ -17,26 +17,20 @@
   --lg-bg-opacity: 100;
   --lg-bg-blur: 0px;
 
-  /* Soft ambient stack — Weather material depth */
-  --lg-shadow-glass:
-    inset 0 1px 0 var(--lg-glass-highlight),
-    0 10px 36px rgba(0, 0, 0, calc(var(--glass-shadow-opacity) * 0.9)),
-    0 2px 8px rgba(0, 0, 0, 0.1);
+  /* Soft ambient stack — restrained glass elevation */
+  --lg-shadow-glass: var(--lg-elev-shadow, 0 8px 30px rgba(0, 0, 0, 0.25)),
+    inset 0 1px 0 var(--lg-glass-highlight);
 }
 
 :root[data-theme="studio"] {
-  --lg-shadow-glass:
-    inset 0 1px 0 rgba(255, 255, 255, 0.85),
-    0 10px 32px rgba(0, 0, 0, 0.08),
-    0 2px 6px rgba(0, 0, 0, 0.04);
+  --lg-shadow-glass: var(--lg-elev-shadow, 0 8px 28px rgba(15, 23, 42, 0.12)),
+    inset 0 1px 0 var(--lg-highlight, rgba(255, 255, 255, 0.45));
 }
 
 :root[data-theme="dark"],
 :root[data-theme="ai"] {
-  --lg-shadow-glass:
-    inset 0 1px 0 var(--lg-glass-highlight),
-    0 12px 40px rgba(0, 0, 0, calc(var(--glass-shadow-opacity))),
-    0 2px 10px rgba(0, 0, 0, 0.14);
+  --lg-shadow-glass: var(--lg-elev-shadow, 0 8px 30px rgba(0, 0, 0, 0.25)),
+    inset 0 1px 0 var(--lg-glass-highlight);
 }
 
 @media (prefers-reduced-transparency: reduce) {

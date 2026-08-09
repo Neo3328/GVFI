@@ -25,7 +25,7 @@ export function GlassSlider({
         "[&_[data-slot=slider-range]]:bg-[linear-gradient(90deg,var(--accent),var(--accent-cyan))]",
         "[&_[data-slot=slider-thumb]]:size-4 [&_[data-slot=slider-thumb]]:rounded-full",
         "[&_[data-slot=slider-thumb]]:border [&_[data-slot=slider-thumb]]:border-white/40",
-        "[&_[data-slot=slider-thumb]]:bg-white",
+        "[&_[data-slot=slider-thumb]]:bg-[var(--text-strong)]",
         "[&_[data-slot=slider-thumb]]:shadow-[0_2px_8px_rgba(0,0,0,0.35)]",
         className
       )}

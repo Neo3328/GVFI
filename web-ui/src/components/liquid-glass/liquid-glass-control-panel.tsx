@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useT } from "@/hooks/use-t";
 import { cn } from "@/lib/utils";
 import {
   destroyGlassTree,
@@ -45,6 +46,7 @@ export function LiquidGlassControlPanel({
   borderRadius = EDGE_GLASS_SHAPE.panelRadius,
   tintOpacity = PANEL_TINT,
 }: LiquidGlassControlPanelProps) {
+  const t = useT();
   const hostRef = useRef<HTMLDivElement>(null);
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
@@ -101,7 +103,7 @@ export function LiquidGlassControlPanel({
         minHeight: EDGE_GLASS_SHAPE.refHeight,
       }}
       className={cn("mx-auto flex w-full items-center justify-center", className)}
-      aria-label="Liquid Glass 控制面板"
+      aria-label={t("liquid.controlAria")}
     />
   );
 }

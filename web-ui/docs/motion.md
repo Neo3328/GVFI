@@ -34,10 +34,24 @@ Developed by Mr. Gong · Copyright © 2026 Mr. Gong. All Rights Reserved.
 
 源文件：`design-tokens/ios-liquid-button.css` · 类名：`.ios-lg-btn`（`GlassButton` 默认启用）
 
+硬性约束：**形变只用 `scale`，禁止控件 Y 轴位移**。Hover 与 Press 两套状态独立（`:active` 优先于 `:hover`）。
+
 | 阶段 | 时长 | 缓动 | 视觉 |
 |------|------|------|------|
-| 按下 | 80ms | `--ease-ios-press` | `scale(0.96)`、透明度↓、高光下移、阴影内收、磨砂减弱 |
-| 松开 | 120ms | `--ease-ios-spring` | 尺寸/光影弹簧复原，轻微过冲后收敛 |
+| Hover 入 | 80ms | `--ease-ios-press` | `scale(0.975)`、透明度↓、高光滑移、阴影内收、磨砂↓ |
+| Hover 出 | 120ms | `--ease-ios-spring` | 弹簧复原，微过冲 |
+| Press | 80ms | `--ease-ios-press` | 更深 `scale(0.94)`，与 Hover 区分 |
+| Release | 120ms | `--ease-ios-spring` | 回弹收敛 |
+
+### 性能档位 `html[data-motion-quality]`
+
+由 `MotionQualityProvider` / `detectMotionQuality()` 自动设置：
+
+| 档位 | 策略 |
+|------|------|
+| `low` | 更短时长、无过冲弹簧、弱化 blur、关闭磨砂颗粒 |
+| `medium` | 折中 blur 与弹簧 |
+| `high` | 完整液态玻璃光影 |
 
 不改变 `onClick` / 路由 / 业务逻辑。
 

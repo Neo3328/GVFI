@@ -1,3 +1,9 @@
+/**
+ * GVFI — Process workspace shared state & actions.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
 "use client";
 
 import {
@@ -13,7 +19,10 @@ import { useHealth } from "@/hooks/use-health";
 import { useJobPolling } from "@/hooks/use-job-polling";
 import { useRenderService } from "@/hooks/use-render-service";
 import { useVideoPreview } from "@/hooks/use-video-preview";
-import { isTerminalStatus } from "@/lib/gvfi-api";
+import { isTerminalStatus, stripStagePrefix } from "@/lib/gvfi-api";
+import { formatDeviceLabel } from "@/lib/i18n/device-label";
+import { t } from "@/lib/i18n/t";
+import type { MessageKey } from "@/lib/i18n/types";
 import { createLlmJob } from "@/lib/llm-api";
 import { LLM_PROVIDER_PRESETS } from "@/lib/llm-types";
 import { BUILTIN_PRESETS } from "@/lib/presets";
@@ -28,10 +37,23 @@ import type {
 } from "@/lib/gvfi-types";
 import { useJobStore } from "@/stores/job-store";
 import { useLlmConfigStore } from "@/stores/llm-config-store";
+import { useLocaleStore } from "@/stores/locale-store";
 import { useWorkspaceChrome } from "@/components/workspace/workspace-chrome-context";
 import { pageTitleForPath } from "@/components/workspace/workspace-nav";
+import { useT } from "@/hooks/use-t";
 
 export type ProcessMode = "local" | "llm";
+
+function tr(
+  key: MessageKey,
+  params?: Record<string, string | number>
+): string {
+  return t(useLocaleStore.getState().locale, key, params);
+}
+
+function stageDetail(detailKey: MessageKey): string {
+  return tr("process.stage.wrap", { detail: tr(detailKey) });
+}
 
 function resolveModelId(models: GvfiModel[], preferred: string): string {
   if (models.some((item) => item.id === preferred)) return preferred;
@@ -100,6 +122,7 @@ const ProcessWorkspaceContext = createContext<ProcessWorkspaceContextValue | nul
 
 export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const tHook = useT();
   const renderService = useRenderService();
   const { applyTask, startPolling } = useJobPolling({ renderService });
   const { setChrome } = useWorkspaceChrome();
@@ -129,7 +152,7 @@ export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) 
 
   const [presets, setPresets] = useState<WorkflowPreset[]>(BUILTIN_PRESETS);
   const [selectedPreset, setSelectedPreset] = useState(
-    BUILTIN_PRESETS[0]?.name ?? "动漫补帧"
+    BUILTIN_PRESETS[0]?.name ?? "anime-interp"
   );
   const [file, setFile] = useState<File | null>(null);
   const [inputPath, setInputPath] = useState("");
@@ -168,12 +191,15 @@ export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) 
   /* Legacy /app/process/* only — dedicated pages own their chrome */
   useEffect(() => {
     if (!pathname.startsWith("/app/process")) return;
-    const sectionLabel = pageTitleForPath(pathname);
+    const sectionLabel = pageTitleForPath(pathname, tHook);
     setChrome({
       title: file?.name || inputPath.trim() || sectionLabel,
       breadcrumbs: [
-        { label: "GVFI", href: "/app/dashboard" },
-        { label: mode === "llm" ? "AI" : "视频", href: mode === "llm" ? "/app/ai" : "/app/video" },
+        { label: tHook("common.app"), href: "/app/dashboard" },
+        {
+          label: mode === "llm" ? tHook("nav.ai") : tHook("nav.video"),
+          href: mode === "llm" ? "/app/ai" : "/app/video",
+        },
         { label: sectionLabel },
       ],
       status:
@@ -184,9 +210,7 @@ export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) 
               ? "warning"
               : "online"
             : "idle",
-      statusLabel: stageLabel
-        .replace(/^●\s*当前工序：\s*/, "")
-        .replace(/^●\s*/, ""),
+      statusLabel: stripStagePrefix(stageLabel),
     });
   }, [
     pathname,
@@ -197,6 +221,7 @@ export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) 
     file,
     inputPath,
     mode,
+    tHook,
   ]);
 
   const applyPresetValues = (preset: WorkflowPreset, available: GvfiModel[]) => {
@@ -212,22 +237,26 @@ export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) 
   const handleApplyPreset = () => {
     const preset = presets.find((item) => item.name === selectedPreset);
     if (!preset) {
-      appendErrorLog(`找不到预设：${selectedPreset}`);
+      appendErrorLog(tr("process.preset.notFound", { name: selectedPreset }));
       return;
     }
     applyPresetValues(preset, models);
-    appendTaskLog(`已应用「${preset.name}」`);
-    setStageLabel(`● 当前工序：已应用「${preset.name}」`);
+    appendTaskLog(tr("process.preset.applied", { name: preset.name }));
+    setStageLabel(
+      tr("process.stage.wrap", {
+        detail: tr("process.preset.appliedDetail", { name: preset.name }),
+      })
+    );
   };
 
   const handleCreatePreset = () => {
-    const name = window.prompt("预设名称：")?.trim();
+    const name = window.prompt(tr("process.preset.namePrompt"))?.trim();
     if (!name) {
-      appendErrorLog("新建预设失败：名称不能为空。");
+      appendErrorLog(tr("process.preset.emptyName"));
       return;
     }
     if (presets.some((item) => item.name === name && item.builtin)) {
-      appendErrorLog("不能覆盖内置预设名称，请换一个名字。");
+      appendErrorLog(tr("process.preset.cannotOverwrite"));
       return;
     }
     const next: WorkflowPreset = {
@@ -243,18 +272,21 @@ export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) 
     };
     setPresets((prev) => [...prev.filter((item) => item.name !== name), next]);
     setSelectedPreset(name);
-    appendTaskLog(`已新建「${name}」`);
+    appendTaskLog(tr("process.preset.created", { name }));
   };
 
   const handleSavePreset = () => {
     const current = presets.find((item) => item.name === selectedPreset);
     if (current?.builtin) {
       const name = window
-        .prompt("内置预设请另存为新名称：", `${selectedPreset}-自定义`)
+        .prompt(
+          tr("process.preset.saveAsPrompt"),
+          tr("process.preset.saveAsDefault", { name: selectedPreset })
+        )
         ?.trim();
       if (!name) return;
       if (presets.some((item) => item.name === name && item.builtin)) {
-        appendErrorLog("不能覆盖内置预设名称。");
+        appendErrorLog(tr("process.preset.cannotOverwriteShort"));
         return;
       }
       const next: WorkflowPreset = {
@@ -270,7 +302,7 @@ export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) 
       };
       setPresets((prev) => [...prev.filter((item) => item.name !== name), next]);
       setSelectedPreset(name);
-      appendTaskLog(`已保存「${name}」`);
+      appendTaskLog(tr("process.preset.saved", { name }));
       return;
     }
     setPresets((prev) =>
@@ -289,38 +321,46 @@ export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) 
           : item
       )
     );
-    appendTaskLog(`已保存「${selectedPreset}」`);
+    appendTaskLog(tr("process.preset.saved", { name: selectedPreset }));
   };
 
   const handleDeletePreset = () => {
     const current = presets.find((item) => item.name === selectedPreset);
     if (!current) return;
     if (current.builtin) {
-      appendErrorLog("内置预设不能删除。");
+      appendErrorLog(tr("process.preset.cannotDeleteBuiltin"));
       return;
     }
-    if (!window.confirm(`确定删除「${current.name}」？`)) return;
+    if (!window.confirm(tr("process.preset.confirmDelete", { name: current.name })))
+      return;
     const next = presets.filter((item) => item.name !== current.name);
     setPresets(next);
     setSelectedPreset(next[0]?.name ?? "");
-    appendTaskLog(`已删除「${current.name}」`);
+    appendTaskLog(tr("process.preset.deleted", { name: current.name }));
   };
 
   const handleStartLocal = async () => {
     if (!file && !inputPath.trim()) {
-      appendErrorLog("请先上传视频，或填写本机输入路径。");
+      appendErrorLog(tr("process.err.needInput"));
       return;
     }
     if (serviceReady === false) {
-      appendErrorLog("GVFI 服务不可用，请先运行 GVFI_API.cmd。");
+      appendErrorLog(tr("process.err.serviceDown"));
+      return;
+    }
+    if (file && !window.confirm(tr("video.input.uploadConfirm"))) {
       return;
     }
 
     setIsRendering(true);
     setProgress(0);
-    setStageLabel("● 当前工序：提交任务");
+    setStageLabel(stageDetail("process.stage.submitJob"));
     appendTaskLog(
-      `提交任务：${file?.name || inputPath} · ${fps}fps · ${model}`
+      tr("process.log.submitJob", {
+        name: file?.name || inputPath,
+        fps,
+        model,
+      })
     );
 
     try {
@@ -345,22 +385,25 @@ export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) 
       }
     } catch (error) {
       setIsRendering(false);
-      setStageLabel("● 当前工序：提交失败");
+      setStageLabel(stageDetail("process.stage.submitFail"));
       appendErrorLog(error instanceof Error ? error.message : String(error));
     }
   };
 
   const handleStartLlm = async () => {
     if (!file && !inputPath.trim()) {
-      appendErrorLog("请先上传视频，或填写本机输入路径。");
+      appendErrorLog(tr("process.err.needInput"));
       return;
     }
     if (serviceReady === false) {
-      appendErrorLog("GVFI 服务不可用，请先运行 GVFI_API.cmd。");
+      appendErrorLog(tr("process.err.serviceDown"));
       return;
     }
     if (!llmConfig.hasApiKey()) {
-      appendErrorLog("请先在 API 设置中配置大模型密钥。");
+      appendErrorLog(tr("process.err.needLlmKey"));
+      return;
+    }
+    if (!window.confirm(tr("video.input.llmConsent"))) {
       return;
     }
 
@@ -368,8 +411,13 @@ export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) 
 
     setIsRendering(true);
     setProgress(0);
-    setStageLabel("● 当前工序：提交 AI 分析");
-    appendTaskLog(`提交 LLM 任务：${file?.name || inputPath} · ${llmConfig.model}`);
+    setStageLabel(stageDetail("process.stage.submitAi"));
+    appendTaskLog(
+      tr("process.log.submitLlm", {
+        name: file?.name || inputPath,
+        model: llmConfig.model,
+      })
+    );
 
     try {
       const result = await createLlmJob({
@@ -397,7 +445,7 @@ export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) 
       }
     } catch (error) {
       setIsRendering(false);
-      setStageLabel("● 当前工序：提交失败");
+      setStageLabel(stageDetail("process.stage.submitFail"));
       appendErrorLog(error instanceof Error ? error.message : String(error));
     }
   };
@@ -405,21 +453,28 @@ export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) 
   const handleStop = async () => {
     const { taskId } = useJobStore.getState();
     if (!taskId) {
-      appendErrorLog("当前没有可取消的任务。");
+      appendErrorLog(tr("process.err.noCancelTarget"));
       return;
     }
     try {
       await renderService.cancelJob(taskId);
-      appendTaskLog("已请求取消任务");
-      setStageLabel("● 当前工序：正在停止");
+      appendTaskLog(tr("process.log.cancelRequested"));
+      setStageLabel(stageDetail("process.stage.stopping"));
     } catch (error) {
       appendErrorLog(error instanceof Error ? error.message : String(error));
     }
   };
 
-  const gpuLabel =
-    gpus.find((item) => item.index === gpu)?.name ??
-    (gpus.length > 0 ? `GPU ${gpu}` : "未检测到");
+  const locale = useLocaleStore((s) => s.locale);
+
+  const gpuLabel = useMemo(() => {
+    const selected = gpus.find((item) => item.index === gpu);
+    if (selected) return formatDeviceLabel(locale, selected);
+    if (gpus.length > 0) {
+      return t(locale, "process.gpu.indexed", { index: gpu });
+    }
+    return t(locale, "dashboard.kpi.gpuMissing");
+  }, [gpus, gpu, locale]);
 
   const hasInput = Boolean(file || inputPath.trim());
 

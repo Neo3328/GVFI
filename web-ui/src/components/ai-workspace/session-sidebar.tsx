@@ -7,11 +7,18 @@
 "use client";
 
 import { Pin, Plus, Search, Star, Trash2 } from "lucide-react";
-import { glassSurface2, glassTextCaption, glassTextTitle } from "@/components/glass/glass-styles";
+import { glassTextCaption } from "@/components/glass/glass-styles";
+import {
+  aiField,
+  aiPanelSurface,
+  aiSectionTitle,
+} from "@/components/ai-workspace/ai-field";
+import { useT } from "@/hooks/use-t";
 import { cn } from "@/lib/utils";
 import { useAiSessionStore } from "@/stores/ai-session-store";
 
 export function SessionSidebar() {
+  const t = useT();
   const {
     activeSessionId,
     searchQuery,
@@ -29,18 +36,13 @@ export function SessionSidebar() {
   const favorites = sessions.filter((s) => s.favorite);
 
   return (
-    <aside
-      className={cn(
-        glassSurface2,
-        "flex h-full min-h-0 w-[240px] shrink-0 flex-col overflow-hidden p-3"
-      )}
-    >
+    <aside className={cn(aiPanelSurface, "w-full p-3 lg:w-auto")}>
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className={glassTextTitle}>AI Workspace</h2>
+        <h2 className={aiSectionTitle}>{t("ai.session.title")}</h2>
         <button
           type="button"
-          aria-label="新建会话"
-          className="inline-flex size-8 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--glass-border)] text-[var(--accent-cyan)] hover:bg-[color-mix(in_srgb,var(--accent-cyan)_12%,transparent)]"
+          aria-label={t("ai.session.new")}
+          className="inline-flex size-8 items-center justify-center rounded-[10px] border border-[var(--glass-border)] text-[var(--accent-cyan)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent-cyan)_14%,transparent)]"
           onClick={() => createSession()}
         >
           <Plus className="size-4" />
@@ -52,23 +54,26 @@ export function SessionSidebar() {
         <input
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="搜索会话"
-          className="w-full rounded-[var(--radius-sm)] border border-[var(--glass-border)] bg-[color-mix(in_srgb,var(--bg-0)_40%,transparent)] py-2 pr-2 pl-8 text-[12px] text-[var(--text-normal)] outline-none placeholder:text-[var(--text-muted)] focus:ring-1 focus:ring-[var(--accent-cyan)]"
+          placeholder={t("ai.session.search")}
+          className={cn(aiField, "mt-0 py-2 pr-2 pl-8")}
         />
       </label>
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-0.5">
+      <div className="glass-scroll min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-0.5 pb-1">
         {favorites.length > 0 ? (
           <section>
-            <p className={cn(glassTextCaption, "mb-1.5 px-1 uppercase tracking-wide")}>
-              收藏
+            <p className={cn(glassTextCaption, "mb-1.5 px-1 uppercase tracking-[0.08em]")}>
+              {t("ai.session.favorites")}
             </p>
             <ul className="space-y-1">
               {favorites.map((s) => (
                 <SessionRow
                   key={s.id}
-                  id={s.id}
                   title={s.title}
+                  untitledLabel={t("ai.session.untitled")}
+                  favoriteLabel={t("ai.session.favorite")}
+                  pinLabel={t("ai.session.pin")}
+                  deleteLabel={t("ai.session.delete")}
                   active={s.id === activeSessionId}
                   favorite={s.favorite}
                   pinned={s.pinned}
@@ -83,18 +88,21 @@ export function SessionSidebar() {
         ) : null}
 
         <section>
-          <p className={cn(glassTextCaption, "mb-1.5 px-1 uppercase tracking-wide")}>
-            最近使用
+          <p className={cn(glassTextCaption, "mb-1.5 px-1 uppercase tracking-[0.08em]")}>
+            {t("ai.session.recent")}
           </p>
           {recent.length === 0 ? (
-            <p className={cn(glassTextCaption, "px-1")}>暂无会话，点击 + 新建</p>
+            <p className={cn(glassTextCaption, "px-1")}>{t("ai.session.empty")}</p>
           ) : (
             <ul className="space-y-1">
               {recent.map((s) => (
                 <SessionRow
                   key={s.id}
-                  id={s.id}
                   title={s.title}
+                  untitledLabel={t("ai.session.untitled")}
+                  favoriteLabel={t("ai.session.favorite")}
+                  pinLabel={t("ai.session.pin")}
+                  deleteLabel={t("ai.session.delete")}
                   active={s.id === activeSessionId}
                   favorite={s.favorite}
                   pinned={s.pinned}
@@ -113,8 +121,11 @@ export function SessionSidebar() {
 }
 
 function SessionRow(props: {
-  id: string;
   title: string;
+  untitledLabel: string;
+  favoriteLabel: string;
+  pinLabel: string;
+  deleteLabel: string;
   active: boolean;
   favorite: boolean;
   pinned: boolean;
@@ -127,24 +138,26 @@ function SessionRow(props: {
     <li>
       <div
         className={cn(
-          "group flex items-center gap-1 rounded-[var(--radius-sm)] border px-2 py-1.5",
+          "group flex items-center gap-0.5 rounded-[10px] border px-1.5 py-1 transition-colors",
           props.active
             ? "border-[color-mix(in_srgb,var(--accent-cyan)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent-cyan)_12%,transparent)]"
-            : "border-transparent hover:bg-[color-mix(in_srgb,var(--bg-2)_50%,transparent)]"
+            : "border-transparent hover:bg-[color-mix(in_srgb,var(--bg-2)_45%,transparent)]"
         )}
       >
         <button
           type="button"
-          className="min-w-0 flex-1 truncate text-left text-[13px] text-[var(--text-strong)]"
+          className="min-w-0 flex-1 truncate px-1 py-1 text-left text-[13px] text-[var(--text-strong)]"
           onClick={props.onSelect}
         >
-          {props.pinned ? "📌 " : ""}
-          {props.title || "未命名"}
+          {props.pinned ? (
+            <Pin className="mr-1 inline size-3 align-[-1px] text-[var(--accent-cyan)]" />
+          ) : null}
+          {props.title || props.untitledLabel}
         </button>
         <button
           type="button"
-          className="opacity-0 group-hover:opacity-100"
-          aria-label="收藏"
+          className="rounded-md p-1 opacity-0 transition-opacity group-hover:opacity-100"
+          aria-label={props.favoriteLabel}
           onClick={props.onFavorite}
         >
           <Star
@@ -158,16 +171,16 @@ function SessionRow(props: {
         </button>
         <button
           type="button"
-          className="opacity-0 group-hover:opacity-100"
-          aria-label="置顶"
+          className="rounded-md p-1 opacity-0 transition-opacity group-hover:opacity-100"
+          aria-label={props.pinLabel}
           onClick={props.onPin}
         >
           <Pin className="size-3.5 text-[var(--text-muted)]" />
         </button>
         <button
           type="button"
-          className="opacity-0 group-hover:opacity-100"
-          aria-label="删除"
+          className="rounded-md p-1 opacity-0 transition-opacity group-hover:opacity-100"
+          aria-label={props.deleteLabel}
           onClick={props.onDelete}
         >
           <Trash2 className="size-3.5 text-[var(--danger)]" />

@@ -1,6 +1,6 @@
 {
   "name": "gvfi-desktop",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "GVFI AI 视频工作站桌面版",
   "author": "Mr. Gong",
   "private": true,
@@ -10,11 +10,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "node scripts/check-i18n-keys.js && node scripts/scan-acceptance.js",
+    "test:ui": "node scripts/prod-acceptance.mjs",
     "desktop": "electron .",
     "desktop:build": "npm run build && electron .",
     "prepare:standalone": "node scripts/prepare-standalone.js",
     "dist:win": "npm run build && npm run prepare:standalone && electron-builder --win --dir",
-    "dist:win:installer": "npm run build && npm run prepare:standalone && electron-builder --win",
+    "dist:win:installer": "npm run build && npm run prepare:standalone && electron-builder --win nsis",
+    "dist:win:release": "npm run build && npm run prepare:standalone && electron-builder --win nsis portable",
     "dist": "npm run dist:win"
   },
   "dependencies": {
@@ -87,6 +90,10 @@
         "filter": [
           "**/*"
         ]
+      },
+      {
+        "from": "THIRD_PARTY_NOTICES.md",
+        "to": "THIRD_PARTY_NOTICES.md"
       }
     ],
     "win": {
@@ -97,7 +104,9 @@
             "x64"
           ]
         }
-      ]
+      ],
+      "publisherName": "Mr. Gong",
+      "signAndEditExecutable": true
     },
     "portable": {
       "artifactName": "GVFI-Portable-${version}.exe"
@@ -107,7 +116,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "shortcutName": "GVFI",
-      "artifactName": "GVFI-Setup-${version}.exe"
+      "artifactName": "GVFI-Setup-${version}.exe",
+      "uninstallDisplayName": "GVFI ${version}"
     }
   }
 }

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { EmptyState } from "@/components/workspace";
 import { useWorkspaceChrome } from "@/components/workspace/workspace-chrome-context";
 import { pageTitleForPath } from "@/components/workspace/workspace-nav";
+import { useT } from "@/hooks/use-t";
 
 interface PhasePlaceholderProps {
   pathname: string;
@@ -16,22 +17,24 @@ export function PhasePlaceholder({
   phase,
   description,
 }: PhasePlaceholderProps) {
+  const t = useT();
   const { setChrome } = useWorkspaceChrome();
+  const title = pageTitleForPath(pathname, t);
 
   useEffect(() => {
     setChrome({
-      title: pageTitleForPath(pathname),
+      title,
       breadcrumbs: [
-        { label: "GVFI", href: "/app/process/input" },
-        { label: pageTitleForPath(pathname) },
+        { label: t("common.app"), href: "/app/process/input" },
+        { label: title },
       ],
       status: "idle",
     });
-  }, [pathname, setChrome]);
+  }, [pathname, setChrome, t, title]);
 
   return (
     <EmptyState
-      title={`${pageTitleForPath(pathname)} · 即将推出`}
+      title={`${title} · ${t("common.comingSoon")}`}
       description={`${description}（${phase}）`}
     />
   );

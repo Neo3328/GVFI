@@ -1,10 +1,18 @@
+/**
+ * GVFI — Job polling hook (writes into job-store).
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
 "use client";
 
 import { useEffect, useRef } from "react";
 import { isTerminalStatus, stageLabelOf } from "@/lib/gvfi-api";
+import { t } from "@/lib/i18n/t";
 import type { JobTask } from "@/lib/gvfi-types";
 import type { IRenderService } from "@/services/render-service";
 import { useJobStore } from "@/stores/job-store";
+import { useLocaleStore } from "@/stores/locale-store";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -15,7 +23,6 @@ export interface UseJobPollingOptions {
   intervalMs?: number;
 }
 
-/** 任务轮询 — 从 UI 组件移出，写入 job-store */
 export function useJobPolling({
   renderService,
   intervalMs = 1000,
@@ -39,24 +46,35 @@ export function useJobPolling({
       appendTaskLog,
       appendErrorLog,
     } = useJobStore.getState();
+    const locale = useLocaleStore.getState().locale;
 
     setActiveTask(task);
     setProgress(Math.round(clamp(task.progress, 0, 1) * 100));
     setStageLabel(stageLabelOf(task));
     if (task.output_path) setLastOutputPath(task.output_path);
     if (warnings?.length) {
-      appendTaskLog(`警告：${warnings.join("；")}`);
+      appendTaskLog(
+        t(locale, "jobs.warnPrefix", { warnings: warnings.join("; ") })
+      );
     }
     if (task.status === "failed" || task.status === "cancelled") {
       setIsRendering(false);
       stopPolling();
-      appendErrorLog(task.error || task.message || `任务${task.status}`);
+      appendErrorLog(
+        task.error ||
+          task.message ||
+          t(locale, "jobs.taskStatus", { status: task.status })
+      );
       return;
     }
     if (task.status === "succeeded") {
       setIsRendering(false);
       stopPolling();
-      appendTaskLog(`完成：${task.output_path || task.message}`);
+      appendTaskLog(
+        t(locale, "jobs.donePrefix", {
+          detail: task.output_path || task.message || "",
+        })
+      );
       return;
     }
     setIsRendering(true);

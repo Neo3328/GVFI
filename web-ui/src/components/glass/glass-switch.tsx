@@ -46,7 +46,7 @@ export function GlassSwitch({
     >
       <span
         className={cn(
-          "pointer-events-none block size-5 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.35)] transition-transform duration-150",
+          "pointer-events-none block size-5 rounded-full bg-[var(--text-strong)] shadow-[0_1px_3px_rgba(0,0,0,0.35)] transition-transform duration-150",
           "ring-1 ring-white/50",
           checked ? "translate-x-[1.35rem]" : "translate-x-0.5"
         )}

@@ -15,11 +15,15 @@ import { InputPanel } from "@/components/input-panel";
 import { ParamsPanel } from "@/components/params-panel";
 import { PresetPanel } from "@/components/preset-panel";
 import { SvfiPanel } from "@/components/svfi-panel";
+import { LogsPanel } from "@/components/logs-panel";
 import { useProcessWorkspace } from "@/components/process/process-workspace-context";
 import { VideoComparisonViewer } from "@/components/workspace/video-comparison-viewer";
 import { useWorkspaceChrome } from "@/components/workspace/workspace-chrome-context";
+import { useT } from "@/hooks/use-t";
+import { stripStagePrefix } from "@/lib/gvfi-api";
 
 export function VideoWorkspacePage() {
+  const t = useT();
   const ctx = useProcessWorkspace();
   const { setMode } = ctx;
   const { setChrome } = useWorkspaceChrome();
@@ -33,10 +37,10 @@ export function VideoWorkspacePage() {
 
   useEffect(() => {
     setChrome({
-      title: ctx.file?.name || ctx.inputPath.trim() || "视频处理",
+      title: ctx.file?.name || ctx.inputPath.trim() || t("video.title"),
       breadcrumbs: [
-        { label: "GVFI", href: "/app/dashboard" },
-        { label: "视频" },
+        { label: t("common.app"), href: "/app/dashboard" },
+        { label: t("video.crumb") },
       ],
       status:
         ctx.serviceReady === false
@@ -46,9 +50,7 @@ export function VideoWorkspacePage() {
               ? "warning"
               : "online"
             : "idle",
-      statusLabel: ctx.stageLabel
-        .replace(/^●\s*当前工序：\s*/, "")
-        .replace(/^●\s*/, ""),
+      statusLabel: stripStagePrefix(ctx.stageLabel),
     });
   }, [
     setChrome,
@@ -57,19 +59,20 @@ export function VideoWorkspacePage() {
     ctx.serviceReady,
     ctx.isRendering,
     ctx.stageLabel,
+    t,
   ]);
 
   return (
-    <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-6">
+    <div className="workspace-split flex flex-col">
       {/* Primary: preview stage */}
-      <section className="flex min-w-0 flex-col gap-4">
+      <section className="workspace-panel flex min-w-0 flex-col gap-4">
         <div className="flex items-end justify-between gap-3">
           <div>
             <h1 className="text-[22px] font-semibold tracking-tight text-[var(--text-strong)]">
-              视频处理
+              {t("video.title")}
             </h1>
             <p className="mt-1 text-[13px] text-[var(--text-muted)]">
-              导入素材、预览对比，一键启动本地补帧
+              {t("video.subtitle")}
             </p>
           </div>
           <GlassButton
@@ -79,7 +82,7 @@ export function VideoWorkspacePage() {
             onClick={() => setAdvancedOpen(true)}
           >
             <SlidersHorizontal className="size-3.5" aria-hidden />
-            高级参数
+            {t("video.advanced")}
           </GlassButton>
         </div>
 
@@ -88,7 +91,7 @@ export function VideoWorkspacePage() {
           inputPath={ctx.inputPath}
           onFileSelected={(next) => {
             ctx.setFile(next);
-            if (next) ctx.appendTaskLog(`已选择文件：${next.name}`);
+            if (next) ctx.appendTaskLog(t("video.fileSelected", { name: next.name }));
           }}
           onInputPathChange={ctx.setInputPath}
         />
@@ -100,32 +103,32 @@ export function VideoWorkspacePage() {
             compareMode={ctx.srcBefore && ctx.srcAfter ? "slider" : "toggle"}
           />
         ) : (
-          <div className="flex min-h-[280px] flex-col items-center justify-center rounded-[var(--radius-lg)] border border-dashed border-[var(--glass-border)] px-6 text-center">
+          <div className="flex min-h-[280px] flex-col items-center justify-center overflow-hidden rounded-[var(--panel-radius)] border border-dashed border-[var(--glass-border)] bg-clip-padding px-6 text-center">
             <p className="text-[15px] font-medium text-[var(--text-strong)]">
-              添加视频开始处理
+              {t("video.emptyTitle")}
             </p>
             <p className="mt-2 max-w-sm text-[13px] text-[var(--text-muted)]">
-              拖拽文件或填写本机路径。编码与超分细节在「高级参数」中调整。
+              {t("video.emptyHint")}
             </p>
           </div>
         )}
       </section>
 
-      {/* Secondary: run controls — list, not card stack */}
-      <aside className="flex flex-col gap-4 lg:sticky lg:top-20">
-        <div className="rounded-[var(--radius-lg)] border border-[var(--glass-border)] bg-[color-mix(in_srgb,var(--bg-2)_calc(var(--glass-opacity)*70%),transparent)] p-4 backdrop-blur-[var(--glass-blur)]">
+      {/* Secondary: run controls + error logs */}
+      <aside className="workspace-sticky-aside flex flex-col gap-4">
+        <div className="workspace-panel overflow-hidden rounded-[var(--panel-radius)] border border-[var(--glass-border)] bg-[color-mix(in_srgb,var(--bg-2)_calc(var(--glass-opacity)*70%),transparent)] bg-clip-padding p-4 backdrop-blur-[var(--glass-blur)]">
           <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-            运行
+            {t("video.run")}
           </p>
           <GlassProgressLabel>
-            <span className="text-[13px] text-[var(--text-muted)]">进度</span>
+            <span className="text-[13px] text-[var(--text-muted)]">{t("video.progress")}</span>
             <span className="text-[13px] tabular-nums">{progress}%</span>
           </GlassProgressLabel>
           <GlassProgress
             className="mt-2"
             value={progress}
             ai={ctx.isRendering}
-            aria-label="渲染进度"
+            aria-label={t("video.progressAria")}
           />
           <div className="mt-4 flex flex-col gap-2">
             <GlassButton
@@ -136,7 +139,7 @@ export function VideoWorkspacePage() {
                 void ctx.handleStartLocal();
               }}
             >
-              开始补帧
+              {t("video.start")}
             </GlassButton>
             <GlassButton
               type="button"
@@ -146,7 +149,7 @@ export function VideoWorkspacePage() {
                 void ctx.handleStop();
               }}
             >
-              停止
+              {t("video.stop")}
             </GlassButton>
           </div>
           {ctx.lastOutputPath && !ctx.lastOutputPath.endsWith(".md") ? (
@@ -154,20 +157,25 @@ export function VideoWorkspacePage() {
               className="mt-3 truncate text-[11px] text-[var(--text-muted)]"
               title={ctx.lastOutputPath}
             >
-              输出：{ctx.lastOutputPath}
+              {t("video.output", { path: ctx.lastOutputPath })}
             </p>
           ) : null}
         </div>
+        <LogsPanel
+          compact
+          taskLogs={ctx.taskLogs}
+          errorLogs={ctx.errorLogs}
+        />
         <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
-          任务队列与历史请到「任务」页查看。API 在「参数」页。
+          {t("video.footerHint")}
         </p>
       </aside>
 
       <GlassDrawer
         open={advancedOpen}
         onOpenChange={setAdvancedOpen}
-        title="高级参数"
-        description="补帧模型、超分与预设 — 不影响主流程阅读"
+        title={t("video.advanced")}
+        description={t("video.advancedDesc")}
       >
         <div className="flex flex-col gap-5">
           <PresetPanel

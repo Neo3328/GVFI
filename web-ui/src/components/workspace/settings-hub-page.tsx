@@ -10,29 +10,31 @@ import { useEffect } from "react";
 import { ApiSettingsPanel } from "@/components/settings/api-settings-panel";
 import { ApiProfilesPanel } from "@/components/settings/api-profiles-panel";
 import { useWorkspaceChrome } from "@/components/workspace/workspace-chrome-context";
+import { useT } from "@/hooks/use-t";
 
 export function SettingsHubPage() {
+  const t = useT();
   const { setChrome } = useWorkspaceChrome();
 
   useEffect(() => {
     setChrome({
-      title: "连接设置",
+      title: t("settings.title"),
       breadcrumbs: [
-        { label: "GVFI", href: "/app/dashboard" },
-        { label: "连接" },
+        { label: t("common.app"), href: "/app/dashboard" },
+        { label: t("settings.crumb") },
       ],
       status: "idle",
     });
-  }, [setChrome]);
+  }, [setChrome, t]);
 
   return (
     <div className="flex flex-col gap-6">
       <header>
         <h1 className="text-[22px] font-semibold tracking-tight text-[var(--text-strong)]">
-          连接设置
+          {t("settings.title")}
         </h1>
         <p className="mt-1 text-[13px] text-[var(--text-muted)]">
-          渲染引擎 Base URL 与超时 — 大模型密钥请在「AI 工作台」配置
+          {t("settings.subtitle")}
         </p>
       </header>
       <ApiProfilesPanel />

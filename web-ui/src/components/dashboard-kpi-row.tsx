@@ -1,5 +1,14 @@
+/**
+ * GVFI — Compact process workspace KPI row.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
+"use client";
+
 import { Activity, Cpu, Layers, Wifi, WifiOff } from "lucide-react";
 import { GlassCard } from "@/components/glass/glass-card";
+import { useT } from "@/hooks/use-t";
 import { cn } from "@/lib/utils";
 
 interface DashboardKpiRowProps {
@@ -17,35 +26,40 @@ export function DashboardKpiRow({
   gpuLabel,
   queueCount,
 }: DashboardKpiRowProps) {
+  const t = useT();
   const serviceLabel =
-    serviceReady === null ? "连接中" : serviceReady ? "在线" : "离线";
+    serviceReady === null
+      ? t("dashboard.statusConnecting")
+      : serviceReady
+        ? t("dashboard.kpi.online")
+        : t("dashboard.kpi.offline");
 
   const items = [
     {
-      label: "API",
+      label: t("dashboard.kpi.api"),
       value: serviceLabel,
       icon: serviceReady ? Wifi : WifiOff,
       tone:
         serviceReady === null
           ? "text-muted-foreground"
           : serviceReady
-            ? "text-[#34C759]"
+            ? "text-[var(--success)]"
             : "text-destructive",
     },
     {
-      label: "进度",
-      value: isRendering ? `${progress}%` : "空闲",
+      label: t("kpi.row.progress"),
+      value: isRendering ? `${progress}%` : t("dashboard.kpi.idle"),
       icon: Activity,
       tone: "text-foreground",
     },
     {
-      label: "GPU",
+      label: t("dashboard.kpi.gpu"),
       value: gpuLabel,
       icon: Cpu,
       tone: "text-foreground",
     },
     {
-      label: "队列",
+      label: t("kpi.row.queue"),
       value: String(queueCount),
       icon: Layers,
       tone: "text-foreground",
@@ -53,7 +67,10 @@ export function DashboardKpiRow({
   ];
 
   return (
-    <GlassCard className="grid grid-cols-2 divide-x divide-y divide-[var(--separator)] p-0 sm:grid-cols-4 sm:divide-y-0" aria-label="状态概览">
+    <GlassCard
+      className="grid grid-cols-2 divide-x divide-y divide-[var(--separator)] p-0 sm:grid-cols-4 sm:divide-y-0"
+      aria-label={t("kpi.row.aria")}
+    >
       {items.map((item) => (
         <div key={item.label} className="flex flex-col gap-1 p-4">
           <div className="flex items-center gap-1.5 text-[13px] text-muted-foreground">

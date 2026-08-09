@@ -13,66 +13,81 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import type { SidebarNavItem } from "@/components/workspace/sidebar";
+import type { TranslateFn } from "@/lib/i18n/t";
+import { t as translate } from "@/lib/i18n/t";
+import { DEFAULT_LOCALE } from "@/lib/i18n/types";
 
-/** Top-level app sections — one responsibility each */
-export const WORKSPACE_NAV: SidebarNavItem[] = [
-  {
-    href: "/app/dashboard",
-    label: "首页",
-    icon: LayoutDashboard,
-    ariaLabel: "首页仪表盘",
-  },
-  {
-    href: "/app/tasks",
-    label: "任务",
-    icon: ListTodo,
-    ariaLabel: "任务管理",
-  },
-  {
-    href: "/app/video",
-    label: "视频",
-    icon: Clapperboard,
-    ariaLabel: "视频处理",
-  },
-  {
-    href: "/app/ai",
-    label: "AI 工作台",
-    icon: Sparkles,
-    ariaLabel: "AI 工作台",
-  },
-  {
-    href: "/app/settings",
-    label: "连接",
-    icon: SlidersHorizontal,
-    ariaLabel: "连接设置",
-  },
-  {
-    href: "/app/system",
-    label: "系统",
-    icon: Settings2,
-    ariaLabel: "系统设置",
-  },
-];
+/** Static nav for non-React callers (defaults to zh-CN labels). Prefer getWorkspaceNav(t). */
+export const WORKSPACE_NAV: SidebarNavItem[] = getWorkspaceNav((key) =>
+  translate(DEFAULT_LOCALE, key)
+);
+
+export function getWorkspaceNav(t: TranslateFn): SidebarNavItem[] {
+  return [
+    {
+      href: "/app/dashboard",
+      label: t("nav.home"),
+      icon: LayoutDashboard,
+      ariaLabel: t("nav.homeAria"),
+    },
+    {
+      href: "/app/tasks",
+      label: t("nav.tasks"),
+      icon: ListTodo,
+      ariaLabel: t("nav.tasksAria"),
+    },
+    {
+      href: "/app/video",
+      label: t("nav.video"),
+      icon: Clapperboard,
+      ariaLabel: t("nav.videoAria"),
+    },
+    {
+      href: "/app/ai",
+      label: t("nav.ai"),
+      icon: Sparkles,
+      ariaLabel: t("nav.aiAria"),
+    },
+    {
+      href: "/app/settings",
+      label: t("nav.settings"),
+      icon: SlidersHorizontal,
+      ariaLabel: t("nav.settingsAria"),
+    },
+    {
+      href: "/app/system",
+      label: t("nav.system"),
+      icon: Settings2,
+      ariaLabel: t("nav.systemAria"),
+    },
+  ];
+}
 
 /** @deprecated kept for redirect helpers */
 export const PROCESS_SECTION_NAV: SidebarNavItem[] = [];
 
-export function navItemByHref(href: string): SidebarNavItem | undefined {
-  return WORKSPACE_NAV.find((item) => item.href === href);
+export function navItemByHref(
+  href: string,
+  t?: TranslateFn
+): SidebarNavItem | undefined {
+  const nav = t ? getWorkspaceNav(t) : WORKSPACE_NAV;
+  return nav.find((item) => item.href === href);
 }
 
-export function pageTitleForPath(pathname: string): string {
-  const item = WORKSPACE_NAV.find(
-    (nav) => pathname === nav.href || pathname.startsWith(`${nav.href}/`)
+export function pageTitleForPath(pathname: string, t?: TranslateFn): string {
+  const tr = t ?? ((key) => translate(DEFAULT_LOCALE, key));
+  const nav = getWorkspaceNav(tr);
+  const item = nav.find(
+    (navItem) => pathname === navItem.href || pathname.startsWith(`${navItem.href}/`)
   );
   if (item) return item.label;
 
-  if (pathname.startsWith("/app/settings/")) return "连接";
-  if (pathname.startsWith("/app/process")) return "视频";
-  if (pathname.startsWith("/app/render")) return "任务";
-  if (pathname.startsWith("/app/models")) return "连接";
+  if (pathname.startsWith("/app/settings/")) return tr("nav.settings");
+  if (pathname.startsWith("/app/process")) return tr("nav.video");
+  if (pathname.startsWith("/app/render")) return tr("nav.tasks");
+  if (pathname.startsWith("/app/models")) return tr("nav.settings");
 
-  return "GVFI";
+  return tr("common.app");
 }
 
 /** Surface chrome variant for WorkspaceShell */

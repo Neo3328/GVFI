@@ -5,10 +5,11 @@ import type {
   JobLogsResponse,
   JobTask,
 } from "@/lib/gvfi-types";
+import { tr } from "@/lib/i18n/runtime";
 import type { IRenderService } from "@/services/render-service";
 
 export class CloudRenderNotConfiguredError extends Error {
-  constructor(message = "云端渲染后端尚未配置") {
+  constructor(message = tr("err.cloudUnconfigured")) {
     super(message);
     this.name = "CloudRenderNotConfiguredError";
   }
@@ -26,7 +27,7 @@ export class CloudRenderService implements IRenderService {
   private notReady(): never {
     throw new CloudRenderNotConfiguredError(
       this.baseUrl
-        ? `云端渲染 (${this.baseUrl}) 尚未实现`
+        ? tr("err.cloudUnimplemented", { url: this.baseUrl })
         : undefined
     );
   }

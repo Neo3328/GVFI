@@ -1,3 +1,9 @@
+/**
+ * GVFI — Built-in workflow presets and option catalogs.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
 import type { WorkflowPreset } from "@/lib/gvfi-types";
 
 export const SR_MODEL_OPTIONS = [
@@ -6,8 +12,9 @@ export const SR_MODEL_OPTIONS = [
   { value: "swinir", label: "SwinIR" },
 ] as const;
 
+/** Labels resolved in UI via i18n for `source`; others are technical tokens. */
 export const RESOLUTION_OPTIONS = [
-  { value: "source", label: "原始" },
+  { value: "source", label: "source" },
   { value: "1080p", label: "1080p" },
   { value: "1440p", label: "1440p" },
   { value: "4k", label: "4K" },
@@ -25,9 +32,10 @@ export const FPS_OPTIONS = [
   { value: "240", label: "240 FPS" },
 ] as const;
 
+/** Stable English IDs — display names via catalog-labels / i18n. */
 export const BUILTIN_PRESETS: WorkflowPreset[] = [
   {
-    name: "动漫补帧",
+    name: "anime-interp",
     builtin: true,
     model: "gvfi:rife-anime",
     fps: "120",
@@ -38,7 +46,7 @@ export const BUILTIN_PRESETS: WorkflowPreset[] = [
     quality: 0.8,
   },
   {
-    name: "电影高清",
+    name: "cinema-hd",
     builtin: true,
     model: "gvfi:rife-v4.6",
     fps: "60",
@@ -49,7 +57,7 @@ export const BUILTIN_PRESETS: WorkflowPreset[] = [
     quality: 0.85,
   },
   {
-    name: "SVFI风格",
+    name: "svfi-style",
     builtin: true,
     model: "gvfi:rife-anime",
     fps: "120",

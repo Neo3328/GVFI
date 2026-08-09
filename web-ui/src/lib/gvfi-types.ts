@@ -15,12 +15,12 @@ export type PrecisionOption = "fp16" | "fp32" | "int8";
 
 export type ThemeOption = "studio" | "dark" | "ai" | "kawaii" | "blush" | "cream";
 
-/** Liquid Glass theme ids */
-export type AppearanceTheme = "studio" | "dark" | "ai";
+/** Liquid Glass theme ids — light / Dark / image */
+export type AppearanceTheme = "light" | "dark" | "image";
 
 export interface PyQtAppearanceHints {
   theme?: string;
-  web_theme?: AppearanceTheme;
+  web_theme?: AppearanceTheme | "studio" | "ai";
   glass_opacity?: number;
   background_path?: string;
   font_family?: string;

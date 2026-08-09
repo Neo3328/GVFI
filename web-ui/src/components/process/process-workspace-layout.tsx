@@ -15,8 +15,10 @@ import {
   useProcessWorkspace,
   type ProcessMode,
 } from "@/components/process/process-workspace-context";
+import { useT } from "@/hooks/use-t";
 
 function ProcessWorkspaceHeader() {
+  const t = useT();
   const {
     mode,
     setMode,
@@ -41,7 +43,7 @@ function ProcessWorkspaceHeader() {
       <GlassTabs
         value={mode === "llm" ? "local" : mode}
         onValueChange={(value) => setMode(value as ProcessMode)}
-        items={[{ value: "local", label: "本地补帧" }]}
+        items={[{ value: "local", label: t("process.mode.local") }]}
         className="max-w-md"
       />
       <DashboardKpiRow
@@ -51,20 +53,20 @@ function ProcessWorkspaceHeader() {
         gpuLabel={gpuLabel}
         queueCount={queueCount}
       />
-      {/* 上传区固定在视频处理各子页顶部，避免切换分区后“消失” */}
+      {/* Upload stays pinned across process sub-routes so it does not disappear on tab change */}
       <InputPanel
         fileName={file?.name ?? ""}
         inputPath={inputPath}
         onFileSelected={(next) => {
           setFile(next);
-          if (next) appendTaskLog(`已选择文件：${next.name}`);
+          if (next) appendTaskLog(t("video.fileSelected", { name: next.name }));
         }}
         onInputPathChange={setInputPath}
       />
       <p className="text-[12px] text-[var(--text-muted)]">
-        大模型视频分析已迁至{" "}
+        {t("process.llmMovedBefore")}{" "}
         <a href="/app/ai" className="text-[var(--accent-cyan)] underline-offset-2 hover:underline">
-          AI 工作台
+          {t("process.llmMovedLink")}
         </a>
       </p>
     </div>

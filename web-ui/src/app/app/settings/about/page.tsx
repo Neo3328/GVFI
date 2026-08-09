@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { AboutPage } from "@/components/about/about-page";
 
+/** SSR defaults (English); client AboutPage sets document.title via useT. */
 export const metadata: Metadata = {
-  title: "关于 · GVFI",
-  description: "GVFI 软件信息与版权",
+  title: "About · GVFI",
+  description: "GVFI software information and version",
 };
 
 export default function AboutRoutePage() {

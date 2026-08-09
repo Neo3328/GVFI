@@ -4,10 +4,7 @@ import {
   registerGlassInstance,
   unregisterGlassInstance,
 } from "@/lib/liquid-glass/glass-controls";
-import type {
-  GlassButtonInstance,
-  GlassContainerInstance,
-} from "@/lib/liquid-glass/types";
+import type { GlassContainerInstance } from "@/lib/liquid-glass/types";
 
 export type LiquidGlassAPI = {
   Container: NonNullable<typeof window.Container>;

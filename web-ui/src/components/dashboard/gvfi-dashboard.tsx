@@ -1,3 +1,9 @@
+/**
+ * GVFI — Workstation dashboard overview.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -12,6 +18,9 @@ import { DashboardStatCard } from "@/components/dashboard/dashboard-stat-card";
 import { useWorkspaceChrome } from "@/components/workspace/workspace-chrome-context";
 import { useHealth } from "@/hooks/use-health";
 import { useRenderService } from "@/hooks/use-render-service";
+import { useLocale, useT } from "@/hooks/use-t";
+import { formatDeviceLabel } from "@/lib/i18n/device-label";
+import { formatPercent } from "@/lib/i18n/format";
 import { isTerminalStatus } from "@/lib/gvfi-api";
 import type { JobTask } from "@/lib/gvfi-types";
 import { useJobStore } from "@/stores/job-store";
@@ -50,6 +59,8 @@ function bucketTasksByHour(tasks: JobTask[]): { label: string; actual: number; m
 }
 
 export function GvfiDashboard() {
+  const t = useT();
+  const locale = useLocale();
   const renderService = useRenderService();
   const { setChrome } = useWorkspaceChrome();
   const {
@@ -86,8 +97,11 @@ export function GvfiDashboard() {
 
   useEffect(() => {
     setChrome({
-      title: "工作站仪表盘",
-      breadcrumbs: [{ label: "GVFI", href: "/app/dashboard" }, { label: "仪表盘" }],
+      title: t("dashboard.title"),
+      breadcrumbs: [
+        { label: t("common.app"), href: "/app/dashboard" },
+        { label: t("dashboard.crumb") },
+      ],
       status:
         serviceReady === false
           ? "offline"
@@ -98,12 +112,12 @@ export function GvfiDashboard() {
             : "idle",
       statusLabel:
         serviceReady === false
-          ? "服务离线"
+          ? t("dashboard.statusOffline")
           : serviceReady
-            ? "实时监控已开启"
-            : "连接中",
+            ? t("dashboard.statusLive")
+            : t("dashboard.statusConnecting"),
     });
-  }, [serviceReady, isRendering, setChrome]);
+  }, [serviceReady, isRendering, setChrome, t]);
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
@@ -118,122 +132,144 @@ export function GvfiDashboard() {
     });
   }, [tasks, filterMode, modelFilter, timeRange, models]);
 
-  const activeCount = filteredTasks.filter((t) => !isTerminalStatus(t.status)).length;
-  const doneCount = filteredTasks.filter((t) => t.status === "succeeded").length;
-  const failedCount = filteredTasks.filter((t) => t.status === "failed").length;
+  const activeCount = filteredTasks.filter((task) => !isTerminalStatus(task.status)).length;
+  const doneCount = filteredTasks.filter((task) => task.status === "succeeded").length;
+  const failedCount = filteredTasks.filter((task) => task.status === "failed").length;
   const avgProgress =
     filteredTasks.length > 0
       ? Math.round(
-          filteredTasks.reduce((sum, t) => sum + (t.progress ?? 0), 0) /
+          filteredTasks.reduce((sum, task) => sum + (task.progress ?? 0), 0) /
             filteredTasks.length
         )
       : 0;
 
   const gpuLabel =
-    gpus[0]?.name ?? (gpus.length > 0 ? `GPU ${gpus[0]?.index ?? 0}` : "未检测到");
+    gpus.length > 0
+      ? formatDeviceLabel(locale, gpus[0])
+      : t("dashboard.kpi.gpuMissing");
 
   const chartPoints = useMemo(() => bucketTasksByHour(filteredTasks), [filteredTasks]);
   const peakBucket = chartPoints.reduce(
     (best, cur) => (cur.actual > best.actual ? cur : best),
-    chartPoints[0] ?? { label: "—", actual: 0, max: 0 }
+    chartPoints[0] ?? { label: t("common.emDash"), actual: 0, max: 0 }
   );
   const lowBucket = chartPoints.reduce(
     (best, cur) => (cur.actual < best.actual ? cur : best),
-    chartPoints[0] ?? { label: "—", actual: 0, max: 0 }
+    chartPoints[0] ?? { label: t("common.emDash"), actual: 0, max: 0 }
   );
 
   return (
     <div className="flex flex-col gap-[var(--space-6)] px-[var(--space-4)] lg:px-[var(--space-6)]">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <p className="max-w-xl text-[14px] text-[var(--text-muted)]">
-          状态总览与快捷入口。复杂参数与任务细节请进入对应页面。
+          {t("dashboard.intro")}
         </p>
         <div className="flex flex-wrap gap-2">
           <Link
             href="/app/video"
             className="rounded-full bg-[linear-gradient(135deg,var(--accent),var(--accent-cyan))] px-4 py-2 text-[13px] font-semibold text-white"
           >
-            处理视频
+            {t("dashboard.processVideo")}
           </Link>
           <Link
             href="/app/ai"
             className="rounded-full border border-[var(--glass-border)] px-4 py-2 text-[13px] font-semibold text-[var(--text-strong)]"
           >
-            AI 分析
+            {t("dashboard.aiAnalyze")}
           </Link>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-[var(--space-4)] sm:grid-cols-2 xl:grid-cols-4">
         <DashboardStatCard
-          label="API"
-          sublabel="服务连接"
-          value={serviceReady ? "在线" : serviceReady === false ? "离线" : "…"}
-          badge={serviceReady ? "normal" : serviceReady === false ? "offline" : "warning"}
+          label={t("dashboard.kpi.api")}
+          sublabel={t("dashboard.kpi.apiSub")}
+          value={
+            serviceReady
+              ? t("dashboard.kpi.online")
+              : serviceReady === false
+                ? t("dashboard.kpi.offline")
+                : t("common.ellipsis")
+          }
+          badge={
+            serviceReady
+              ? t("dashboard.kpi.badge.normal")
+              : serviceReady === false
+                ? t("dashboard.kpi.badge.offline")
+                : t("dashboard.kpi.badge.warning")
+          }
           badgeTone={serviceReady ? "optimal" : serviceReady === false ? "offline" : "warning"}
-          trend={serviceReady ? "+稳定" : undefined}
+          trend={serviceReady ? t("dashboard.kpi.stable") : undefined}
           trendUp={serviceReady !== false}
         />
         <DashboardStatCard
-          label="QUEUE"
-          sublabel="活动任务"
+          label={t("dashboard.kpi.queue")}
+          sublabel={t("dashboard.kpi.queueSub")}
           value={String(queueCount || activeCount)}
-          badge={activeCount > 2 ? "high" : "normal"}
+          badge={
+            activeCount > 2
+              ? t("dashboard.kpi.badge.high")
+              : t("dashboard.kpi.badge.normal")
+          }
           badgeTone={activeCount > 2 ? "high" : "normal"}
-          trend={`${filteredTasks.length} 总计`}
+          trend={t("dashboard.kpi.total", { count: filteredTasks.length })}
           trendUp
         />
         <DashboardStatCard
-          label="GPU"
-          sublabel="当前设备"
+          label={t("dashboard.kpi.gpu")}
+          sublabel={t("dashboard.kpi.gpuSub")}
           value={gpuLabel.length > 12 ? `${gpuLabel.slice(0, 12)}…` : gpuLabel}
-          badge="optimal"
+          badge={t("dashboard.kpi.badge.optimal")}
           badgeTone="optimal"
-          trend={`${gpus.length} 设备`}
+          trend={t("dashboard.kpi.devices", { count: gpus.length })}
           trendUp
         />
         <DashboardStatCard
-          label="PROG"
-          sublabel="平均进度"
+          label={t("dashboard.kpi.prog")}
+          sublabel={t("dashboard.kpi.progSub")}
           value={isRendering ? `${progress}%` : `${avgProgress}%`}
-          badge={isRendering ? "high" : "normal"}
+          badge={
+            isRendering
+              ? t("dashboard.kpi.badge.high")
+              : t("dashboard.kpi.badge.normal")
+          }
           badgeTone={isRendering ? "high" : "normal"}
-          trend={isRendering ? "渲染中" : "空闲"}
+          trend={isRendering ? t("dashboard.kpi.rendering") : t("dashboard.kpi.idle")}
           trendUp={!isRendering}
         />
       </div>
 
       <div className="grid grid-cols-1 gap-[var(--space-4)] xl:grid-cols-2">
-        <section className="rounded-[var(--radius-lg)] border border-[var(--glass-border)] bg-[color-mix(in_srgb,var(--bg-2)_68%,transparent)] p-[var(--space-5)] backdrop-blur-xl">
+        <section className="overflow-hidden rounded-[var(--panel-radius)] border border-[var(--glass-border)] bg-[color-mix(in_srgb,var(--bg-2)_68%,transparent)] bg-clip-padding p-[var(--space-5)] backdrop-blur-xl">
           <div className="mb-[var(--space-4)]">
             <h3 className="text-[15px] font-semibold text-[var(--text-strong)]">
-              任务状态概览
+              {t("dashboard.donut.title")}
             </h3>
             <p className="text-[12px] text-[var(--text-muted)]">
-              按当前筛选条件统计任务分布
+              {t("dashboard.donut.subtitle")}
             </p>
           </div>
           <DashboardDonutChart
             totalValue={String(filteredTasks.length)}
-            totalLabel="筛选范围内任务总数"
+            totalLabel={t("dashboard.donut.totalLabel")}
             segments={[
               {
-                label: "进行中",
+                label: t("dashboard.donut.active"),
                 value: activeCount,
                 color: "var(--accent-cyan)",
               },
               {
-                label: "已完成",
+                label: t("dashboard.donut.done"),
                 value: doneCount,
                 color: "var(--success)",
               },
               {
-                label: "失败",
+                label: t("dashboard.donut.failed"),
                 value: failedCount,
                 color: "var(--danger)",
               },
               {
-                label: "其他",
+                label: t("dashboard.donut.other"),
                 value: Math.max(
                   filteredTasks.length - activeCount - doneCount - failedCount,
                   0
@@ -247,44 +283,49 @@ export function GvfiDashboard() {
               href="/app/video"
               className="rounded-[var(--radius-sm)] bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] px-3 py-2 text-[12px] font-medium text-[var(--accent)]"
             >
-              新建处理任务
+              {t("dashboard.newTask")}
             </Link>
             <Link
               href="/app/tasks"
               className="rounded-[var(--radius-sm)] bg-[color-mix(in_srgb,var(--bg-1)_80%,transparent)] px-3 py-2 text-[12px] text-[var(--text-normal)]"
             >
-              查看任务
+              {t("dashboard.viewTasks")}
             </Link>
           </div>
         </section>
 
-        <section className="rounded-[var(--radius-lg)] border border-[var(--glass-border)] bg-[color-mix(in_srgb,var(--bg-2)_68%,transparent)] p-[var(--space-5)] backdrop-blur-xl">
+        <section className="overflow-hidden rounded-[var(--panel-radius)] border border-[var(--glass-border)] bg-[color-mix(in_srgb,var(--bg-2)_68%,transparent)] bg-clip-padding p-[var(--space-5)] backdrop-blur-xl">
           <DashboardLineChart
-            title="负载与峰值分析"
-            subtitle="按时间段统计任务活跃度（基于更新时间）"
+            title={t("dashboard.load.title")}
+            subtitle={t("dashboard.load.subtitle")}
             points={chartPoints}
-            avgLabel="平均负载"
-            avgValue={`${Math.round(filteredTasks.length / Math.max(chartPoints.length, 1))} 任务/段`}
-            peakLabel="峰值时段"
+            avgLabel={t("dashboard.load.avg")}
+            avgValue={t("dashboard.load.avgValue", {
+              count: Math.round(filteredTasks.length / Math.max(chartPoints.length, 1)),
+            })}
+            peakLabel={t("dashboard.load.peak")}
             peakValue={`${peakBucket.label} (${peakBucket.actual})`}
-            efficiencyLabel="完成率"
+            efficiencyLabel={t("dashboard.load.efficiency")}
             efficiencyValue={
               filteredTasks.length
-                ? `${Math.round((doneCount / filteredTasks.length) * 100)}%`
-                : "—"
+                ? formatPercent(locale, doneCount / filteredTasks.length)
+                : t("common.emDash")
             }
             insights={[
               {
-                label: "低负载时段",
-                value: `${lowBucket.label} (${lowBucket.actual} 任务)`,
+                label: t("dashboard.load.low"),
+                value: t("dashboard.load.lowValue", {
+                  label: lowBucket.label,
+                  count: lowBucket.actual,
+                }),
               },
               {
-                label: "最近日志",
-                value: taskLogs[taskLogs.length - 1]?.slice(0, 48) ?? "暂无",
+                label: t("dashboard.load.recentLog"),
+                value: taskLogs[taskLogs.length - 1]?.slice(0, 48) ?? t("dashboard.load.noLog"),
               },
               {
-                label: "可用模型",
-                value: `${models.length} 个`,
+                label: t("dashboard.load.models"),
+                value: t("dashboard.load.modelsValue", { count: models.length }),
               },
             ]}
           />

@@ -8,19 +8,43 @@
 
 import { useEffect } from "react";
 import { useAppearanceStore } from "@/stores/appearance-store";
-import {
-  backgroundPresetStyle,
-  DEFAULT_APPEARANCE,
-} from "@/lib/apply-appearance";
+import { useLocaleStore } from "@/stores/locale-store";
+import { themeDefaultBackgroundStyle } from "@/lib/apply-appearance";
+import { t } from "@/lib/i18n/t";
+import { getDesktopBridge } from "@/lib/desktop";
+import { WindowChromeSync } from "@/components/workspace/window-chrome-sync";
 
-function serverBackgroundUrl(): string | null {
-  return `/api/settings/background`;
+function LocaleSync() {
+  const locale = useLocaleStore((s) => s.locale);
+  const syncHtmlLang = useLocaleStore((s) => s.syncHtmlLang);
+
+  useEffect(() => {
+    syncHtmlLang();
+    document.title = t(locale, "chrome.documentTitle");
+    try {
+      document.documentElement.dataset.locale = locale;
+    } catch {
+      /* ignore */
+    }
+    const desktop = getDesktopBridge();
+    if (desktop?.setLocale) {
+      void desktop.setLocale(locale);
+    }
+  }, [locale, syncHtmlLang]);
+
+  return null;
+}
+
+function cssBackgroundImage(url: string): string {
+  /* JSON.stringify wraps quotes + escapes — safe for data: URLs */
+  return `url(${JSON.stringify(url)})`;
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const theme = useAppearanceStore((s) => s.theme);
   const glass = useAppearanceStore((s) => s.glass);
   const background = useAppearanceStore((s) => s.background);
+  const setTheme = useAppearanceStore((s) => s.setTheme);
   const apply = useAppearanceStore((s) => s.apply);
   const hydrateFromPyQt = useAppearanceStore((s) => s.hydrateFromPyQt);
 
@@ -34,57 +58,71 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [theme, glass, background, apply]);
 
   const imageUrl =
-    background.customUrl ??
-    (background.serverPath ? serverBackgroundUrl() : null);
-  const hasCustomBg = Boolean(imageUrl);
+    theme === "image" && background.customUrl ? background.customUrl : null;
+  const hasImageBg = Boolean(imageUrl);
 
   useEffect(() => {
-    document.documentElement.dataset.customBg = hasCustomBg ? "true" : "false";
-  }, [hasCustomBg]);
+    if (theme === "image" && !background.customUrl) {
+      setTheme("dark");
+    }
+  }, [theme, background.customUrl, setTheme]);
 
-  const presetBg = backgroundPresetStyle(
-    background.preset ?? DEFAULT_APPEARANCE.background.preset
+  useEffect(() => {
+    if (!imageUrl) return;
+    const probe = new Image();
+    probe.onerror = () => {
+      useAppearanceStore.getState().resetBackground();
+    };
+    probe.src = imageUrl;
+  }, [imageUrl]);
+
+  const atmosphere = themeDefaultBackgroundStyle(
+    theme === "image" ? "dark" : theme
   );
 
   return (
     <>
-      {/* Base atmosphere — soft graphite wash only (no weather / landscape forms) */}
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-0 z-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 60% 45% at 20% 10%, rgba(255,255,255,0.06), transparent 55%), radial-gradient(ellipse 50% 40% at 85% 80%, rgba(10,132,255,0.08), transparent 50%), linear-gradient(160deg, var(--bg-0), var(--bg-1) 50%, var(--bg-2))",
-        }}
-      />
-      {/* Wallpaper / preset layer */}
-      <div
-        id="lg-background-layer"
-        aria-hidden
-        className="pointer-events-none fixed inset-0 z-0"
-        style={{
-          opacity: background.opacity / 100,
-          filter: background.blur > 0 ? `blur(${background.blur}px)` : undefined,
-          background: imageUrl ? undefined : presetBg,
-          backgroundImage: imageUrl ? `url(${JSON.stringify(imageUrl)})` : undefined,
-          backgroundSize: imageUrl ? "cover" : undefined,
-          backgroundPosition: imageUrl ? "center" : undefined,
-          backgroundRepeat: imageUrl ? "no-repeat" : undefined,
-        }}
-      />
-      {/* Soft scrim so UI text stays readable over busy wallpapers */}
-      {hasCustomBg ? (
+      <WindowChromeSync />
+      <div data-slot="window-frame" className="gvfi-window-frame">
+        {/* Theme default wash — never blank white */}
         <div
           aria-hidden
-          className="pointer-events-none fixed inset-0 z-0"
+          className="gvfi-window-atmosphere"
           style={{
-            background:
-              "linear-gradient(180deg, rgba(11,13,18,0.32) 0%, rgba(11,13,18,0.14) 42%, rgba(11,13,18,0.38) 100%)",
+            background: atmosphere,
+            backgroundColor: theme === "light" ? "#6b7488" : "#0b0d12",
           }}
         />
-      ) : null}
-      <div className="relative z-[1] flex min-h-dvh flex-1 flex-col bg-transparent">
-        {children}
+        {hasImageBg && imageUrl ? (
+          <div
+            id="lg-background-layer"
+            aria-hidden
+            className="gvfi-window-atmosphere"
+            style={{
+              backgroundColor: "transparent",
+              backgroundImage: cssBackgroundImage(imageUrl),
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+            }}
+          />
+        ) : (
+          <div id="lg-background-layer" aria-hidden className="gvfi-window-atmosphere" />
+        )}
+        {hasImageBg ? (
+          <div
+            aria-hidden
+            className="gvfi-window-atmosphere"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(11,13,18,0.42) 0%, rgba(11,13,18,0.18) 46%, rgba(11,13,18,0.48) 100%)",
+            }}
+          />
+        ) : null}
+        <div className="relative z-[1] flex min-h-dvh flex-1 flex-col bg-transparent">
+          <LocaleSync />
+          {children}
+        </div>
       </div>
     </>
   );

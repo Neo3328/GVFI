@@ -15,10 +15,11 @@ import { AppShell } from "@/components/workspace/app-shell";
 import { Sidebar } from "@/components/workspace/sidebar";
 import { TopBar } from "@/components/workspace/top-bar";
 import {
-  WORKSPACE_NAV,
+  getWorkspaceNav,
   pageSurfaceForPath,
 } from "@/components/workspace/workspace-nav";
 import { useWorkspaceChrome } from "@/components/workspace/workspace-chrome-context";
+import { useT } from "@/hooks/use-t";
 import { cn } from "@/lib/utils";
 import { glassFocusRing, glassMotion } from "@/components/glass/glass-styles";
 
@@ -28,13 +29,14 @@ interface WorkspaceShellProps {
 
 function MobileNav() {
   const pathname = usePathname();
-  const items = WORKSPACE_NAV;
+  const t = useT();
+  const items = getWorkspaceNav(t);
 
   return (
     <nav
-      aria-label="移动端导航"
+      aria-label={t("nav.mobile")}
       className={cn(
-        "fixed inset-x-2 bottom-2 z-50 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--glass-border)] lg:hidden",
+        "fixed inset-x-2 bottom-2 z-50 overflow-hidden rounded-[var(--panel-radius)] border border-[var(--glass-border)] bg-clip-padding lg:hidden",
         "bg-[color-mix(in_srgb,var(--bg-1)_calc(var(--glass-opacity)*88%),transparent)]",
         "shadow-[var(--lg-shadow-glass)]",
         "backdrop-blur-[var(--glass-blur)] backdrop-saturate-[180%]"
@@ -51,7 +53,7 @@ function MobileNav() {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-h-11 w-full flex-col items-center justify-center gap-0.5 rounded-[var(--radius-sm)] px-0.5 text-[10px] font-semibold",
+                  "flex min-h-11 w-full flex-col items-center justify-center gap-0.5 rounded-[var(--control-radius)] px-0.5 text-[10px] font-semibold",
                   glassFocusRing,
                   glassMotion,
                   active
@@ -72,6 +74,8 @@ function MobileNav() {
 
 export function WorkspaceShell({ children }: WorkspaceShellProps) {
   const pathname = usePathname();
+  const t = useT();
+  const nav = getWorkspaceNav(t);
   const surface = pageSurfaceForPath(pathname);
   const { title, breadcrumbs, status, statusLabel } = useWorkspaceChrome();
   const isDashboard = surface === "dashboard";
@@ -82,12 +86,12 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
         sidebar={
           <Sidebar
             className="flex"
-            items={WORKSPACE_NAV}
+            items={nav}
             tone="rail"
             iconOnly
             brand={
               <div className="flex flex-col items-center gap-2 text-center">
-                <div className="flex size-9 items-center justify-center rounded-[11px] border border-[color-mix(in_srgb,#fff_22%,transparent)] bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.04))] shadow-[inset_0_1px_0_rgba(255,255,255,0.28)] backdrop-blur-md">
+                <div className="flex size-9 items-center justify-center rounded-[var(--control-radius)] border border-[color-mix(in_srgb,#fff_22%,transparent)] bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.04))] bg-clip-padding shadow-[inset_0_1px_0_rgba(255,255,255,0.28)] backdrop-blur-md">
                   <Zap className="size-4 text-[var(--accent)]" aria-hidden />
                 </div>
                 <span className="hidden text-[10px] font-semibold tracking-wide text-[var(--text-muted)] lg:block">
@@ -96,11 +100,11 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
               </div>
             }
             footer={
-              <div className="hidden px-1 lg:block">
+              <div className="hidden w-full px-2 pb-1 lg:block">
                 <CopyrightFooter
                   variant="compact"
                   align="center"
-                  className="opacity-70"
+                  className="opacity-70 [text-wrap:balance]"
                 />
               </div>
             }
@@ -113,8 +117,8 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
             greeting={
               isDashboard
                 ? {
-                    title: "GVFI",
-                    subtitle: "专业 AI 视频工作站",
+                    title: t("common.app"),
+                    subtitle: t("dashboard.greetingSubtitle"),
                   }
                 : undefined
             }
@@ -122,7 +126,11 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
             statusLabel={statusLabel}
           />
         }
-        mainClassName="pb-20 lg:pb-[var(--space-5)]"
+        mainClassName={cn(
+          "pb-20 lg:pb-[var(--space-5)]",
+          surface === "ai" &&
+            "flex min-h-0 flex-col overflow-hidden pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:pb-[var(--space-4)]"
+        )}
       >
         <div
           className={cn(
@@ -130,7 +138,7 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
             surface === "dashboard" && "max-w-[1680px] px-0 py-0",
             surface === "tasks" && "max-w-[1400px]",
             surface === "video" && "max-w-[1600px]",
-            surface === "ai" && "max-w-3xl",
+            surface === "ai" && "flex h-full min-h-0 max-w-[1680px] flex-col",
             surface === "settings" && "max-w-2xl",
             surface === "system" && "max-w-xl",
             surface === "default" && "max-w-4xl"

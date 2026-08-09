@@ -1,29 +1,45 @@
-import { ChevronRight, Film, Gauge, Layers, Wand2 } from "lucide-react";
+/**
+ * GVFI — Landing features section.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
 
-const features = [
+"use client";
+
+import { ChevronRight, Film, Gauge, Layers, Wand2 } from "lucide-react";
+import { useT } from "@/hooks/use-t";
+import type { MessageKey } from "@/lib/i18n/types";
+
+const FEATURE_KEYS: {
+  icon: typeof Film;
+  titleKey: MessageKey;
+  descKey: MessageKey;
+}[] = [
   {
     icon: Film,
-    title: "智能补帧",
-    description: "RIFE 模型平滑提升至 120/240fps",
+    titleKey: "landing.features.interpolate.title",
+    descKey: "landing.features.interpolate.desc",
   },
   {
     icon: Layers,
-    title: "超分增强",
-    description: "RealCUGAN / RealESRGAN 可选",
+    titleKey: "landing.features.upscale.title",
+    descKey: "landing.features.upscale.desc",
   },
   {
     icon: Gauge,
-    title: "GPU 加速",
-    description: "Vulkan 本地加速渲染",
+    titleKey: "landing.features.gpu.title",
+    descKey: "landing.features.gpu.desc",
   },
   {
     icon: Wand2,
-    title: "预设工作流",
-    description: "动漫、电影等一键预设",
+    titleKey: "landing.features.presets.title",
+    descKey: "landing.features.presets.desc",
   },
 ];
 
 export function LandingFeatures() {
+  const t = useT();
+
   return (
     <section
       id="features"
@@ -31,16 +47,16 @@ export function LandingFeatures() {
     >
       <div className="mb-4 px-1">
         <h2 className="font-heading text-[28px] font-bold tracking-tight">
-          功能
+          {t("landing.features.title")}
         </h2>
         <p className="mt-2 text-[17px] text-muted-foreground">
-          为创作者设计的视频处理工具集
+          {t("landing.features.subtitle")}
         </p>
       </div>
       <ul className="ios-grouped divide-y divide-[var(--separator)]">
-        {features.map((feature) => (
+        {FEATURE_KEYS.map((feature) => (
           <li
-            key={feature.title}
+            key={feature.titleKey}
             className="flex cursor-default items-center gap-4 px-4 py-3.5 transition-colors duration-200"
           >
             <span
@@ -51,10 +67,10 @@ export function LandingFeatures() {
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-[17px] font-medium text-foreground">
-                {feature.title}
+                {t(feature.titleKey)}
               </p>
               <p className="text-[15px] text-muted-foreground">
-                {feature.description}
+                {t(feature.descKey)}
               </p>
             </div>
             <ChevronRight

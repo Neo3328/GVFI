@@ -14,26 +14,10 @@
   --lg-text-secondary: var(--text-muted);
   --lg-text-on-glass: color-mix(in srgb, var(--text-strong) 92%, transparent);
 
-  --lg-glass-fill: color-mix(
-    in srgb,
-    var(--bg-2) calc(var(--glass-opacity) * 100%),
-    transparent
-  );
-  --lg-glass-fill-2: color-mix(
-    in srgb,
-    var(--bg-1) calc(var(--glass-opacity) * 100%),
-    transparent
-  );
-  --lg-glass-border: color-mix(
-    in srgb,
-    var(--text-strong) calc(var(--glass-border-opacity) * 100%),
-    transparent
-  );
-  --lg-glass-highlight: color-mix(
-    in srgb,
-    var(--text-strong) 12%,
-    transparent
-  );
+  --lg-glass-fill: var(--lg-panel-bg, rgba(20, 24, 30, 0.55));
+  --lg-glass-fill-2: var(--lg-panel-bg-strong, rgba(20, 24, 30, 0.72));
+  --lg-glass-border: var(--lg-border, rgba(255, 255, 255, 0.14));
+  --lg-glass-highlight: var(--lg-highlight, rgba(255, 255, 255, 0.08));
 
   /* shadcn / Tailwind semantic */
   --background: var(--bg-0);

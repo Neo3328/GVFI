@@ -6,7 +6,7 @@
  * Copyright © 2026 Mr. Gong. All Rights Reserved.
  */
 
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps } from "react";
 import { glassFocusRing, glassMotion } from "@/components/glass/glass-styles";
 import { cn } from "@/lib/utils";
 

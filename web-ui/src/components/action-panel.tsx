@@ -3,6 +3,7 @@
 import { GlassButton } from "@/components/glass/glass-button";
 import { GlassPanel } from "@/components/glass/glass-card";
 import { GlassProgress, GlassProgressLabel } from "@/components/glass/glass-progress";
+import { useT } from "@/hooks/use-t";
 
 interface ActionPanelProps {
   progress: number;
@@ -19,18 +20,19 @@ export function ActionPanel({
   onStart,
   onStop,
 }: ActionPanelProps) {
+  const t = useT();
   const clamped = Math.min(100, Math.max(0, progress));
 
   return (
-    <GlassPanel title="渲染控制">
+    <GlassPanel title={t("video.action.title")}>
       <div className="flex flex-col gap-3">
         <GlassProgressLabel>
-          <span className="text-[13px] text-[var(--text-muted)]">进度</span>
+          <span className="text-[13px] text-[var(--text-muted)]">{t("video.progress")}</span>
           <span className="text-[13px] tabular-nums" aria-live="polite">
             {clamped}%
           </span>
         </GlassProgressLabel>
-        <GlassProgress value={clamped} ai={isRendering} aria-label="渲染进度" />
+        <GlassProgress value={clamped} ai={isRendering} aria-label={t("video.progressAria")} />
         <div className="flex flex-wrap gap-2">
           <GlassButton
             type="button"
@@ -38,7 +40,7 @@ export function ActionPanel({
             disabled={!canStart || isRendering}
             onClick={onStart}
           >
-            ▶ 开始渲染
+            {t("video.action.start")}
           </GlassButton>
           <GlassButton
             type="button"
@@ -46,7 +48,7 @@ export function ActionPanel({
             disabled={!isRendering}
             onClick={onStop}
           >
-            ■ 停止
+            {t("video.action.stop")}
           </GlassButton>
         </div>
       </div>

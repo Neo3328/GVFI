@@ -1,3 +1,9 @@
+/**
+ * GVFI — Local render task center.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -7,20 +13,27 @@ import { GlassTaskCard } from "@/components/glass/glass-task-card";
 import { VideoComparisonViewer } from "@/components/workspace/video-comparison-viewer";
 import { useWorkspaceChrome } from "@/components/workspace/workspace-chrome-context";
 import { useRenderService } from "@/hooks/use-render-service";
-import { isTerminalStatus, mediaUrlForPath, stageLabelOf } from "@/lib/gvfi-api";
+import { useT } from "@/hooks/use-t";
+import {
+  isTerminalStatus,
+  mediaUrlForPath,
+  stageLabelOf,
+  stripStagePrefix,
+} from "@/lib/gvfi-api";
 import type { JobTask } from "@/lib/gvfi-types";
 
-function basename(path: string): string {
+function basename(path: string, untitled: string): string {
   const normalized = path.replace(/\\/g, "/");
   const parts = normalized.split("/");
-  return parts[parts.length - 1] || path || "未命名任务";
+  return parts[parts.length - 1] || path || untitled;
 }
 
-function taskTitle(task: JobTask): string {
-  return basename(task.input_path || task.id);
+function taskTitle(task: JobTask, untitled: string): string {
+  return basename(task.input_path || task.id, untitled);
 }
 
 export function RenderCenter() {
+  const t = useT();
   const renderService = useRenderService();
   const { setChrome } = useWorkspaceChrome();
   const [tasks, setTasks] = useState<JobTask[]>([]);
@@ -30,7 +43,7 @@ export function RenderCenter() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const selected = useMemo(
-    () => tasks.find((t) => t.id === selectedId) ?? null,
+    () => tasks.find((task) => task.id === selectedId) ?? null,
     [tasks, selectedId]
   );
 
@@ -44,7 +57,7 @@ export function RenderCenter() {
       setTasks(sorted);
       setLoadError(null);
       setSelectedId((prev) => {
-        if (prev && sorted.some((t) => t.id === prev)) return prev;
+        if (prev && sorted.some((task) => task.id === prev)) return prev;
         return sorted[0]?.id ?? null;
       });
     } catch (error) {
@@ -88,21 +101,23 @@ export function RenderCenter() {
   }, [selectedId, refreshLogs]);
 
   useEffect(() => {
-    const active = tasks.some((t) => !isTerminalStatus(t.status));
+    const active = tasks.some((task) => !isTerminalStatus(task.status));
     setChrome({
-      title: "任务管理",
+      title: t("tasks.title"),
       breadcrumbs: [
-        { label: "GVFI", href: "/app/dashboard" },
-        { label: "任务" },
+        { label: t("common.app"), href: "/app/dashboard" },
+        { label: t("tasks.crumb") },
       ],
       status: loadError ? "offline" : active ? "warning" : "online",
       statusLabel: loadError
-        ? "无法加载任务"
+        ? t("tasks.loadFail")
         : active
-          ? `${tasks.filter((t) => !isTerminalStatus(t.status)).length} 个进行中`
-          : `${tasks.length} 条记录`,
+          ? t("tasks.activeCount", {
+              count: tasks.filter((task) => !isTerminalStatus(task.status)).length,
+            })
+          : t("tasks.recordCount", { count: tasks.length }),
     });
-  }, [tasks, loadError, setChrome]);
+  }, [tasks, loadError, setChrome, t]);
 
   const handleCancel = async (taskId: string) => {
     try {
@@ -113,6 +128,7 @@ export function RenderCenter() {
     }
   };
 
+  const untitled = t("tasks.untitled");
   const srcBefore = selected?.input_path
     ? mediaUrlForPath(selected.input_path)
     : undefined;
@@ -124,19 +140,19 @@ export function RenderCenter() {
   return (
     <div className="flex flex-1 flex-col gap-4 lg:flex-row lg:items-start">
       <aside className="flex w-full flex-col gap-3 lg:max-w-sm">
-        <GlassPanel title="任务队列" description="本地渲染任务（最新在前）">
+        <GlassPanel title={t("tasks.queueTitle")} description={t("tasks.queueDesc")}>
           {loadError ? (
             <p className="text-[13px] text-[var(--danger)]">{loadError}</p>
           ) : tasks.length === 0 ? (
             <p className="text-[13px] text-[var(--text-muted)]">
-              暂无任务 — 请先在「视频处理」提交渲染
+              {t("tasks.empty")}
             </p>
           ) : (
             <ul className="flex flex-col gap-2">
               {tasks.map((task) => (
                 <li key={task.id}>
                   <GlassTaskCard
-                    title={taskTitle(task)}
+                    title={taskTitle(task, untitled)}
                     status={task.status}
                     stage={task.stage}
                     progress={Math.round(task.progress * 100)}
@@ -168,26 +184,26 @@ export function RenderCenter() {
         {selected ? (
           <>
             <GlassPanel
-              title={taskTitle(selected)}
-              description={stageLabelOf(selected).replace(/^●\s*当前工序：\s*/, "")}
+              title={taskTitle(selected, untitled)}
+              description={stripStagePrefix(stageLabelOf(selected))}
             >
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px] sm:grid-cols-4">
                 <div>
-                  <dt className="text-[var(--text-muted)]">状态</dt>
+                  <dt className="text-[var(--text-muted)]">{t("tasks.status")}</dt>
                   <dd className="font-medium text-[var(--text-strong)]">
                     {selected.status}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[var(--text-muted)]">进度</dt>
+                  <dt className="text-[var(--text-muted)]">{t("tasks.progress")}</dt>
                   <dd className="font-medium">
                     {Math.round(selected.progress * 100)}%
                   </dd>
                 </div>
                 <div className="col-span-2">
-                  <dt className="text-[var(--text-muted)]">输出</dt>
+                  <dt className="text-[var(--text-muted)]">{t("tasks.output")}</dt>
                   <dd className="truncate font-mono text-[11px]">
-                    {selected.output_path || "—"}
+                    {selected.output_path || t("common.emDash")}
                   </dd>
                 </div>
               </dl>
@@ -200,10 +216,10 @@ export function RenderCenter() {
             />
 
             <div className="grid gap-4 lg:grid-cols-2">
-              <GlassPanel title="运行日志" padding="md">
+              <GlassPanel title={t("tasks.logs")} padding="md">
                 <GlassLogViewer lines={taskLogs} variant="task" maxHeight={280} />
               </GlassPanel>
-              <GlassPanel title="错误日志" padding="md">
+              <GlassPanel title={t("tasks.errors")} padding="md">
                 <GlassLogViewer
                   lines={errorLogs}
                   variant="error"
@@ -213,9 +229,9 @@ export function RenderCenter() {
             </div>
           </>
         ) : (
-          <GlassPanel title="选择任务" description="从左侧列表选择任务查看详情与预览">
+          <GlassPanel title={t("tasks.selectTitle")} description={t("tasks.selectDesc")}>
             <p className="text-[13px] text-[var(--text-muted)]">
-              云端渲染接口尚未接入；当前仅显示本地 GVFI 任务。
+              {t("tasks.cloudHint")}
             </p>
           </GlassPanel>
         )}

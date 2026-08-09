@@ -1,0 +1,121 @@
+/**
+ * GVFI — Adaptive workspace layout (DPI / resize / safe-area).
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ *
+ * Prevents toolbar / panel misalignment across resolutions and OS chrome.
+ */
+
+:root {
+  --workspace-pad: clamp(12px, 1.6vw, 24px);
+  --workspace-gap: clamp(12px, 1.4vw, 24px);
+  --workspace-rail: clamp(64px, 5vw, 76px);
+  --workspace-topbar-h: clamp(48px, 6vh, 56px);
+  --workspace-panel-min: min(100%, 280px);
+  --workspace-canvas: var(--bg-0);
+}
+
+:root[data-theme="studio"] {
+  --workspace-canvas: var(--bg-0);
+}
+
+/* Transparent shell over wallpaper — glass panels float above */
+[data-slot="app-shell"] {
+  height: 100dvh;
+  height: 100svh;
+  max-height: 100dvh;
+  max-height: 100svh;
+  min-height: 100dvh;
+  min-height: 100svh;
+  width: 100%;
+  max-width: 100vw;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  overflow: hidden;
+  overflow-x: clip;
+}
+
+[data-slot="app-shell"] > [data-slot="sidebar"],
+[data-slot="sidebar"] {
+  flex: 0 0 var(--workspace-rail);
+  width: var(--workspace-rail) !important;
+  max-width: var(--workspace-rail);
+  min-width: 0;
+  min-height: 0;
+  max-height: 100dvh;
+  /* Clip layer keeps panel radius; scrolling is on the inner pane */
+  overflow: hidden;
+}
+
+[data-slot="sidebar"] > [data-slot="sidebar-scroll"] {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+[data-slot="top-bar"] {
+  flex: 0 0 auto;
+  min-height: var(--workspace-topbar-h);
+  max-width: 100%;
+  overflow: hidden;
+}
+
+#main-content {
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Grid panels: never overflow their track */
+.workspace-split {
+  display: grid;
+  gap: var(--workspace-gap);
+  width: 100%;
+  min-width: 0;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .workspace-split {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  }
+}
+
+.workspace-panel {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+.workspace-sticky-aside {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .workspace-sticky-aside {
+    position: sticky;
+    top: calc(var(--workspace-topbar-h) + 12px);
+    max-height: calc(100dvh - var(--workspace-topbar-h) - 32px);
+    overflow: auto;
+  }
+}
+
+/* Low motion: drop expensive backdrop on chrome */
+html[data-motion-quality="low"] [data-slot="app-shell"] > .flex-1,
+html[data-motion-quality="low"] [data-slot="sidebar"],
+html[data-motion-quality="low"] [data-slot="top-bar"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}

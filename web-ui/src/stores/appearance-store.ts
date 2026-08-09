@@ -1,5 +1,5 @@
 /**
- * GVFI — Appearance store (theme / glass / wallpaper).
+ * GVFI — Appearance store (theme / glass / custom wallpaper).
  * Developed by Mr. Gong
  * Copyright © 2026 Mr. Gong. All Rights Reserved.
  */
@@ -12,49 +12,87 @@ import {
   applyAppearanceToDocument,
   DEFAULT_APPEARANCE,
   mergePyQtAppearanceHints,
+  normalizeAppearanceTheme,
 } from "@/lib/apply-appearance";
 import { fetchAppearanceSettings } from "@/lib/gvfi-api";
 import type { AppearanceTheme } from "@/lib/gvfi-types";
+import { createBrowserPersistStorage } from "@/lib/persist-storage";
 
 const BG_IMAGE_KEY = "gvfi-appearance-bg-image";
+const BG_META_KEY = "gvfi-appearance-bg-meta";
+
+export type BackgroundImageMeta = {
+  fileName: string | null;
+  width: number | null;
+  height: number | null;
+};
 
 export interface AppearanceState {
   theme: AppearanceTheme;
   glass: typeof DEFAULT_APPEARANCE.glass;
   background: typeof DEFAULT_APPEARANCE.background;
   hydratedFromServer: boolean;
-  setTheme: (theme: AppearanceTheme) => void;
+  setTheme: (theme: AppearanceTheme) => { ok: true } | { ok: false; reason: "needImage" };
   setGlass: (patch: Partial<typeof DEFAULT_APPEARANCE.glass>) => void;
   setBackground: (patch: Partial<typeof DEFAULT_APPEARANCE.background>) => void;
-  setCustomBackgroundUrl: (url: string | null, label?: string) => void;
+  setCustomBackgroundUrl: (
+    url: string | null,
+    meta?: Partial<BackgroundImageMeta>
+  ) => { ok: true } | { ok: false; reason: "persistFail" };
   resetBackground: () => void;
   hydrateFromPyQt: () => Promise<void>;
   apply: () => void;
-}
-
-function normalizeTheme(value: unknown): AppearanceTheme {
-  if (value === "dark" || value === "ai" || value === "studio") return value;
-  if (value === "blush" || value === "kawaii" || value === "cream") return "dark";
-  return "dark";
 }
 
 function readStoredBackgroundImage(): string | null {
   if (typeof window === "undefined") return null;
   try {
     const value = window.localStorage.getItem(BG_IMAGE_KEY);
-    return value && value.startsWith("data:") ? value : null;
+    return value && value.startsWith("data:image/") ? value : null;
   } catch {
     return null;
   }
 }
 
-function writeStoredBackgroundImage(url: string | null) {
-  if (typeof window === "undefined") return;
+function readStoredBackgroundMeta(): BackgroundImageMeta {
+  if (typeof window === "undefined") {
+    return { fileName: null, width: null, height: null };
+  }
+  try {
+    const raw = window.localStorage.getItem(BG_META_KEY);
+    if (!raw) return { fileName: null, width: null, height: null };
+    const parsed = JSON.parse(raw) as BackgroundImageMeta;
+    return {
+      fileName: typeof parsed.fileName === "string" ? parsed.fileName : null,
+      width: typeof parsed.width === "number" ? parsed.width : null,
+      height: typeof parsed.height === "number" ? parsed.height : null,
+    };
+  } catch {
+    return { fileName: null, width: null, height: null };
+  }
+}
+
+function writeStoredBackgroundImage(url: string | null): boolean {
+  if (typeof window === "undefined") return false;
   try {
     if (url) window.localStorage.setItem(BG_IMAGE_KEY, url);
     else window.localStorage.removeItem(BG_IMAGE_KEY);
+    return true;
   } catch {
-    /* quota / private mode — ignore */
+    return false;
+  }
+}
+
+function writeStoredBackgroundMeta(meta: BackgroundImageMeta | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (meta && (meta.fileName || meta.width || meta.height)) {
+      window.localStorage.setItem(BG_META_KEY, JSON.stringify(meta));
+    } else {
+      window.localStorage.removeItem(BG_META_KEY);
+    }
+  } catch {
+    /* ignore */
   }
 }
 
@@ -67,8 +105,13 @@ export const useAppearanceStore = create<AppearanceState>()(
       hydratedFromServer: false,
 
       setTheme: (theme) => {
-        set({ theme });
+        const next = normalizeAppearanceTheme(theme);
+        if (next === "image" && !get().background.customUrl) {
+          return { ok: false, reason: "needImage" };
+        }
+        set({ theme: next });
         get().apply();
+        return { ok: true };
       },
 
       setGlass: (patch) => {
@@ -81,27 +124,54 @@ export const useAppearanceStore = create<AppearanceState>()(
         get().apply();
       },
 
-      setCustomBackgroundUrl: (url) => {
-        writeStoredBackgroundImage(url);
-        set((state) => ({
+      setCustomBackgroundUrl: (url, meta) => {
+        if (!url) {
+          writeStoredBackgroundImage(null);
+          writeStoredBackgroundMeta(null);
+          set((state) => ({
+            theme: state.theme === "image" ? "dark" : state.theme,
+            background: {
+              ...DEFAULT_APPEARANCE.background,
+            },
+          }));
+          get().apply();
+          return { ok: true };
+        }
+
+        const persisted = writeStoredBackgroundImage(url);
+        if (!persisted) {
+          return { ok: false, reason: "persistFail" };
+        }
+
+        const nextMeta: BackgroundImageMeta = {
+          fileName: meta?.fileName ?? null,
+          width: meta?.width ?? null,
+          height: meta?.height ?? null,
+        };
+        writeStoredBackgroundMeta(nextMeta);
+
+        set({
+          theme: "image",
           background: {
-            ...state.background,
-            type: url ? "image" : "preset",
+            type: "image",
             customUrl: url,
-            serverPath: null,
-            preset: state.background.preset,
+            fileName: nextMeta.fileName,
+            width: nextMeta.width,
+            height: nextMeta.height,
+            opacity: 100,
+            blur: 0,
           },
-        }));
+        });
         get().apply();
+        return { ok: true };
       },
 
       resetBackground: () => {
         writeStoredBackgroundImage(null);
+        writeStoredBackgroundMeta(null);
         set((state) => ({
-          background: {
-            ...DEFAULT_APPEARANCE.background,
-            preset: state.background.preset,
-          },
+          theme: state.theme === "image" ? "dark" : state.theme,
+          background: { ...DEFAULT_APPEARANCE.background },
         }));
         get().apply();
       },
@@ -111,14 +181,19 @@ export const useAppearanceStore = create<AppearanceState>()(
         try {
           const hints = await fetchAppearanceSettings();
           const merged = mergePyQtAppearanceHints(hints);
-          set((state) => ({
-            theme: merged.theme ?? state.theme,
-            glass: merged.glass ? { ...state.glass, ...merged.glass } : state.glass,
-            background: merged.background
-              ? { ...state.background, ...merged.background }
-              : state.background,
-            hydratedFromServer: true,
-          }));
+          set((state) => {
+            let theme = merged.theme
+              ? normalizeAppearanceTheme(merged.theme)
+              : state.theme;
+            if (theme === "image" && !state.background.customUrl) {
+              theme = "dark";
+            }
+            return {
+              theme,
+              glass: merged.glass ? { ...state.glass, ...merged.glass } : state.glass,
+              hydratedFromServer: true,
+            };
+          });
           get().apply();
         } catch {
           set({ hydratedFromServer: true });
@@ -132,17 +207,19 @@ export const useAppearanceStore = create<AppearanceState>()(
     }),
     {
       name: "gvfi-appearance-v2",
-      /* Keep wallpaper out of this JSON — writing a data URL on every slider tick freezes UI */
+      storage: createBrowserPersistStorage(),
+      skipHydration: true,
       partialize: (state) => ({
         theme: state.theme,
         glass: state.glass,
         background: {
-          type: state.background.customUrl ? "image" : state.background.type,
-          preset: state.background.preset,
+          type: state.background.customUrl ? ("image" as const) : ("none" as const),
           customUrl: null as string | null,
-          serverPath: state.background.serverPath,
-          opacity: state.background.opacity,
-          blur: state.background.blur,
+          fileName: state.background.fileName,
+          width: state.background.width,
+          height: state.background.height,
+          opacity: 100,
+          blur: 0,
         },
         hydratedFromServer: state.hydratedFromServer,
       }),
@@ -151,23 +228,43 @@ export const useAppearanceStore = create<AppearanceState>()(
         if (!saved) return current;
         const legacyUrl =
           typeof saved.background?.customUrl === "string" &&
-          saved.background.customUrl.startsWith("data:")
+          saved.background.customUrl.startsWith("data:image/")
             ? saved.background.customUrl
             : null;
         if (legacyUrl && !readStoredBackgroundImage()) {
           writeStoredBackgroundImage(legacyUrl);
         }
         const image = readStoredBackgroundImage() ?? legacyUrl;
+        const meta = readStoredBackgroundMeta();
+        let theme = normalizeAppearanceTheme(saved.theme ?? current.theme);
+        if (theme === "image" && !image) theme = "dark";
+
         const background = {
-          ...current.background,
-          ...saved.background,
+          type: image ? ("image" as const) : ("none" as const),
           customUrl: image,
-          type: image ? ("image" as const) : (saved.background?.type ?? current.background.type),
+          fileName:
+            meta.fileName ??
+            (typeof saved.background?.fileName === "string"
+              ? saved.background.fileName
+              : null),
+          width:
+            meta.width ??
+            (typeof saved.background?.width === "number"
+              ? saved.background.width
+              : null),
+          height:
+            meta.height ??
+            (typeof saved.background?.height === "number"
+              ? saved.background.height
+              : null),
+          opacity: 100,
+          blur: 0,
         };
+
         return {
           ...current,
           ...saved,
-          theme: normalizeTheme(saved.theme),
+          theme,
           glass: { ...current.glass, ...saved.glass },
           background,
         };
@@ -175,13 +272,21 @@ export const useAppearanceStore = create<AppearanceState>()(
       onRehydrateStorage: () => (state) => {
         if (!state) return;
         const image = readStoredBackgroundImage();
+        const meta = readStoredBackgroundMeta();
         if (image) {
           state.background = {
             ...state.background,
             type: "image",
             customUrl: image,
+            fileName: meta.fileName ?? state.background.fileName,
+            width: meta.width ?? state.background.width,
+            height: meta.height ?? state.background.height,
           };
+        } else if (state.theme === "image") {
+          state.theme = "dark";
+          state.background = { ...DEFAULT_APPEARANCE.background };
         }
+        state.theme = normalizeAppearanceTheme(state.theme);
         state.apply();
       },
     }

@@ -8,55 +8,25 @@
  */
 
 :root {
-  --glass-bg: color-mix(
-    in srgb,
-    var(--bg-2) calc(var(--glass-opacity) * 100%),
-    transparent
-  );
-  --glass-bg-strong: color-mix(
-    in srgb,
-    var(--bg-2) calc(var(--glass-opacity) * 118%),
-    transparent
-  );
-  --glass-bg-clear: color-mix(
-    in srgb,
-    var(--glass-fill-clear) 100%,
-    transparent
-  );
-  --glass-bg-option: color-mix(
-    in srgb,
-    var(--glass-fill) calc(var(--glass-opacity) * 90%),
-    transparent
-  );
-  --glass-bg-option-hover: color-mix(
-    in srgb,
-    var(--glass-fill) calc(var(--glass-opacity) * 120%),
-    transparent
-  );
+  --glass-bg: var(--lg-panel-bg, rgba(20, 24, 30, 0.55));
+  --glass-bg-strong: var(--lg-panel-bg-strong, rgba(20, 24, 30, 0.72));
+  --glass-bg-clear: var(--glass-fill-clear);
+  --glass-bg-option: var(--lg-input-bg, rgba(255, 255, 255, 0.06));
+  --glass-bg-option-hover: var(--lg-input-bg-hover, rgba(255, 255, 255, 0.09));
   --glass-bg-option-active: color-mix(
     in srgb,
     var(--accent) 22%,
-    color-mix(in srgb, var(--glass-fill) calc(var(--glass-opacity) * 100%), transparent)
+    var(--lg-input-bg, rgba(255, 255, 255, 0.06))
   );
-  --glass-border: color-mix(
-    in srgb,
-    #fff calc(var(--glass-border-opacity) * 100%),
-    transparent
-  );
-  --glass-highlight: rgba(255, 255, 255, 0.38);
-  /* Weather-like: soft ambient + gentle contact shadow */
+  --glass-border: var(--lg-border, rgba(255, 255, 255, 0.14));
+  --glass-highlight: var(--lg-highlight, rgba(255, 255, 255, 0.08));
   --glass-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.06) inset,
-    0 12px 40px rgba(0, 0, 0, calc(var(--glass-shadow-opacity) * 0.85)),
-    0 2px 8px rgba(0, 0, 0, 0.12);
+    inset 0 1px 0 var(--lg-highlight, rgba(255, 255, 255, 0.08)),
+    var(--lg-elev-shadow, 0 8px 30px rgba(0, 0, 0, 0.25));
   --glass-shadow-float:
-    0 1px 0 rgba(255, 255, 255, 0.1) inset,
-    0 18px 56px rgba(0, 0, 0, calc(var(--glass-shadow-opacity))),
-    0 4px 14px rgba(0, 0, 0, 0.16);
-  --glass-option-rim:
-    inset 0.5px 0.5px 0 rgba(255, 255, 255, 0.28),
-    inset -0.5px -0.5px 0 rgba(255, 255, 255, 0.06),
-    0 1px 6px rgba(0, 0, 0, 0.14);
+    inset 0 1px 0 var(--lg-highlight, rgba(255, 255, 255, 0.08)),
+    0 12px 40px rgba(0, 0, 0, 0.32);
+  --glass-option-rim: inset 0 1px 0 var(--lg-highlight, rgba(255, 255, 255, 0.08));
 }
 
 html,
@@ -105,18 +75,14 @@ textarea {
   position: relative;
   overflow: hidden;
   border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-  background:
-    linear-gradient(
-      168deg,
-      rgba(255, 255, 255, 0.14) 0%,
-      rgba(255, 255, 255, 0.04) 42%,
-      rgba(255, 255, 255, 0.02) 100%
-    ),
-    var(--glass-bg);
+  border-radius: var(--panel-radius);
+  background: var(--glass-bg);
+  background-clip: padding-box;
   box-shadow: var(--glass-shadow);
-  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  backdrop-filter: blur(var(--lg-backdrop-blur, 20px))
+    saturate(var(--lg-backdrop-saturate, 140%));
+  -webkit-backdrop-filter: blur(var(--lg-backdrop-blur, 20px))
+    saturate(var(--lg-backdrop-saturate, 140%));
   color: var(--glass-label);
   transition:
     transform var(--duration-fast) var(--ease-standard),
@@ -130,17 +96,18 @@ textarea {
     var(--glass-bg-clear);
 }
 
-/* Soft top specular — Weather card highlight */
+/* Specular highlight + contrast scrim (separate from text/icons) */
 .glass-panel::before {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
   border-radius: inherit;
+  z-index: 0;
   background:
     radial-gradient(120% 70% at 50% -10%, rgba(255, 255, 255, 0.28), transparent 55%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 28%);
-  opacity: 0.9;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 28%),
+    rgba(0, 0, 0, calc(var(--app-contrast-scrim, 0.12) * 0.55));
 }
 
 .glass-panel:hover {
@@ -148,11 +115,14 @@ textarea {
 }
 
 .glass-card {
+  position: relative;
+  overflow: hidden;
   border: 1px solid var(--glass-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--card-radius);
   background:
     linear-gradient(168deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02)),
     var(--glass-bg-strong);
+  background-clip: padding-box;
   backdrop-filter: blur(calc(var(--glass-blur) * 0.72)) saturate(170%);
   -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 0.72)) saturate(170%);
   box-shadow: var(--glass-option-rim);
@@ -162,7 +132,7 @@ textarea {
 }
 
 .glass-card:hover {
-  transform: translateY(-1px);
+  transform: scale(0.995);
   box-shadow: var(--glass-shadow);
 }
 
@@ -178,15 +148,16 @@ textarea {
   width: 100%;
   min-height: var(--control-height);
   border: 1px solid var(--glass-border) !important;
-  border-radius: var(--radius-control);
+  border-radius: var(--control-radius);
   color: var(--text-strong) !important;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
-    var(--glass-bg-option) !important;
+  background: var(--glass-bg-option) !important;
+  background-clip: padding-box !important;
   outline: none;
   padding: 6px 11px;
-  backdrop-filter: blur(16px) saturate(160%);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(var(--lg-backdrop-blur, 20px))
+    saturate(var(--lg-backdrop-saturate, 140%));
+  -webkit-backdrop-filter: blur(var(--lg-backdrop-blur, 20px))
+    saturate(var(--lg-backdrop-saturate, 140%));
   box-shadow: var(--glass-option-rim);
   text-shadow: none;
   transition:
@@ -207,10 +178,8 @@ textarea {
 .glass-select:hover,
 .glass-textarea:hover,
 [data-slot="select-trigger"].glass-select:hover {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05)),
-    var(--glass-bg-option-hover) !important;
-  border-color: rgba(255, 255, 255, 0.34) !important;
+  background: var(--glass-bg-option-hover) !important;
+  border-color: var(--lg-border-strong, rgba(255, 255, 255, 0.22)) !important;
 }
 
 .glass-option:focus,
@@ -235,8 +204,8 @@ textarea {
 
 .glass-select option,
 select.glass-select option {
-  color: #1d1d1f;
-  background: #f2f2f7;
+  color: var(--text-strong);
+  background: #1a1f28;
 }
 
 .glass-option-chip {
@@ -265,7 +234,7 @@ select.glass-select option {
 .glass-option-chip:hover {
   color: var(--glass-label);
   background: var(--glass-bg-option-hover);
-  transform: translateY(-0.5px);
+  transform: scale(0.98);
 }
 
 .glass-option-chip[aria-selected="true"],
@@ -284,7 +253,7 @@ select.glass-select option {
   gap: 3px;
   padding: 3px;
   border: 1px solid var(--glass-border);
-  border-radius: calc(var(--radius-control) + 4px);
+  border-radius: var(--card-radius);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
     var(--glass-fill-clear);
@@ -321,11 +290,13 @@ select.glass-select option {
 }
 
 .glass-option-menu {
+  overflow: hidden;
   border: 1px solid var(--glass-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--card-radius);
   background:
     linear-gradient(168deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03)),
     var(--glass-bg-strong);
+  background-clip: padding-box;
   backdrop-filter: blur(var(--glass-blur)) saturate(180%);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
   box-shadow: var(--glass-shadow-float);
@@ -394,21 +365,20 @@ select.glass-select option {
 :root[data-theme="studio"] [data-slot="select-trigger"].glass-select,
 :root[data-theme="studio"] [data-slot="glass-input"] {
   color: var(--text-strong) !important;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.7)),
-    rgba(255, 255, 255, 0.78) !important;
-  border-color: rgba(0, 0, 0, 0.08) !important;
+  background: var(--lg-input-bg) !important;
+  border-color: var(--lg-border) !important;
   text-shadow: none;
 }
 
 :root[data-theme="studio"] .glass-panel {
-  background:
-    linear-gradient(168deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.55)),
-    rgba(255, 255, 255, 0.58);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 10px 36px rgba(0, 0, 0, 0.08),
-    0 2px 8px rgba(0, 0, 0, 0.04);
+  background: var(--lg-panel-bg);
+  box-shadow: var(--glass-shadow);
+}
+
+:root[data-theme="studio"] .glass-select option,
+:root[data-theme="studio"] select.glass-select option {
+  color: var(--text-strong);
+  background: #6e788c;
 }
 
 .glass-main-shell {

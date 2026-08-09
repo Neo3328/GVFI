@@ -1,3 +1,9 @@
+/**
+ * GVFI — Before/after video comparison viewer.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
 "use client";
 
 import { useCallback, useId, useRef, useState } from "react";
@@ -6,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { GlassPanel } from "@/components/glass/glass-card";
 import { glassFocusRing, glassMotion } from "@/components/glass/glass-styles";
 import { motionControl } from "@/components/workspace/motion";
+import { useT } from "@/hooks/use-t";
 
 export const videoComparisonVariants = cva(
   "relative overflow-hidden rounded-[var(--radius-md)] bg-[var(--bg-0)]",
@@ -41,18 +48,21 @@ export interface VideoComparisonViewerProps
 }
 
 /**
- * 视频对比预览 — CSS 玻璃边框，视频区域无 WebGL 折射
+ * Video comparison preview — CSS glass border, no WebGL refraction in the video area
  */
 export function VideoComparisonViewer({
   srcBefore,
   srcAfter,
-  labelBefore = "原片",
-  labelAfter = "处理后",
+  labelBefore,
+  labelAfter,
   aspect,
   size,
   className,
   compareMode = "slider",
 }: VideoComparisonViewerProps) {
+  const t = useT();
+  const before = labelBefore ?? t("video.compare.before");
+  const after = labelAfter ?? t("video.compare.after");
   const sliderId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState(50);
@@ -68,18 +78,20 @@ export function VideoComparisonViewer({
     <GlassPanel
       variant="inset"
       padding="none"
-      title="视频预览"
-      description={hasBoth ? "拖动滑块对比原片与处理后" : "导入视频后可在此预览"}
+      title={t("video.compare.title")}
+      description={
+        hasBoth ? t("video.compare.descBoth") : t("video.compare.descEmpty")
+      }
       className={className}
     >
       <div
         ref={containerRef}
         className={cn(videoComparisonVariants({ aspect, size }), "mx-auto w-full")}
-        aria-label="视频对比预览"
+        aria-label={t("video.compare.aria")}
       >
         {!srcBefore && !srcAfter ? (
           <div className="flex h-full min-h-[180px] items-center justify-center text-[13px] text-[var(--text-muted)]">
-            暂无视频 — 请导入素材
+            {t("video.compare.none")}
           </div>
         ) : compareMode === "slider" && hasBoth ? (
           <div className="relative h-full w-full">
@@ -89,7 +101,7 @@ export function VideoComparisonViewer({
               muted
               playsInline
               preload="metadata"
-              aria-label={labelBefore}
+              aria-label={before}
             />
             <div
               className="absolute inset-0 overflow-hidden"
@@ -101,7 +113,7 @@ export function VideoComparisonViewer({
                 muted
                 playsInline
                 preload="metadata"
-                aria-label={labelAfter}
+                aria-label={after}
               />
             </div>
             <div
@@ -117,7 +129,7 @@ export function VideoComparisonViewer({
             controls
             playsInline
             preload="metadata"
-            aria-label={showAfter ? labelAfter : labelBefore}
+            aria-label={showAfter ? after : before}
           />
         )}
 
@@ -126,7 +138,7 @@ export function VideoComparisonViewer({
             <button
               type="button"
               aria-pressed={!showAfter}
-              aria-label={`显示${labelBefore}`}
+              aria-label={t("video.compare.show", { label: before })}
               className={cn(
                 "rounded-[var(--radius-sm)] px-[var(--space-2)] py-1 text-[11px]",
                 glassFocusRing,
@@ -137,12 +149,12 @@ export function VideoComparisonViewer({
               )}
               onClick={() => setShowAfter(false)}
             >
-              {labelBefore}
+              {before}
             </button>
             <button
               type="button"
               aria-pressed={showAfter}
-              aria-label={`显示${labelAfter}`}
+              aria-label={t("video.compare.show", { label: after })}
               className={cn(
                 "rounded-[var(--radius-sm)] px-[var(--space-2)] py-1 text-[11px]",
                 glassFocusRing,
@@ -153,7 +165,7 @@ export function VideoComparisonViewer({
               )}
               onClick={() => setShowAfter(true)}
             >
-              {labelAfter}
+              {after}
             </button>
           </div>
         ) : null}
@@ -162,7 +174,7 @@ export function VideoComparisonViewer({
       {hasBoth && compareMode === "slider" ? (
         <div className="border-t border-[var(--separator)] px-[var(--space-4)] py-[var(--space-3)]">
           <label htmlFor={sliderId} className="sr-only">
-            对比位置
+            {t("video.compare.position")}
           </label>
           <input
             id={sliderId}
@@ -176,11 +188,11 @@ export function VideoComparisonViewer({
               glassFocusRing,
               motionControl
             )}
-            aria-valuetext={`${Math.round(position)}% ${labelAfter}`}
+            aria-valuetext={`${Math.round(position)}% ${after}`}
           />
           <div className="mt-1 flex justify-between text-[10px] text-[var(--text-muted)]">
-            <span>{labelBefore}</span>
-            <span>{labelAfter}</span>
+            <span>{before}</span>
+            <span>{after}</span>
           </div>
         </div>
       ) : null}

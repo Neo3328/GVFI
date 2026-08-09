@@ -4,12 +4,14 @@
  * Copyright © 2026 Mr. Gong. All Rights Reserved.
  */
 
+"use client";
+
 import { cn } from "@/lib/utils";
 import {
   APP_NAME,
-  APP_TAGLINE,
   COPYRIGHT_FOOTER_LINES,
 } from "@/lib/brand";
+import { useT } from "@/hooks/use-t";
 
 export interface CopyrightFooterProps {
   className?: string;
@@ -24,6 +26,7 @@ export function CopyrightFooter({
   variant = "stacked",
   align = "center",
 }: CopyrightFooterProps) {
+  const t = useT();
   const alignClass =
     align === "left"
       ? "text-left items-start"
@@ -34,14 +37,16 @@ export function CopyrightFooter({
   return (
     <footer
       className={cn("flex flex-col gap-1 select-none", alignClass, className)}
-      aria-label="版权信息"
+      aria-label={t("brand.copyrightAria")}
     >
       {showAppName ? (
         <div className="mb-1 flex flex-col gap-0.5">
           <span className="text-[15px] font-semibold tracking-tight text-[var(--text-strong)]">
             {APP_NAME}
           </span>
-          <span className="text-[11px] text-[var(--text-muted)]">{APP_TAGLINE}</span>
+          <span className="text-[11px] text-[var(--text-muted)]">
+            {t("brand.tagline")}
+          </span>
         </div>
       ) : null}
       {variant === "compact" ? (

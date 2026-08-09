@@ -51,7 +51,7 @@ export function GlassCard({
         glassSurface2,
         "p-4 text-card-foreground",
         interactive &&
-          "cursor-pointer hover:-translate-y-0.5 hover:shadow-[var(--lg-shadow-glass)] motion-reduce:hover:translate-y-0",
+          "cursor-pointer hover:scale-[0.99] hover:shadow-[var(--lg-shadow-glass)] motion-reduce:hover:scale-100",
         aiActive &&
           "ring-1 ring-[color-mix(in_srgb,var(--lg-accent-ai)_35%,transparent)]",
         className
@@ -161,6 +161,8 @@ export function GlassPanel({
               : padding === "lg"
                 ? "p-5"
                 : "p-4",
+          variant === "elevated" && "lg-glass-3",
+          variant === "inset" && "lg-glass-1",
           glassMotion
         )}
       >

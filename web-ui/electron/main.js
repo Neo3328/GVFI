@@ -4,11 +4,12 @@
  * Copyright © 2026 Mr. Gong. All Rights Reserved.
  */
 
-const { app, BrowserWindow, dialog } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain } = require("electron");
 const { spawn } = require("child_process");
 const fs = require("fs");
 const http = require("http");
 const path = require("path");
+const desktopI18n = require("./i18n");
 
 const isPackaged = app.isPackaged;
 const ROOT = isPackaged
@@ -46,14 +47,24 @@ const GVFI_ROOT = resolveGvfiRoot();
 const RIFE_DIR = path.join(GVFI_ROOT, "ECCV2022-RIFE");
 const LOG_FILE = path.join(app.getPath("userData"), "gvfi-desktop.log");
 
+function redactLogMessage(message) {
+  return String(message)
+    .replace(/Bearer\s+[A-Za-z0-9._\-+/=]+/gi, "Bearer ***")
+    .replace(
+      /("?(?:api[_-]?key|apiKey|token|authorization|password|secret)"?\s*[:=]\s*)(["']?)[^"'\s,}\\]]+/gi,
+      "$1$2***"
+    );
+}
+
 function log(message) {
-  const line = `[${new Date().toISOString()}] ${message}\n`;
+  const safe = redactLogMessage(message);
+  const line = `[${new Date().toISOString()}] ${safe}\n`;
   try {
     fs.appendFileSync(LOG_FILE, line, "utf8");
   } catch {
     /* ignore */
   }
-  console.error(message);
+  console.error(safe);
 }
 
 function waitForUrl(url, timeoutMs = 90000, acceptStatus = (code) => code >= 200 && code < 400) {
@@ -76,7 +87,7 @@ function waitForUrl(url, timeoutMs = 90000, acceptStatus = (code) => code >= 200
 
       function retry() {
         if (Date.now() - started > timeoutMs) {
-          reject(new Error(`等待服务超时: ${url}`));
+          reject(new Error(desktopI18n.t("waitTimeout", { url })));
           return;
         }
         setTimeout(attempt, 800);
@@ -118,11 +129,11 @@ let shuttingDown = false;
 function startGvfiApi() {
   const apiScript = path.join(RIFE_DIR, "gvfi_api.py");
   if (!fs.existsSync(apiScript)) {
-    log(`[GVFI] 未找到 gvfi_api.py (${apiScript})`);
+    log(`[GVFI] gvfi_api.py not found (${apiScript})`);
     return null;
   }
   const py = resolvePythonExecutable();
-  log(`[GVFI] 启动 API: ${py} ${apiScript}`);
+  log(`[GVFI] Starting API: ${py} ${apiScript}`);
   const proc = spawn(py, [apiScript], {
     cwd: RIFE_DIR,
     env: {
@@ -142,7 +153,7 @@ function startGvfiApi() {
     if (shuttingDown || apiRestarting) return;
     if (gvfiApiProcess !== proc) return;
     apiRestarting = true;
-    log("[GVFI] API 意外退出，3 秒后自动重启…");
+    log("[GVFI] API exited unexpectedly; restarting in 3s…");
     setTimeout(() => {
       apiRestarting = false;
       if (shuttingDown) return;
@@ -173,14 +184,12 @@ function startNextServer() {
     const nodeModules = path.join(ROOT, "node_modules");
     const nextModule = path.join(nodeModules, "next", "package.json");
     if (!fs.existsSync(serverJs)) {
-      throw new Error(`未找到 standalone 服务: ${serverJs}`);
+      throw new Error(desktopI18n.t("standaloneMissing", { path: serverJs }));
     }
     if (!fs.existsSync(nextModule)) {
-      throw new Error(
-        `未找到 standalone 依赖 (node_modules/next)。请重新打包桌面版，或运行 scripts\\sync-desktop-ui.cmd 同步 UI。`
-      );
+      throw new Error(desktopI18n.t("depsMissing"));
     }
-    log(`[GVFI] 启动 Next standalone: ${serverJs}`);
+    log(`[GVFI] Starting Next standalone: ${serverJs}`);
     return spawn(process.execPath, [serverJs], {
       cwd: ROOT,
       env: {
@@ -234,7 +243,7 @@ async function bootServices() {
     })
     .catch((error) => {
       log(
-        `[GVFI] API 未就绪: ${error.message}（界面可开，本地渲染暂不可用）`
+        `[GVFI] API not ready: ${error.message} (UI can open; local render unavailable)`
       );
     });
 
@@ -252,13 +261,17 @@ function createSplashWindow() {
     center: true,
     alwaysOnTop: true,
     show: true,
-    backgroundColor: "#070914",
+    transparent: true,
+    backgroundColor: "#00000000",
+    hasShadow: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
     },
   });
-  splashWindow.loadFile(path.join(__dirname, "splash.html"));
+  splashWindow.loadFile(path.join(__dirname, "splash.html"), {
+    query: { lang: desktopI18n.getLocale() },
+  });
   splashWindow.on("closed", () => {
     splashWindow = null;
   });
@@ -273,7 +286,33 @@ function closeSplashWindow() {
 
 function showBootError(message) {
   closeSplashWindow();
-  dialog.showErrorBox("GVFI 启动失败", `${message}\n\n日志: ${LOG_FILE}`);
+  dialog.showErrorBox(
+    desktopI18n.t("bootFailedTitle"),
+    desktopI18n.t("bootFailedBody", { message, log: LOG_FILE })
+  );
+}
+
+function registerWindowIpc() {
+  ipcMain.handle("gvfi:window-minimize", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.minimize();
+  });
+  ipcMain.handle("gvfi:window-maximize-toggle", () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return false;
+    if (mainWindow.isMaximized()) mainWindow.unmaximize();
+    else mainWindow.maximize();
+    return mainWindow.isMaximized();
+  });
+  ipcMain.handle("gvfi:window-close", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
+  });
+  ipcMain.handle("gvfi:window-is-maximized", () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return false;
+    return mainWindow.isMaximized();
+  });
+  ipcMain.handle("gvfi:set-locale", (_event, locale) => {
+    return desktopI18n.setLocale(locale);
+  });
+  ipcMain.handle("gvfi:get-locale", () => desktopI18n.getLocale());
 }
 
 function createWindow() {
@@ -285,13 +324,30 @@ function createWindow() {
     title: "GVFI",
     show: false,
     autoHideMenuBar: true,
-    backgroundColor: "#070914",
+    /* Transparent frameless shell — renderer owns --window-radius clip */
+    frame: false,
+    transparent: true,
+    backgroundColor: "#00000000",
+    hasShadow: true,
+    titleBarStyle: "hidden",
     webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: false,
+      sandbox: true,
+      webSecurity: true,
     },
   });
+
+  const emitMaximized = () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    mainWindow.webContents.send(
+      "gvfi:maximized-changed",
+      mainWindow.isMaximized()
+    );
+  };
+  mainWindow.on("maximize", emitMaximized);
+  mainWindow.on("unmaximize", emitMaximized);
 
   const reveal = () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -305,7 +361,9 @@ function createWindow() {
 
   mainWindow.webContents.on("did-fail-load", (_event, code, desc, url) => {
     log(`[GVFI] did-fail-load ${code} ${desc} ${url}`);
-    showBootError(`页面加载失败 (${code}): ${desc}\n${url}`);
+    showBootError(
+      desktopI18n.t("pageLoadFail", { code, desc, url })
+    );
   });
 
   mainWindow.webContents.on("did-finish-load", () => {
@@ -360,7 +418,9 @@ if (!gotLock) {
   });
 
   app.whenReady().then(async () => {
+    desktopI18n.initLocale();
     log(`[GVFI] starting packaged=${isPackaged} root=${GVFI_ROOT}`);
+    registerWindowIpc();
     createSplashWindow();
     try {
       await bootServices();

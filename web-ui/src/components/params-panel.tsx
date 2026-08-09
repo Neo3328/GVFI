@@ -1,3 +1,9 @@
+/**
+ * GVFI — Video processing parameters panel.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
 "use client";
 
 import { SectionCard } from "@/components/section-card";
@@ -8,6 +14,8 @@ import {
   GlassSelectTrigger,
   GlassSelectValue,
 } from "@/components/glass/glass-select";
+import { useLocale, useT } from "@/hooks/use-t";
+import { formatDeviceLabel } from "@/lib/i18n/device-label";
 import {
   FPS_OPTIONS,
   PRECISION_OPTIONS,
@@ -69,19 +77,26 @@ export function ParamsPanel({
   onGpuChange,
   onPrecisionChange,
 }: ParamsPanelProps) {
+  const t = useT();
+  const locale = useLocale();
   const modelItems =
     models.length > 0
       ? models
       : [{ id: model || "rife-ncnn:rife-anime", name: model || "rife-anime", path: "" }];
-  const gpuItems =
+  /* Stable code only — display strings come from formatDeviceLabel at render */
+  const gpuItems: GvfiGpu[] =
     gpus.length > 0
       ? gpus
-      : [{ index: 0, name: "默认 GPU", vram_mb: 0 }];
+      : [{ index: 0, name: "local-vulkan", vram_mb: 0 }];
 
   return (
-    <SectionCard title="处理参数">
-      <Field id="model" label="插帧模型">
-        <GlassSelect value={model} onValueChange={(v) => { if (typeof v === "string") onModelChange(v); }}>
+    <SectionCard title={t("video.params.title")}>
+      <Field id="model" label={t("video.params.model")}>
+        <GlassSelect
+          value={model}
+          items={Object.fromEntries(modelItems.map((item) => [item.id, item.name]))}
+          onValueChange={(v) => { if (typeof v === "string") onModelChange(v); }}
+        >
           <GlassSelectTrigger id="model" className="glass-select">
             <GlassSelectValue />
           </GlassSelectTrigger>
@@ -95,8 +110,12 @@ export function ParamsPanel({
         </GlassSelect>
       </Field>
 
-      <Field id="fps" label="目标帧率">
-        <GlassSelect value={fps} onValueChange={(v) => { if (typeof v === "string") onFpsChange(v as FpsOption); }}>
+      <Field id="fps" label={t("video.params.fps")}>
+        <GlassSelect
+          value={fps}
+          items={Object.fromEntries(FPS_OPTIONS.map((item) => [item.value, item.label]))}
+          onValueChange={(v) => { if (typeof v === "string") onFpsChange(v as FpsOption); }}
+        >
           <GlassSelectTrigger id="fps" className="glass-select">
             <GlassSelectValue />
           </GlassSelectTrigger>
@@ -110,9 +129,17 @@ export function ParamsPanel({
         </GlassSelect>
       </Field>
 
-      <Field id="resolution" label="输出分辨率">
+      <Field id="resolution" label={t("video.params.resolution")}>
         <GlassSelect
           value={resolution}
+          items={Object.fromEntries(
+            RESOLUTION_OPTIONS.map((item) => [
+              item.value,
+              item.value === "source"
+                ? t("video.params.resolutionSource")
+                : item.label,
+            ])
+          )}
           onValueChange={(v) => { if (typeof v === "string") onResolutionChange(v as ResolutionOption); }}
         >
           <GlassSelectTrigger id="resolution" className="glass-select">
@@ -121,16 +148,24 @@ export function ParamsPanel({
           <GlassSelectContent>
             {RESOLUTION_OPTIONS.map((item) => (
               <GlassSelectItem key={item.value} value={item.value}>
-                {item.label}
+                {item.value === "source"
+                  ? t("video.params.resolutionSource")
+                  : item.label}
               </GlassSelectItem>
             ))}
           </GlassSelectContent>
         </GlassSelect>
       </Field>
 
-      <Field id="gpu" label="加速设备">
+      <Field id="gpu" label={t("video.params.gpu")}>
         <GlassSelect
           value={String(gpu)}
+          items={Object.fromEntries(
+            gpuItems.map((item) => [
+              String(item.index),
+              formatDeviceLabel(locale, item, { withVram: true }),
+            ])
+          )}
           onValueChange={(v) => { if (typeof v === "string") onGpuChange(Number(v)); }}
         >
           <GlassSelectTrigger id="gpu" className="glass-select">
@@ -139,17 +174,19 @@ export function ParamsPanel({
           <GlassSelectContent>
             {gpuItems.map((item) => (
               <GlassSelectItem key={item.index} value={String(item.index)}>
-                {item.name}
-                {item.vram_mb > 0 ? ` (${item.vram_mb} MB)` : ""}
+                {formatDeviceLabel(locale, item, { withVram: true })}
               </GlassSelectItem>
             ))}
           </GlassSelectContent>
         </GlassSelect>
       </Field>
 
-      <Field id="precision" label="计算精度">
+      <Field id="precision" label={t("video.params.precision")}>
         <GlassSelect
           value={precision}
+          items={Object.fromEntries(
+            PRECISION_OPTIONS.map((item) => [item.value, item.label])
+          )}
           onValueChange={(v) => { if (typeof v === "string") onPrecisionChange(v as PrecisionOption); }}
         >
           <GlassSelectTrigger id="precision" className="glass-select">

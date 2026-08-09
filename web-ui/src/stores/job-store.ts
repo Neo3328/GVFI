@@ -1,7 +1,14 @@
+/**
+ * GVFI — Active job / health status store.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
 "use client";
 
 import { create } from "zustand";
 import type { GvfiGpu, GvfiModel, JobTask } from "@/lib/gvfi-types";
+import { tr } from "@/lib/i18n/runtime";
 
 export interface JobStoreState {
   taskId: string | null;
@@ -40,7 +47,9 @@ export const useJobStore = create<JobStoreState>((set) => ({
   taskId: null,
   activeTask: null,
   progress: 0,
-  stageLabel: "● 当前工序：连接服务中…",
+  stageLabel: tr("process.stage.wrap", {
+    detail: tr("process.stage.connecting"),
+  }),
   isRendering: false,
   lastOutputPath: "",
   taskLogs: [],

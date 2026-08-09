@@ -1,7 +1,16 @@
+/**
+ * GVFI — Glass empty / loading / error states.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
+"use client";
+
 import type { ComponentProps, ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import { GlassButton } from "@/components/glass/glass-button";
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/glass/glass-card";
+import { useT } from "@/hooks/use-t";
 import { cn } from "@/lib/utils";
 
 type StateBaseProps = {
@@ -36,18 +45,34 @@ function GlassStateBase({
   );
 }
 
-export function GlassEmptyState(props: StateBaseProps) {
-  return <GlassStateBase {...props} />;
+export function GlassEmptyState({
+  title,
+  description,
+  icon,
+  action,
+  className,
+}: Partial<StateBaseProps> & { className?: string }) {
+  const t = useT();
+  return (
+    <GlassStateBase
+      title={title ?? t("glass.empty")}
+      description={description}
+      icon={icon}
+      action={action}
+      className={className}
+    />
+  );
 }
 
 export function GlassLoadingState({
-  title = "加载中",
+  title,
   description,
   className,
-}: Omit<StateBaseProps, "icon">) {
+}: Omit<StateBaseProps, "icon" | "title"> & { title?: string }) {
+  const t = useT();
   return (
     <GlassStateBase
-      title={title}
+      title={title ?? t("glass.loading")}
       description={description}
       className={className}
       icon={
@@ -61,20 +86,29 @@ export function GlassLoadingState({
 }
 
 export function GlassErrorState({
-  title = "出现错误",
+  title,
   description,
   onRetry,
   className,
-}: Omit<StateBaseProps, "icon" | "action"> & { onRetry?: () => void }) {
+}: Omit<StateBaseProps, "icon" | "action" | "title"> & {
+  title?: string;
+  onRetry?: () => void;
+}) {
+  const t = useT();
   return (
     <GlassStateBase
-      title={title}
+      title={title ?? t("glass.error")}
       description={description}
       className={className}
       action={
         onRetry ? (
-          <GlassButton variant="glass" size="sm" onClick={onRetry} aria-label="重试操作">
-            重试
+          <GlassButton
+            variant="glass"
+            size="sm"
+            onClick={onRetry}
+            aria-label={t("glass.retryAria")}
+          >
+            {t("glass.retry")}
           </GlassButton>
         ) : undefined
       }

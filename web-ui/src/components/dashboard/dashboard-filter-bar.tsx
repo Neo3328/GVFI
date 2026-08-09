@@ -1,8 +1,15 @@
+/**
+ * GVFI — Dashboard filter controls.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
 "use client";
 
 import { Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { glassFocusRing, glassMotion } from "@/components/glass/glass-styles";
+import { useT } from "@/hooks/use-t";
 
 export type DashboardFilterMode = "all" | "active" | "done";
 export type DashboardTimeRange = "24h" | "7d" | "30d";
@@ -63,6 +70,7 @@ export function DashboardFilterBar({
   onApply,
   className,
 }: DashboardFilterBarProps) {
+  const t = useT();
   return (
     <section
       className={cn(
@@ -71,32 +79,32 @@ export function DashboardFilterBar({
       )}
     >
       <SelectField
-        label="任务状态"
+        label={t("dashboard.filter.status")}
         value={filterMode}
         onChange={(v) => onFilterModeChange(v as DashboardFilterMode)}
         options={[
-          { value: "all", label: "全部任务" },
-          { value: "active", label: "进行中" },
-          { value: "done", label: "已完成" },
+          { value: "all", label: t("dashboard.filter.all") },
+          { value: "active", label: t("dashboard.filter.active") },
+          { value: "done", label: t("dashboard.filter.done") },
         ]}
       />
       <SelectField
-        label="补帧模型"
+        label={t("dashboard.filter.model")}
         value={modelFilter}
         onChange={onModelFilterChange}
         options={[
-          { value: "all", label: "全部模型" },
+          { value: "all", label: t("dashboard.filter.allModels") },
           ...models.map((m) => ({ value: m, label: m })),
         ]}
       />
       <SelectField
-        label="时间范围"
+        label={t("dashboard.filter.time")}
         value={timeRange}
         onChange={(v) => onTimeRangeChange(v as DashboardTimeRange)}
         options={[
-          { value: "24h", label: "最近 24 小时" },
-          { value: "7d", label: "最近 7 天" },
-          { value: "30d", label: "最近 30 天" },
+          { value: "24h", label: t("dashboard.filter.24h") },
+          { value: "7d", label: t("dashboard.filter.7d") },
+          { value: "30d", label: t("dashboard.filter.30d") },
         ]}
       />
       <button
@@ -110,7 +118,7 @@ export function DashboardFilterBar({
         )}
       >
         <Filter className="size-4" aria-hidden />
-        应用筛选
+        {t("dashboard.filter.apply")}
       </button>
     </section>
   );

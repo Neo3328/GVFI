@@ -1,10 +1,11 @@
 import type { GvfiPluginManifest, RenderBackendId } from "@/plugins/types";
+import { tr } from "@/lib/i18n/runtime";
 
 const plugins = new Map<string, GvfiPluginManifest>();
 
 export function registerPlugin(manifest: GvfiPluginManifest): void {
   if (plugins.has(manifest.id)) {
-    console.warn(`[plugins] 覆盖已注册插件: ${manifest.id}`);
+    console.warn(`[plugins] ${tr("err.pluginsOverwrite", { id: manifest.id })}`);
   }
   plugins.set(manifest.id, manifest);
 }

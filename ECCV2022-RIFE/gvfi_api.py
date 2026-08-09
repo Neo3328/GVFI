@@ -88,6 +88,98 @@ def _ensure_dirs(base_dir: str) -> None:
     _output_dir = os.path.join(user_data, "output")
     os.makedirs(_upload_dir, exist_ok=True)
     os.makedirs(_output_dir, exist_ok=True)
+    _sweep_stale_uploads(max_age_hours=72)
+
+
+_SENSITIVE_SETTING_KEYS = {
+    "apiKey",
+    "api_key",
+    "token",
+    "authorization",
+    "Authorization",
+    "password",
+    "secret",
+}
+
+_MEDIA_EXTS = {
+    ".mp4",
+    ".mkv",
+    ".mov",
+    ".avi",
+    ".m4v",
+    ".webm",
+    ".md",
+    ".markdown",
+    ".txt",
+    ".json",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".webp",
+    ".gif",
+}
+
+
+def _scrub_settings(settings: dict) -> dict:
+    """Persist-safe copy — never keep API keys/tokens in job records."""
+    scrubbed = dict(settings or {})
+    for key in list(scrubbed.keys()):
+        if key in _SENSITIVE_SETTING_KEYS or str(key).lower() in {
+            "apikey",
+            "api_key",
+            "token",
+            "authorization",
+            "password",
+            "secret",
+        }:
+            if scrubbed.get(key):
+                scrubbed[key] = "***"
+    return scrubbed
+
+
+def _is_local_client(handler: "GvfiApiHandler") -> bool:
+    host = (handler.headers.get("Host") or "").split(":")[0].strip().lower()
+    if host in ("127.0.0.1", "localhost", "::1"):
+        return True
+    origin = (handler.headers.get("Origin") or "").lower()
+    return origin.startswith("http://127.0.0.1") or origin.startswith(
+        "http://localhost"
+    )
+
+
+def _cors_allow_origin(handler: "GvfiApiHandler") -> str:
+    origin = handler.headers.get("Origin") or ""
+    if origin.startswith("http://127.0.0.1") or origin.startswith("http://localhost"):
+        return origin
+    return "http://127.0.0.1"
+
+
+def _cleanup_upload_if_owned(path: str) -> None:
+    if not path or not _upload_dir:
+        return
+    try:
+        abs_path = os.path.normpath(os.path.abspath(path))
+        root = os.path.normpath(os.path.abspath(_upload_dir))
+        if abs_path.startswith(root + os.sep) and os.path.isfile(abs_path):
+            os.remove(abs_path)
+    except OSError:
+        pass
+
+
+def _sweep_stale_uploads(max_age_hours: int = 72) -> None:
+    if not _upload_dir or not os.path.isdir(_upload_dir):
+        return
+    cutoff = datetime.now(timezone.utc).timestamp() - max_age_hours * 3600
+    try:
+        for name in os.listdir(_upload_dir):
+            path = os.path.join(_upload_dir, name)
+            try:
+                if os.path.isfile(path) and os.path.getmtime(path) < cutoff:
+                    os.remove(path)
+            except OSError:
+                continue
+    except OSError:
+        pass
 
 
 def _model_catalog(tools: dict) -> List[dict]:
@@ -230,6 +322,10 @@ def _finish_job(job_id: str, success: bool, message: str) -> None:
     status = "succeeded" if success else "failed"
     if "取消" in message or "终止" in message or "停止" in message:
         status = "cancelled"
+    input_path = ""
+    with _jobs_lock:
+        job = _jobs.get(job_id) or {}
+        input_path = (job.get("task") or {}).get("input_path") or ""
     _update_task(
         job_id,
         status=status,
@@ -238,7 +334,12 @@ def _finish_job(job_id: str, success: bool, message: str) -> None:
         message=message,
         error="" if success or status == "cancelled" else message,
     )
+    # Drop temporary upload copies after the job ends (success or failure).
+    _cleanup_upload_if_owned(input_path)
     with _jobs_lock:
+        job = _jobs.get(job_id)
+        if job and isinstance(job.get("settings"), dict):
+            job["settings"] = _scrub_settings(job["settings"])
         _active_worker = None
         _active_job_id = None
 
@@ -354,7 +455,8 @@ def _create_job(input_path: str, settings: dict) -> dict:
             "task": task,
             "logs": [],
             "error_logs": [],
-            "settings": settings,
+            # Never persist raw API keys in the in-memory job table.
+            "settings": _scrub_settings(settings),
         }
         _active_llm_cancelled[job_id] = False
 
@@ -528,15 +630,24 @@ def _video_mime(ext: str) -> str:
 
 
 def _serve_media_file(handler: "GvfiApiHandler", file_path: str) -> None:
-    """流式返回本地视频文件，支持 Range 以便 <video>  seek。"""
-    file_path = os.path.normpath(file_path)
+    """流式返回本地媒体文件（仅本机客户端 + 允许的扩展名）。"""
+    if not _is_local_client(handler):
+        handler._send_json(403, {"error": "仅允许本机访问"})
+        return
+
+    file_path = os.path.normpath(os.path.abspath(file_path))
     if not os.path.isfile(file_path):
         handler._send_json(404, {"error": "文件不存在"})
         return
 
     ext = os.path.splitext(file_path)[1].lower()
+    if ext not in _MEDIA_EXTS:
+        handler._send_json(403, {"error": "不允许的媒体类型"})
+        return
+
     mime = _video_mime(ext)
     file_size = os.path.getsize(file_path)
+    allow_origin = _cors_allow_origin(handler)
 
     range_header = handler.headers.get("Range")
     if range_header:
@@ -556,7 +667,8 @@ def _serve_media_file(handler: "GvfiApiHandler", file_path: str) -> None:
             length = end - start + 1
             handler.send_response(206)
             handler.send_header("Content-Type", mime)
-            handler.send_header("Access-Control-Allow-Origin", "*")
+            handler.send_header("Access-Control-Allow-Origin", allow_origin)
+            handler.send_header("Vary", "Origin")
             handler.send_header("Accept-Ranges", "bytes")
             handler.send_header("Content-Range", f"bytes {start}-{end}/{file_size}")
             handler.send_header("Content-Length", str(length))
@@ -570,7 +682,8 @@ def _serve_media_file(handler: "GvfiApiHandler", file_path: str) -> None:
 
     handler.send_response(200)
     handler.send_header("Content-Type", mime)
-    handler.send_header("Access-Control-Allow-Origin", "*")
+    handler.send_header("Access-Control-Allow-Origin", allow_origin)
+    handler.send_header("Vary", "Origin")
     handler.send_header("Accept-Ranges", "bytes")
     handler.send_header("Content-Length", str(file_size))
     handler.end_headers()
@@ -595,7 +708,8 @@ class GvfiApiHandler(BaseHTTPRequestHandler):
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", _cors_allow_origin(self))
+        self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header(
             "Access-Control-Allow-Headers", "Content-Type, Authorization"
@@ -606,7 +720,8 @@ class GvfiApiHandler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self) -> None:
         self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", _cors_allow_origin(self))
+        self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header(
             "Access-Control-Allow-Headers", "Content-Type, Authorization"
@@ -621,7 +736,7 @@ class GvfiApiHandler(BaseHTTPRequestHandler):
     def _send_bytes(self, code: int, body: bytes, content_type: str) -> None:
         self.send_response(code)
         self.send_header("Content-Type", content_type)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", _cors_allow_origin(self))
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)

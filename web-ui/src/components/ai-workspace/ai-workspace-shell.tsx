@@ -11,33 +11,30 @@ import { ChatPane } from "@/components/ai-workspace/chat-pane";
 import { ControlPanel } from "@/components/ai-workspace/control-panel";
 import { SessionSidebar } from "@/components/ai-workspace/session-sidebar";
 import { useWorkspaceChrome } from "@/components/workspace/workspace-chrome-context";
+import { useT } from "@/hooks/use-t";
 
 export function AiWorkspaceShell() {
+  const t = useT();
   const { setChrome } = useWorkspaceChrome();
 
   useEffect(() => {
     setChrome({
-      title: "AI 工作台",
+      title: t("ai.title"),
       breadcrumbs: [
-        { label: "GVFI", href: "/app/dashboard" },
-        { label: "AI 工作台" },
+        { label: t("common.app"), href: "/app/dashboard" },
+        { label: t("ai.title") },
       ],
       status: "online",
-      statusLabel: "Gateway",
+      statusLabel: t("common.gateway"),
     });
-  }, [setChrome]);
+  }, [setChrome, t]);
 
   return (
-    <div className="flex h-[calc(100vh-7.5rem)] min-h-[520px] flex-col gap-3">
-      <header className="shrink-0">
-        <h1 className="text-[22px] font-semibold tracking-tight text-[var(--text-strong)]">
-          AI 工作台
-        </h1>
-        <p className="mt-1 text-[13px] text-[var(--text-muted)]">
-          统一会话、模型配置与 AI 任务调度 — 所有大模型请求经 AI Gateway
-        </p>
-      </header>
-      <div className="flex min-h-0 flex-1 gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-2">
+      <p className="shrink-0 truncate text-[12px] text-[var(--text-muted)]">
+        {t("ai.subtitle")}
+      </p>
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[220px_minmax(0,1fr)_minmax(280px,340px)] lg:items-stretch">
         <SessionSidebar />
         <ChatPane />
         <ControlPanel />

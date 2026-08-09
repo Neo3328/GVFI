@@ -8,12 +8,14 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { tr } from "@/lib/i18n/runtime";
 import {
   LLM_PROVIDER_PRESETS,
   LLM_TASK_PRESETS,
   type LlmProviderId,
   type LlmTaskPresetId,
 } from "@/lib/llm-types";
+import { createBrowserPersistStorage } from "@/lib/persist-storage";
 
 export interface AiModelConfigState {
   provider: LlmProviderId;
@@ -93,10 +95,10 @@ export const useAiModelConfigStore = create<AiModelConfigStore>()(
       getActivePrompt: () => {
         const state = get();
         if (state.customPrompt.trim()) return state.customPrompt.trim();
-        return (
-          LLM_TASK_PRESETS.find((p) => p.id === state.taskPreset)?.prompt ??
-          LLM_TASK_PRESETS[0].prompt
-        );
+        const preset =
+          LLM_TASK_PRESETS.find((p) => p.id === state.taskPreset) ??
+          LLM_TASK_PRESETS[0];
+        return tr(preset.promptKey);
       },
 
       hasApiKey: () => Boolean(get().apiKey.trim()),
@@ -110,6 +112,8 @@ export const useAiModelConfigStore = create<AiModelConfigStore>()(
     }),
     {
       name: "gvfi-ai-model-config-v1",
+      storage: createBrowserPersistStorage(),
+      skipHydration: true,
       partialize: (state) => ({
         provider: state.provider,
         model: state.model,

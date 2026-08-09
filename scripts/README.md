@@ -12,5 +12,8 @@ Windows 启动与打包脚本，由根目录 `.cmd` / `.vbs` 调用。
 | `build-desktop.cmd` | build → standalone → electron-builder |
 | `sync-desktop-ui.cmd` | 热更新 standalone 到已打包目录 |
 | `create-shortcut.bat` | 创建桌面快捷方式 |
+| `release-checksums.ps1` | 为 `GVFI-Setup/Portable-*.exe` 生成 SHA-256 |
+
+对外发版流程见仓库根目录 `docs/RELEASE.md`。
 
 所有脚本使用 `chcp 65001` 以正确显示中文。

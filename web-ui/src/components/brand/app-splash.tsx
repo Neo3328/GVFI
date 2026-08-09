@@ -8,12 +8,14 @@
 
 import { useEffect, useState } from "react";
 import { CopyrightFooter } from "@/components/brand/copyright-footer";
-import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
+import { useT } from "@/hooks/use-t";
+import { APP_NAME } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
 const SPLASH_MS = 1600;
 
 export function AppSplash() {
+  const t = useT();
   const [visible, setVisible] = useState(true);
   const [fade, setFade] = useState(false);
 
@@ -51,7 +53,9 @@ export function AppSplash() {
         </div>
         <div>
           <h1 className="text-xl font-semibold text-[var(--text-strong)]">{APP_NAME}</h1>
-          <p className="mt-1 text-[13px] text-[var(--text-muted)]">{APP_TAGLINE}</p>
+          <p className="mt-1 text-[13px] text-[var(--text-muted)]">
+            {t("brand.tagline")}
+          </p>
         </div>
         <CopyrightFooter showAppName={false} variant="stacked" align="center" />
       </div>

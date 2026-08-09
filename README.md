@@ -137,6 +137,22 @@ scripts\sync-desktop-ui.cmd
 - 动画：`web-ui/docs/motion.md`
 - 架构：`web-ui/docs/architecture.md`
 - 更新：`CHANGELOG.md`
+- 使用说明：`docs/USER_GUIDE.md`
+- 对外发布：`docs/RELEASE.md`
+- 1.0.0 下载与哈希：`releases/1.0.0/DOWNLOADS.md`
+
+---
+
+## 对外发布（Windows 1.0.0）
+
+正式给他人使用前请阅读 [`docs/RELEASE.md`](docs/RELEASE.md)。摘要：
+
+1. **代码签名**：设置 `CSC_LINK` / `CSC_KEY_PASSWORD` 后打包，降低 SmartScreen「未知发布者」提示  
+2. **版本**：`1.0.0`（`web-ui/package.json` + `APP_VERSION`）  
+3. **产物**：`cd web-ui && npm run dist:win:release` → Setup + Portable  
+4. **哈希**：`scripts\release-checksums.ps1 -Version 1.0.0` → 填入 `releases/1.0.0/DOWNLOADS.md`  
+5. **反馈**：配置 `FEEDBACK_EMAIL` / `FEEDBACK_URL`（`web-ui/src/lib/brand.ts`）  
+6. **升级**：本版手动安装；回滚保留上一版安装包与 SHA-256  
 
 ---
 

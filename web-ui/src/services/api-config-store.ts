@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { createBrowserPersistStorage } from "@/lib/persist-storage";
 
 export type ApiProfileKind = "local" | "cloud";
 
@@ -32,10 +33,11 @@ export interface ApiConfigState {
 const LOCAL_DEFAULT_BASE = "/api";
 const LOCAL_DIRECT_BASE = "http://127.0.0.1:8765";
 
+/** Stable storage names — UI resolves via apiProfileDisplayName + locale. */
 function createLocalDefaultProfile(): ApiProfile {
   return {
     id: "local-default",
-    name: "本地代理 (/api)",
+    name: "local-proxy",
     baseUrl: LOCAL_DEFAULT_BASE,
     timeoutMs: 60_000,
     concurrency: 1,
@@ -48,7 +50,7 @@ function createLocalDefaultProfile(): ApiProfile {
 function createLocalDirectProfile(): ApiProfile {
   return {
     id: "local-direct",
-    name: "本地直连 (:8765)",
+    name: "local-direct",
     baseUrl: LOCAL_DIRECT_BASE,
     timeoutMs: 120_000,
     concurrency: 1,
@@ -56,6 +58,18 @@ function createLocalDirectProfile(): ApiProfile {
     isDefault: false,
     kind: "local",
   };
+}
+
+function syncBuiltinProfileNames(profiles: ApiProfile[]): ApiProfile[] {
+  return profiles.map((p) => {
+    if (p.id === "local-default") {
+      return { ...p, name: "local-proxy" };
+    }
+    if (p.id === "local-direct") {
+      return { ...p, name: "local-direct" };
+    }
+    return p;
+  });
 }
 
 function ensureBuiltinProfiles(profiles: ApiProfile[]): ApiProfile[] {
@@ -66,7 +80,7 @@ function ensureBuiltinProfiles(profiles: ApiProfile[]): ApiProfile[] {
   if (!byId.has("local-direct")) {
     byId.set("local-direct", createLocalDirectProfile());
   }
-  return Array.from(byId.values());
+  return syncBuiltinProfileNames(Array.from(byId.values()));
 }
 
 function normalizeProfiles(profiles: ApiProfile[]): ApiProfile[] {
@@ -162,6 +176,8 @@ export const useApiConfigStore = create<ApiConfigState>()(
     }),
     {
       name: "gvfi-api-config-v1",
+      storage: createBrowserPersistStorage(),
+      skipHydration: true,
       partialize: (state) => ({
         profiles: state.profiles,
         activeProfileId: state.activeProfileId,

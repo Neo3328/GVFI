@@ -7,21 +7,22 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Loader2, Paperclip, Send, Square } from "lucide-react";
+import { Paperclip, Send, Sparkles, Square } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import {
-  glassSurface2,
-  glassTextCaption,
-  glassTextTitle,
-} from "@/components/glass/glass-styles";
+import { glassTextCaption } from "@/components/glass/glass-styles";
+import { aiPanelSurface } from "@/components/ai-workspace/ai-field";
+import { useT } from "@/hooks/use-t";
 import { cn } from "@/lib/utils";
 import { aiGateway } from "@/services/ai-gateway";
 import { useAiModelConfigStore } from "@/stores/ai-model-config-store";
 import { useAiSessionStore } from "@/stores/ai-session-store";
+import { llmProviderLabel } from "@/lib/i18n/catalog-labels";
 import { LLM_PROVIDER_PRESETS } from "@/lib/llm-types";
+import { consumeErrorLogForAi } from "@/lib/error-log-bridge";
 
 export function ChatPane() {
+  const t = useT();
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
@@ -42,14 +43,20 @@ export function ChatPane() {
   } = useAiSessionStore();
 
   const session = getActiveSession();
+  const canSend = Boolean(draft.trim()) && !sending;
 
   useEffect(() => {
     const state = useAiSessionStore.getState();
     if (!state.activeSessionId) {
       if (state.sessions[0]) state.setActiveSession(state.sessions[0].id);
-      else createSession("欢迎");
+      else createSession(t("ai.session.welcome"));
     }
-  }, [activeSessionId, createSession]);
+  }, [activeSessionId, createSession, t]);
+
+  useEffect(() => {
+    const pending = consumeErrorLogForAi();
+    if (pending) setDraft(pending);
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -59,7 +66,7 @@ export function ChatPane() {
     const text = draft.trim();
     if (!text || sending) return;
     if (!hasApiKey()) {
-      setError("请先在右侧配置 API Key");
+      setError(t("ai.chat.needKey"));
       return;
     }
     let sid = activeSessionId;
@@ -75,14 +82,15 @@ export function ChatPane() {
       streaming: true,
     });
 
-    const history = useAiSessionStore
-      .getState()
-      .sessions.find((s) => s.id === sid)
-      ?.messages.filter((m) => m.id !== assistantId && m.content)
-      .map((m) => ({
-        role: m.role as "user" | "assistant" | "system",
-        content: m.content,
-      })) ?? [];
+    const history =
+      useAiSessionStore
+        .getState()
+        .sessions.find((s) => s.id === sid)
+        ?.messages.filter((m) => m.id !== assistantId && m.content)
+        .map((m) => ({
+          role: m.role as "user" | "assistant" | "system",
+          content: m.content,
+        })) ?? [];
 
     try {
       let acc = "";
@@ -96,10 +104,20 @@ export function ChatPane() {
           });
         },
       });
-      updateMessageContent(sid, assistantId, acc || "（空回复）", false);
+      updateMessageContent(
+        sid,
+        assistantId,
+        acc || t("ai.chat.emptyReply"),
+        false
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      updateMessageContent(sid, assistantId, `错误：${msg}`, false);
+      updateMessageContent(
+        sid,
+        assistantId,
+        `${t("ai.chat.errorPrefix")}${msg}`,
+        false
+      );
       setError(msg);
     } finally {
       setSending(false);
@@ -114,37 +132,42 @@ export function ChatPane() {
   const preset = LLM_PROVIDER_PRESETS.find((p) => p.id === provider);
 
   return (
-    <section
-      className={cn(glassSurface2, "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden")}
-    >
-      <header className="flex items-center justify-between gap-3 border-b border-[var(--glass-border)] px-4 py-3">
-        <div>
-          <h2 className={glassTextTitle}>{session?.title ?? "会话"}</h2>
-          <p className={glassTextCaption}>
-            {preset?.label ?? provider} · {model}
+    <section className={cn(aiPanelSurface, "min-w-0")}>
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[color-mix(in_srgb,var(--glass-border)_80%,transparent)] px-4 py-3">
+        <div className="min-w-0">
+          <h2 className="truncate text-[15px] font-semibold tracking-tight text-[var(--text-strong)]">
+            {session?.title ?? t("ai.chat.session")}
+          </h2>
+          <p className={cn(glassTextCaption, "mt-0.5 truncate")}>
+            {llmProviderLabel(t, provider, provider)} · {model}
           </p>
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
+      <div className="glass-scroll min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-5">
         {!session?.messages.length ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-            <p className="text-[15px] font-medium text-[var(--text-strong)]">
-              开始与模型对话
-            </p>
-            <p className={glassTextCaption}>
-              支持技术分析、代码辅助与视频处理建议。视频视觉分析请用右侧面板。
-            </p>
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+            <div className="flex size-12 items-center justify-center rounded-2xl border border-[color-mix(in_srgb,var(--accent-cyan)_28%,transparent)] bg-[color-mix(in_srgb,var(--accent-cyan)_10%,transparent)]">
+              <Sparkles className="size-5 text-[var(--accent-cyan)]" />
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-[15px] font-medium text-[var(--text-strong)]">
+                {t("ai.chat.emptyTitle")}
+              </p>
+              <p className={cn(glassTextCaption, "mx-auto max-w-sm leading-relaxed")}>
+                {t("ai.chat.emptyHint")}
+              </p>
+            </div>
           </div>
         ) : (
           session.messages.map((m) => (
             <article
               key={m.id}
               className={cn(
-                "max-w-[90%] rounded-[var(--radius-md)] px-3 py-2 text-[13px] leading-relaxed",
+                "max-w-[88%] rounded-[14px] px-3.5 py-2.5 text-[13px] leading-relaxed",
                 m.role === "user"
-                  ? "ml-auto bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] text-[var(--text-strong)]"
-                  : "mr-auto border border-[var(--glass-border)] bg-[color-mix(in_srgb,var(--bg-0)_35%,transparent)] text-[var(--text-normal)]"
+                  ? "ml-auto bg-[color-mix(in_srgb,var(--accent)_24%,transparent)] text-[var(--text-strong)]"
+                  : "mr-auto border border-[var(--glass-border)] bg-[color-mix(in_srgb,var(--bg-0)_40%,transparent)] text-[var(--text-normal)]"
               )}
             >
               {m.role === "assistant" ? (
@@ -166,8 +189,8 @@ export function ChatPane() {
         <p className="px-4 pb-1 text-[12px] text-[var(--danger)]">{error}</p>
       ) : null}
 
-      <footer className="border-t border-[var(--glass-border)] p-3">
-        <div className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--glass-border)] bg-[color-mix(in_srgb,var(--bg-0)_45%,transparent)] p-2">
+      <footer className="shrink-0 border-t border-[color-mix(in_srgb,var(--glass-border)_80%,transparent)] p-3">
+        <div className="rounded-[16px] border border-[color-mix(in_srgb,var(--glass-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--bg-0)_50%,transparent)] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -177,24 +200,24 @@ export function ChatPane() {
                 void handleSend();
               }
             }}
-            rows={3}
-            placeholder="请输入任务…"
-            className="w-full resize-none bg-transparent px-2 py-1 text-[13px] text-[var(--text-strong)] outline-none placeholder:text-[var(--text-muted)]"
+            rows={2}
+            placeholder={t("ai.chat.placeholder")}
+            className="w-full resize-none bg-transparent px-2 py-1.5 text-[13px] leading-relaxed text-[var(--text-strong)] outline-none placeholder:text-[var(--text-muted)]"
           />
-          <div className="flex items-center gap-2 px-1">
+          <div className="mt-1.5 flex items-center gap-2 px-1">
             <button
               type="button"
-              className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-2 py-1 text-[11px] text-[var(--text-muted)] opacity-60"
-              title="P0 附件占位"
+              className="inline-flex size-8 shrink-0 items-center justify-center rounded-[10px] text-[var(--text-muted)] opacity-50"
+              title={t("ai.chat.attachTitle")}
+              aria-label={t("ai.chat.attach")}
               disabled
             >
-              <Paperclip className="size-3.5" />
-              附件
+              <Paperclip className="size-4" />
             </button>
             <select
               value={model}
               onChange={(e) => setModel(e.target.value)}
-              className="rounded-[var(--radius-sm)] border border-[var(--glass-border)] bg-transparent px-2 py-1 text-[11px] text-[var(--text-normal)]"
+              className="min-w-0 max-w-[11rem] truncate rounded-full border border-[color-mix(in_srgb,var(--accent-cyan)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent-cyan)_12%,transparent)] px-3 py-1 text-[11px] font-medium text-[var(--text-strong)] outline-none"
             >
               <option value={model}>{model}</option>
               {preset?.defaultModel && preset.defaultModel !== model ? (
@@ -204,30 +227,33 @@ export function ChatPane() {
               <option value="gpt-4o-mini">gpt-4o-mini</option>
               <option value="deepseek-chat">deepseek-chat</option>
             </select>
-            <div className="flex-1" />
-            {sending ? (
-              <button
-                type="button"
-                onClick={handleStop}
-                className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] bg-[var(--danger)] px-3 py-1.5 text-[12px] font-medium text-white"
-              >
-                <Square className="size-3.5" />
-                停止
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => void handleSend()}
-                className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] bg-[var(--accent-cyan)] px-3 py-1.5 text-[12px] font-medium text-[var(--bg-0)]"
-              >
-                {sending ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
+            <div className="ml-auto flex shrink-0 items-center">
+              {sending ? (
+                <button
+                  type="button"
+                  onClick={handleStop}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-[11px] bg-[var(--danger)] px-3.5 text-[12px] font-semibold text-white"
+                >
+                  <Square className="size-3.5" />
+                  {t("ai.chat.stop")}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void handleSend()}
+                  disabled={!canSend}
+                  className={cn(
+                    "inline-flex h-9 items-center gap-1.5 rounded-[11px] px-3.5 text-[12px] font-semibold transition-opacity",
+                    canSend
+                      ? "bg-[var(--accent-cyan)] text-[var(--bg-0)]"
+                      : "cursor-not-allowed bg-[color-mix(in_srgb,var(--accent-cyan)_35%,transparent)] text-[var(--bg-0)] opacity-55"
+                  )}
+                >
                   <Send className="size-3.5" />
-                )}
-                发送
-              </button>
-            )}
+                  {t("ai.chat.send")}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </footer>

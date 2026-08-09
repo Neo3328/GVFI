@@ -1,0 +1,244 @@
+/**
+ * GVFI — Unified macOS-style scrollbars (Chromium / WebKit / Firefox).
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ *
+ * Global native scrollbars + adapters for library-owned chrome.
+ * Do not hide necessary scroll with overflow:hidden / scrollbar-width:none.
+ * Scroll (wheel, trackpad, drag, keyboard) must remain fully functional.
+ */
+
+:root {
+  --scrollbar-size: 8px;
+  --scrollbar-thumb: rgba(255, 255, 255, 0.14);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.32);
+  --scrollbar-thumb-active: rgba(255, 255, 255, 0.42);
+  --scrollbar-thumb-firefox: rgba(255, 255, 255, 0.2);
+
+  color-scheme: dark;
+  scrollbar-color: var(--scrollbar-thumb-firefox) transparent;
+  scrollbar-width: thin;
+}
+
+:root[data-theme="studio"] {
+  --scrollbar-thumb: rgba(15, 23, 42, 0.18);
+  --scrollbar-thumb-hover: rgba(15, 23, 42, 0.32);
+  --scrollbar-thumb-active: rgba(15, 23, 42, 0.42);
+  --scrollbar-thumb-firefox: rgba(15, 23, 42, 0.24);
+  color-scheme: light;
+}
+
+html {
+  color-scheme: dark;
+  scrollbar-color: var(--scrollbar-thumb-firefox) transparent;
+  scrollbar-width: thin;
+}
+
+/* —— Native scrollbars (every nested overflow container) —— */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-firefox) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  min-width: 24px;
+  min-height: 24px;
+  background: var(--scrollbar-thumb);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background: var(--scrollbar-thumb-active);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Reinforce high-traffic app surfaces (still scrollable; never clipped for style) */
+
+html,
+body,
+#main-content,
+.glass-scroll,
+.glass-option-menu,
+[data-slot="select-content"],
+[data-slot="popover-content"],
+[data-slot="dropdown-menu-content"],
+[data-slot="dialog-content"],
+[data-slot="drawer-content"],
+textarea,
+pre,
+.gvfi-md-prose,
+.gvfi-md-prose pre {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-firefox) transparent;
+}
+
+/*
+ * Base UI ScrollArea hides the native bar (.base-ui-disable-scrollbar) and
+ * paints custom thumb/track nodes — style those DOM parts to match.
+ * Safe no-ops until ScrollArea is wired with data-slot conventions.
+ */
+
+[data-slot="scroll-area-scrollbar"] {
+  background: transparent !important;
+  padding: 2px;
+  border: 0;
+  transition: opacity 160ms ease;
+}
+
+[data-slot="scroll-area-scrollbar"][data-orientation="vertical"] {
+  width: var(--scrollbar-size);
+}
+
+[data-slot="scroll-area-scrollbar"][data-orientation="horizontal"] {
+  height: var(--scrollbar-size);
+}
+
+[data-slot="scroll-area-thumb"] {
+  border-radius: 999px;
+  background: var(--scrollbar-thumb) !important;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+[data-slot="scroll-area-thumb"]:hover {
+  background: var(--scrollbar-thumb-hover) !important;
+}
+
+[data-slot="scroll-area-thumb"][data-scrolling],
+[data-slot="scroll-area-thumb"]:active {
+  background: var(--scrollbar-thumb-active) !important;
+}
+
+[data-slot="scroll-area-corner"] {
+  background: transparent !important;
+}
+
+/*
+ * Monaco Editor — custom slider DOM (not ::-webkit-scrollbar).
+ * Present selectors stay inert until monaco is introduced.
+ */
+
+.monaco-editor .monaco-scrollable-element > .scrollbar,
+.monaco-editor .overflow-guard .scrollbar {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
+.monaco-editor .monaco-scrollable-element > .scrollbar > .slider {
+  background: var(--scrollbar-thumb) !important;
+  border-radius: 999px !important;
+  border: 2px solid transparent !important;
+  background-clip: padding-box !important;
+}
+
+.monaco-editor .monaco-scrollable-element > .scrollbar > .slider:hover {
+  background: var(--scrollbar-thumb-hover) !important;
+}
+
+.monaco-editor .monaco-scrollable-element > .scrollbar > .slider.active,
+.monaco-editor .monaco-scrollable-element > .scrollbar > .slider:active {
+  background: var(--scrollbar-thumb-active) !important;
+}
+
+/*
+ * CodeMirror 6 — .cm-scroller uses native overflow; reinforce in case themes
+ * set their own scrollbar-color / width.
+ */
+
+.cm-editor,
+.cm-scroller,
+.cm-gutters {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-firefox) transparent;
+}
+
+.cm-scroller::-webkit-scrollbar-track,
+.cm-gutters::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.cm-scroller::-webkit-scrollbar-thumb,
+.cm-gutters::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+.cm-scroller::-webkit-scrollbar-corner,
+.cm-gutters::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/*
+ * Common data-grid / virtual-list hosts (AG Grid, TanStack Virtual, Virtuoso).
+ * Native overflow hosts inherit *; AG Grid also paints its own bar chrome.
+ */
+
+.ag-body-vertical-scroll-viewport,
+.ag-body-horizontal-scroll-viewport,
+.ag-body-viewport,
+.ag-center-cols-viewport,
+.ag-floating-top-viewport,
+.ag-floating-bottom-viewport,
+[data-testid="virtuoso-scroller"],
+[data-virtuoso-scroller],
+.ReactVirtualized__Grid,
+.ReactVirtualized__List {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-firefox) transparent;
+}
+
+.ag-body-vertical-scroll-viewport::-webkit-scrollbar-track,
+.ag-body-horizontal-scroll-viewport::-webkit-scrollbar-track,
+.ag-body-viewport::-webkit-scrollbar-track,
+.ag-center-cols-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ag-body-vertical-scroll-viewport::-webkit-scrollbar-thumb,
+.ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb,
+.ag-body-viewport::-webkit-scrollbar-thumb,
+.ag-center-cols-viewport::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+.ag-body-vertical-scroll,
+.ag-body-horizontal-scroll,
+.ag-body-vertical-scroll-container,
+.ag-body-horizontal-scroll-container {
+  background-color: transparent !important;
+}

@@ -4,8 +4,9 @@
  * Copyright © 2026 Mr. Gong. All Rights Reserved.
  */
 
-import type { GatewayChatMessage, GatewayChatResult } from "@/services/ai-gateway/types";
+import { tr } from "@/lib/i18n/runtime";
 import type { LlmProviderId } from "@/lib/llm-types";
+import type { GatewayChatMessage, GatewayChatResult } from "@/services/ai-gateway/types";
 
 export interface OpenAiCompatibleConfig {
   provider: LlmProviderId;
@@ -32,10 +33,10 @@ export async function openAiCompatibleChat(
   } = {}
 ): Promise<GatewayChatResult> {
   if (!config.apiKey.trim()) {
-    throw new Error("未配置 API Key — 请在 AI 工作台右侧填写");
+    throw new Error(tr("err.missingApiKey"));
   }
   if (!config.url.trim()) {
-    throw new Error("未配置 Base URL");
+    throw new Error(tr("err.missingBaseUrl"));
   }
 
   const retries = options.retries ?? 2;
@@ -50,7 +51,7 @@ export async function openAiCompatibleChat(
       if (attempt < retries) await sleep(400 * (attempt + 1));
     }
   }
-  throw lastError ?? new Error("聊天请求失败");
+  throw lastError ?? new Error(tr("err.chatFailed"));
 }
 
 async function chatOnce(
@@ -72,7 +73,7 @@ async function chatOnce(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${config.apiKey}`,
+        Authorization: `Bearer ${config.apiKey.trim()}`,
       },
       body: JSON.stringify({
         model: config.model,
@@ -87,8 +88,15 @@ async function chatOnce(
 
     if (!response.ok) {
       const text = await response.text().catch(() => "");
+      const safe = text
+        .replace(/Bearer\s+[A-Za-z0-9._\-+/=]+/gi, "Bearer ***")
+        .replace(
+          /("?(?:api[_-]?key|apiKey|token|authorization)"?\s*[:=]\s*)(["']?)[^"'\s,}\\]]+/gi,
+          "$1$2***"
+        )
+        .slice(0, 400);
       throw new Error(
-        text.slice(0, 400) || `上游错误 HTTP ${response.status}`
+        safe || tr("err.upstreamHttp", { status: response.status })
       );
     }
 
@@ -166,8 +174,8 @@ export async function openAiCompatibleTest(
     return {
       ok: Boolean(result.content),
       message: result.content
-        ? `连接成功（${config.model}）`
-        : "连接成功但模型返回为空",
+        ? tr("err.connectOk", { model: config.model })
+        : tr("err.connectEmpty"),
     };
   } catch (err) {
     return {

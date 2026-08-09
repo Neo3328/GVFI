@@ -4,6 +4,8 @@
  * Copyright © 2026 Mr. Gong. All Rights Reserved.
  */
 
+import { redactString, redactValue } from "@/lib/redact";
+
 export type ClientLogLevel = "debug" | "info" | "warn" | "error";
 
 export interface ClientLogEntry {
@@ -40,8 +42,8 @@ export function clientLog(
     ts: new Date().toISOString(),
     level,
     scope,
-    message,
-    detail,
+    message: redactString(message),
+    detail: detail === undefined ? undefined : redactValue(detail),
   });
 }
 

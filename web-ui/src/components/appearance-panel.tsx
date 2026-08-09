@@ -1,7 +1,13 @@
+/**
+ * GVFI — Appearance settings panel (theme + custom background).
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
 "use client";
 
 import { useId, useRef, useState } from "react";
-import { ImagePlus, RotateCcw } from "lucide-react";
+import { ImagePlus, RotateCcw, Trash2 } from "lucide-react";
 import { SectionCard } from "@/components/section-card";
 import { GlassButton } from "@/components/glass/glass-button";
 import { GlassSlider } from "@/components/glass/glass-slider";
@@ -12,108 +18,268 @@ import {
   GlassSelectTrigger,
   GlassSelectValue,
 } from "@/components/glass/glass-select";
+import { useT } from "@/hooks/use-t";
 import type { AppearanceTheme } from "@/lib/gvfi-types";
+import {
+  BackgroundImageLoadError,
+  IMAGE_FILE_ACCEPT,
+  loadBackgroundImageFile,
+} from "@/lib/image-file";
+import type { MessageKey } from "@/lib/i18n/types";
+import { isLocale, type Locale } from "@/lib/i18n/types";
 import { readSliderValue } from "@/lib/slider-value";
 import { useAppearanceStore } from "@/stores/appearance-store";
+import { useLocaleStore } from "@/stores/locale-store";
 
 interface AppearancePanelProps {
   onLog?: (message: string) => void;
 }
 
-const THEME_OPTIONS: { value: AppearanceTheme; label: string }[] = [
-  { value: "dark", label: "Cinematic 深色" },
-  { value: "ai", label: "AI 科技" },
-  { value: "studio", label: "Studio 浅色" },
-];
-
-const BG_PRESETS = [
-  { value: "nebula" as const, label: "石墨层叠" },
-  { value: "aurora" as const, label: "柔光片层" },
-  { value: "studio" as const, label: "Studio 浅色" },
+const THEME_KEYS: { value: AppearanceTheme; labelKey: MessageKey }[] = [
+  { value: "light", labelKey: "appearance.theme.light" },
+  { value: "dark", labelKey: "appearance.theme.dark" },
+  { value: "image", labelKey: "appearance.theme.image" },
 ];
 
 export function AppearancePanel({ onLog }: AppearancePanelProps) {
+  const t = useT();
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [backgroundLabel, setBackgroundLabel] = useState("主题默认背景");
+  const [busy, setBusy] = useState(false);
+  const [errorKey, setErrorKey] = useState<MessageKey | null>(null);
 
   const theme = useAppearanceStore((s) => s.theme);
   const glass = useAppearanceStore((s) => s.glass);
   const background = useAppearanceStore((s) => s.background);
   const setTheme = useAppearanceStore((s) => s.setTheme);
   const setGlass = useAppearanceStore((s) => s.setGlass);
-  const setBackground = useAppearanceStore((s) => s.setBackground);
-  const setCustomBackgroundUrl = useAppearanceStore((s) => s.setCustomBackgroundUrl);
+  const setCustomBackgroundUrl = useAppearanceStore(
+    (s) => s.setCustomBackgroundUrl
+  );
   const resetBackground = useAppearanceStore((s) => s.resetBackground);
+  const locale = useLocaleStore((s) => s.locale);
+  const setLocale = useLocaleStore((s) => s.setLocale);
 
   const log = (message: string) => onLog?.(message);
+  const hasImage = Boolean(background.customUrl);
+  const usingImageTheme = theme === "image" && hasImage;
+
+  const mapLoadError = (code: string): MessageKey => {
+    switch (code) {
+      case "unsupported":
+        return "appearance.bg.unsupported";
+      case "tooLarge":
+        return "appearance.bg.tooLarge";
+      case "decodeFail":
+        return "appearance.bg.decodeFail";
+      case "persistFail":
+        return "appearance.bg.persistFail";
+      default:
+        return "appearance.bg.readFail";
+    }
+  };
 
   return (
-    <SectionCard title="外观" description="Liquid Glass · 主题 / 背景 / 玻璃材质">
+    <SectionCard title={t("appearance.cardTitle")} description={t("appearance.cardDesc")}>
+      <div className="flex flex-col gap-2 py-1">
+        <label htmlFor="locale-select" className="glass-field-label">
+          {t("locale.label")}
+        </label>
+        <GlassSelect
+          value={locale}
+          items={{
+            "zh-CN": t("locale.zhCN"),
+            en: t("locale.en"),
+          }}
+          onValueChange={(value) => {
+            if (typeof value !== "string" || !isLocale(value)) return;
+            setLocale(value as Locale);
+          }}
+        >
+          <GlassSelectTrigger id="locale-select" className="glass-select">
+            <GlassSelectValue />
+          </GlassSelectTrigger>
+          <GlassSelectContent>
+            <GlassSelectItem value="zh-CN">{t("locale.zhCN")}</GlassSelectItem>
+            <GlassSelectItem value="en">{t("locale.en")}</GlassSelectItem>
+          </GlassSelectContent>
+        </GlassSelect>
+      </div>
+
       <div className="flex flex-col gap-2 py-1">
         <label htmlFor="theme-select" className="glass-field-label">
-          主题
+          {t("appearance.theme")}
         </label>
         <GlassSelect
           value={theme}
+          items={Object.fromEntries(
+            THEME_KEYS.map((item) => [item.value, t(item.labelKey)])
+          )}
           onValueChange={(value) => {
             if (typeof value !== "string") return;
-            setTheme(value as AppearanceTheme);
-            log(
-              `外观：${THEME_OPTIONS.find((t) => t.value === value)?.label ?? value}`
-            );
+            const next = value as AppearanceTheme;
+            const result = setTheme(next);
+            if (!result.ok) {
+              setErrorKey("appearance.theme.needImage");
+              log(t("appearance.theme.needImage"));
+              return;
+            }
+            setErrorKey(null);
+            const labelKey = THEME_KEYS.find((item) => item.value === next)?.labelKey;
+            log(t("appearance.themeLog", { name: labelKey ? t(labelKey) : next }));
           }}
         >
           <GlassSelectTrigger id="theme-select" className="glass-select">
             <GlassSelectValue />
           </GlassSelectTrigger>
           <GlassSelectContent>
-            {THEME_OPTIONS.map((item) => (
+            {THEME_KEYS.map((item) => (
               <GlassSelectItem key={item.value} value={item.value}>
-                {item.label}
+                {t(item.labelKey)}
               </GlassSelectItem>
             ))}
           </GlassSelectContent>
         </GlassSelect>
       </div>
 
-      <div className="flex flex-col gap-2 py-1">
-        <label htmlFor="bg-preset" className="glass-field-label">
-          背景
-        </label>
-        <GlassSelect
-          value={background.preset}
-          onValueChange={(value) => {
-            if (typeof value !== "string") return;
-            setBackground({
-              type: "preset",
-              preset: value as "studio" | "aurora" | "nebula",
-              customUrl: null,
-              serverPath: null,
-            });
-            setBackgroundLabel(
-              BG_PRESETS.find((p) => p.value === value)?.label ?? String(value)
-            );
-            log(`背景预设：${value}`);
+      <div className="flex flex-col gap-3 py-1">
+        <div className="glass-field-label">{t("appearance.background")}</div>
+        <p className="text-[12px] text-[var(--text-muted)]">
+          {t("appearance.bg.hint")}
+        </p>
+
+        <input
+          ref={inputRef}
+          id={inputId}
+          type="file"
+          accept={IMAGE_FILE_ACCEPT}
+          tabIndex={-1}
+          aria-hidden="true"
+          className="sr-only"
+          onChange={(event) => {
+            const file = event.target.files?.[0] ?? null;
+            event.target.value = "";
+            if (!file) return;
+            setBusy(true);
+            setErrorKey(null);
+            void loadBackgroundImageFile(file)
+              .then((loaded) => {
+                const result = setCustomBackgroundUrl(loaded.dataUrl, {
+                  fileName: loaded.fileName,
+                  width: loaded.width,
+                  height: loaded.height,
+                });
+                if (!result.ok) {
+                  setErrorKey("appearance.bg.persistFail");
+                  log(t("appearance.bg.persistFail"));
+                  return;
+                }
+                log(t("appearance.bg.switched", { name: loaded.fileName }));
+              })
+              .catch((error: unknown) => {
+                const code =
+                  error instanceof BackgroundImageLoadError
+                    ? error.code
+                    : "readFail";
+                const key = mapLoadError(code);
+                setErrorKey(key);
+                log(t(key));
+              })
+              .finally(() => setBusy(false));
           }}
-        >
-          <GlassSelectTrigger id="bg-preset" className="glass-select">
-            <GlassSelectValue />
-          </GlassSelectTrigger>
-          <GlassSelectContent>
-            {BG_PRESETS.map((item) => (
-              <GlassSelectItem key={item.value} value={item.value}>
-                {item.label}
-              </GlassSelectItem>
-            ))}
-          </GlassSelectContent>
-        </GlassSelect>
+        />
+
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <GlassButton
+            type="button"
+            variant="glass"
+            className="h-9 flex-1"
+            disabled={busy}
+            onClick={() => inputRef.current?.click()}
+          >
+            <ImagePlus className="size-4" aria-hidden />
+            {t("appearance.bg.upload")}
+          </GlassButton>
+          <GlassButton
+            type="button"
+            variant="ghost"
+            className="h-9 flex-1"
+            disabled={!hasImage || busy}
+            onClick={() => {
+              resetBackground();
+              setErrorKey(null);
+              log(t("appearance.bg.resetLog"));
+            }}
+          >
+            <Trash2 className="size-4" aria-hidden />
+            {t("appearance.bg.remove")}
+          </GlassButton>
+          <GlassButton
+            type="button"
+            variant="ghost"
+            className="h-9 flex-1"
+            disabled={busy}
+            onClick={() => {
+              resetBackground();
+              setTheme("dark");
+              setErrorKey(null);
+              log(t("appearance.bg.resetLog"));
+            }}
+          >
+            <RotateCcw className="size-4" aria-hidden />
+            {t("appearance.bg.restoreDefault")}
+          </GlassButton>
+        </div>
+
+        {errorKey ? (
+          <p className="text-[12px] text-[color-mix(in_srgb,var(--danger)_80%,white)]" role="alert">
+            {t(errorKey)}
+          </p>
+        ) : null}
+
+        {hasImage ? (
+          <div className="flex gap-3 rounded-[var(--card-radius)] border border-[var(--glass-border)] bg-[color-mix(in_srgb,var(--bg-2)_40%,transparent)] bg-clip-padding p-3">
+            <div
+              className="size-16 shrink-0 overflow-hidden rounded-[var(--control-radius)] border border-[var(--glass-border)] bg-[color-mix(in_srgb,var(--bg-0)_55%,transparent)] bg-clip-padding"
+              style={{
+                backgroundImage: background.customUrl
+                  ? `url(${JSON.stringify(background.customUrl)})`
+                  : undefined,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }}
+              aria-hidden
+            />
+            <div className="min-w-0 flex-1 text-[12px] text-[var(--text-normal)]">
+              <p className="truncate font-medium text-[var(--text-strong)]">
+                {background.fileName || t("appearance.bg.unnamed")}
+              </p>
+              <p className="mt-1 text-[var(--text-muted)]">
+                {background.width && background.height
+                  ? t("appearance.bg.dimensions", {
+                      width: background.width,
+                      height: background.height,
+                    })
+                  : t("appearance.bg.dimensionsUnknown")}
+              </p>
+              <p className="mt-1 text-[var(--text-muted)]">
+                {usingImageTheme
+                  ? t("appearance.bg.inUse")
+                  : t("appearance.bg.uploadedIdle")}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-[12px] text-[var(--text-muted)]">
+            {t("appearance.bg.none")}
+          </p>
+        )}
       </div>
 
       <div className="flex flex-col gap-2 py-1">
         <div className="flex items-center justify-between gap-2">
           <label htmlFor="panel-opacity" className="glass-field-label">
-            玻璃透明度
+            {t("appearance.glassOpacity")}
           </label>
           <span className="text-[11px] text-[var(--text-muted)]" aria-live="polite">
             {glass.opacity}%
@@ -128,14 +294,14 @@ export function AppearancePanel({ onLog }: AppearancePanelProps) {
           onValueChange={(value) => {
             setGlass({ opacity: readSliderValue(value, glass.opacity) });
           }}
-          aria-label="玻璃透明度"
+          aria-label={t("appearance.glassOpacity")}
         />
       </div>
 
       <div className="flex flex-col gap-2 py-1">
         <div className="flex items-center justify-between gap-2">
           <label htmlFor="glass-blur" className="glass-field-label">
-            Blur 强度
+            {t("appearance.glassBlur")}
           </label>
           <span className="text-[11px] text-[var(--text-muted)]">{glass.blur}px</span>
         </div>
@@ -148,14 +314,14 @@ export function AppearancePanel({ onLog }: AppearancePanelProps) {
           onValueChange={(value) => {
             setGlass({ blur: readSliderValue(value, glass.blur) });
           }}
-          aria-label="模糊强度"
+          aria-label={t("appearance.glassBlur")}
         />
       </div>
 
       <div className="flex flex-col gap-2 py-1">
         <div className="flex items-center justify-between gap-2">
           <label htmlFor="glass-border" className="glass-field-label">
-            边框亮度
+            {t("appearance.borderBrightness")}
           </label>
           <span className="text-[11px] text-[var(--text-muted)]">
             {glass.borderBrightness}%
@@ -172,14 +338,14 @@ export function AppearancePanel({ onLog }: AppearancePanelProps) {
               borderBrightness: readSliderValue(value, glass.borderBrightness),
             });
           }}
-          aria-label="边框亮度"
+          aria-label={t("appearance.borderBrightness")}
         />
       </div>
 
       <div className="flex flex-col gap-2 py-1">
         <div className="flex items-center justify-between gap-2">
           <label htmlFor="glass-shadow" className="glass-field-label">
-            阴影强度
+            {t("appearance.shadowStrength")}
           </label>
           <span className="text-[11px] text-[var(--text-muted)]">
             {glass.shadowStrength}%
@@ -196,14 +362,14 @@ export function AppearancePanel({ onLog }: AppearancePanelProps) {
               shadowStrength: readSliderValue(value, glass.shadowStrength),
             });
           }}
-          aria-label="阴影强度"
+          aria-label={t("appearance.shadowStrength")}
         />
       </div>
 
       <div className="flex flex-col gap-2 py-1">
         <div className="flex items-center justify-between gap-2">
           <label htmlFor="glass-glow" className="glass-field-label">
-            辉光强度
+            {t("appearance.glowStrength")}
           </label>
           <span className="text-[11px] text-[var(--text-muted)]">
             {glass.glowStrength}%
@@ -220,112 +386,9 @@ export function AppearancePanel({ onLog }: AppearancePanelProps) {
               glowStrength: readSliderValue(value, glass.glowStrength),
             });
           }}
-          aria-label="辉光强度"
+          aria-label={t("appearance.glowStrength")}
         />
       </div>
-
-      <div className="flex flex-col gap-2 py-1">
-        <div className="flex items-center justify-between gap-2">
-          <label htmlFor="bg-opacity" className="glass-field-label">
-            背景不透明度
-          </label>
-          <span className="text-[11px] text-[var(--text-muted)]">
-            {background.opacity}%
-          </span>
-        </div>
-        <GlassSlider
-          id="bg-opacity"
-          min={20}
-          max={100}
-          step={1}
-          value={background.opacity}
-          onValueChange={(value) => {
-            setBackground({
-              opacity: readSliderValue(value, background.opacity),
-            });
-          }}
-          aria-label="背景不透明度"
-        />
-      </div>
-
-      <div className="flex flex-col gap-2 py-1">
-        <div className="flex items-center justify-between gap-2">
-          <label htmlFor="bg-blur" className="glass-field-label">
-            背景模糊
-          </label>
-          <span className="text-[11px] text-[var(--text-muted)]">
-            {background.blur}px
-          </span>
-        </div>
-        <GlassSlider
-          id="bg-blur"
-          min={0}
-          max={40}
-          step={1}
-          value={background.blur}
-          onValueChange={(value) => {
-            setBackground({ blur: readSliderValue(value, background.blur) });
-          }}
-          aria-label="背景模糊"
-        />
-      </div>
-
-      <input
-        ref={inputRef}
-        id={inputId}
-        type="file"
-        accept="image/png,image/jpeg,image/webp,image/bmp"
-        tabIndex={-1}
-        aria-hidden="true"
-        className="sr-only"
-        onChange={(event) => {
-          const file = event.target.files?.[0] ?? null;
-          if (!file) return;
-          /* Persist as data URL — blob: URLs die after reload */
-          if (file.size > 4 * 1024 * 1024) {
-            log("背景图过大（请小于 4MB）");
-            event.target.value = "";
-            return;
-          }
-          const reader = new FileReader();
-          reader.onload = () => {
-            const dataUrl = typeof reader.result === "string" ? reader.result : null;
-            if (!dataUrl) return;
-            setCustomBackgroundUrl(dataUrl);
-            setBackgroundLabel(file.name);
-            log(`已切换背景图：${file.name}`);
-          };
-          reader.onerror = () => log("读取背景图失败");
-          reader.readAsDataURL(file);
-          event.target.value = "";
-        }}
-      />
-
-      <div className="flex flex-col gap-2 py-1 sm:flex-row">
-        <GlassButton
-          type="button"
-          variant="glass"
-          className="h-9 flex-1"
-          onClick={() => inputRef.current?.click()}
-        >
-          <ImagePlus className="size-4" aria-hidden />
-          自定义背景
-        </GlassButton>
-        <GlassButton
-          type="button"
-          variant="ghost"
-          className="h-9 flex-1"
-          onClick={() => {
-            resetBackground();
-            setBackgroundLabel("主题默认背景");
-            log("已恢复主题默认背景");
-          }}
-        >
-          <RotateCcw className="size-4" aria-hidden />
-          清除
-        </GlassButton>
-      </div>
-      <p className="pb-1 text-[11px] text-[var(--text-muted)]">{backgroundLabel}</p>
     </SectionCard>
   );
 }

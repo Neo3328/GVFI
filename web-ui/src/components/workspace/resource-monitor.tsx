@@ -1,3 +1,9 @@
+/**
+ * GVFI — CPU / GPU / memory resource monitor.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
 "use client";
 
 import { cva, type VariantProps } from "class-variance-authority";
@@ -6,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { GlassPanel } from "@/components/glass/glass-card";
 import { ProgressBar } from "@/components/workspace/progress-bar";
 import { StatusIndicator } from "@/components/workspace/status-indicator";
+import { useT } from "@/hooks/use-t";
 
 export const resourceMonitorVariants = cva("", {
   variants: {
@@ -40,11 +47,13 @@ function ResourceRow({
   label,
   value,
   unit = "%",
+  usageAria,
 }: {
   icon: typeof Cpu;
   label: string;
   value?: number;
   unit?: string;
+  usageAria: string;
 }) {
   const display = value ?? 0;
   return (
@@ -61,13 +70,13 @@ function ResourceRow({
       <ProgressBar
         value={display}
         size="sm"
-        aria-label={`${label} 使用率 ${Math.round(display)}${unit}`}
+        aria-label={usageAria}
       />
     </div>
   );
 }
 
-/** CPU / GPU / 内存 / 显存监控面板 */
+/** CPU / GPU / memory / VRAM monitor panel */
 export function ResourceMonitor({
   cpu,
   gpu,
@@ -79,25 +88,67 @@ export function ResourceMonitor({
   size,
   className,
 }: ResourceMonitorProps) {
+  const t = useT();
+  const cpuLabel = t("video.resource.cpu");
+  const gpuLabel = t("video.resource.gpu");
+  const memoryLabel = t("video.resource.memory");
+  const vramLabel = t("video.resource.vram");
+
   return (
     <GlassPanel
       variant="default"
-      title="资源监控"
-      description={gpuName ?? "本地推理资源"}
+      title={t("video.resource.title")}
+      description={gpuName ?? t("video.resource.desc")}
       headerAction={
         <StatusIndicator
           status={online ? "online" : "offline"}
-          label={online ? "服务在线" : "服务离线"}
+          label={online ? t("video.resource.online") : t("video.resource.offline")}
           size="sm"
         />
       }
       className={className}
     >
       <div className={cn(resourceMonitorVariants({ layout, size }), "p-[var(--space-2)]")}>
-        <ResourceRow icon={Cpu} label="CPU" value={cpu} />
-        <ResourceRow icon={Gpu} label="GPU" value={gpu} />
-        <ResourceRow icon={MemoryStick} label="内存" value={memory} />
-        <ResourceRow icon={HardDrive} label="显存" value={vram} />
+        <ResourceRow
+          icon={Cpu}
+          label={cpuLabel}
+          value={cpu}
+          usageAria={t("video.resource.usageAria", {
+            label: cpuLabel,
+            value: Math.round(cpu ?? 0),
+            unit: "%",
+          })}
+        />
+        <ResourceRow
+          icon={Gpu}
+          label={gpuLabel}
+          value={gpu}
+          usageAria={t("video.resource.usageAria", {
+            label: gpuLabel,
+            value: Math.round(gpu ?? 0),
+            unit: "%",
+          })}
+        />
+        <ResourceRow
+          icon={MemoryStick}
+          label={memoryLabel}
+          value={memory}
+          usageAria={t("video.resource.usageAria", {
+            label: memoryLabel,
+            value: Math.round(memory ?? 0),
+            unit: "%",
+          })}
+        />
+        <ResourceRow
+          icon={HardDrive}
+          label={vramLabel}
+          value={vram}
+          usageAria={t("video.resource.usageAria", {
+            label: vramLabel,
+            value: Math.round(vram ?? 0),
+            unit: "%",
+          })}
+        />
       </div>
     </GlassPanel>
   );

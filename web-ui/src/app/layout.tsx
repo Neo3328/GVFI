@@ -1,29 +1,20 @@
+/**
+ * GVFI — Root layout (global font / theme / i18n shell).
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
 import type { Metadata } from "next";
-import { Inter, Noto_Sans_SC } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
+import { DisplayProvider } from "@/components/display/display-provider";
+import { PersistHydration } from "@/components/persist-hydration";
 import { GlassToaster } from "@/components/glass/glass-toast";
 import { CRITICAL_THEME_CSS } from "@/lib/critical-theme.css";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
-
-const notoSansSc = Noto_Sans_SC({
-  variable: "--font-noto",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-  // Prefer system CJK fonts when Google font glyphs are unavailable offline.
-  fallback: ["Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans SC", "sans-serif"],
-});
-
 export const metadata: Metadata = {
-  title: "GVFI · AI 视频工作站",
-  description: "Liquid Glass 风格的 AI 视频补帧与超分控制台",
+  title: "GVFI",
+  description: "GVFI AI Video Workstation",
 };
 
 export default function RootLayout({
@@ -35,16 +26,21 @@ export default function RootLayout({
     <html
       lang="zh-CN"
       data-theme="dark"
-      className={`${inter.variable} ${notoSansSc.variable} dark h-full antialiased`}
+      className="dark h-full antialiased"
+      suppressHydrationWarning
     >
       <head>
         <style dangerouslySetInnerHTML={{ __html: CRITICAL_THEME_CSS }} />
       </head>
-      <body className="glass-main-shell flex min-h-full min-h-dvh flex-col overflow-x-hidden font-sans text-base text-[var(--text-normal)]">
-        <ThemeProvider>
-          {children}
-          <GlassToaster />
-        </ThemeProvider>
+      <body className="glass-main-shell flex min-h-full min-h-dvh flex-col overflow-x-hidden font-sans text-[var(--text-normal)]">
+        <PersistHydration>
+          <ThemeProvider>
+            <DisplayProvider>
+              {children}
+              <GlassToaster />
+            </DisplayProvider>
+          </ThemeProvider>
+        </PersistHydration>
       </body>
     </html>
   );

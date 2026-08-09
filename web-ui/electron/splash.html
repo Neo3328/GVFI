@@ -14,9 +14,18 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
-        font-family: Inter, "Microsoft YaHei", system-ui, sans-serif;
-        color: #c8cee3;
+        font-family: "YouYuan", "幼圆", "Microsoft YaHei UI", "Microsoft YaHei",
+          "PingFang SC", sans-serif;
+        color: #f0f0f2;
+        background: transparent;
+      }
+      /* Outer window clip — matches --window-radius (16px) */
+      .frame {
+        height: 100%;
+        border-radius: 16px;
+        overflow: hidden;
         background: linear-gradient(135deg, #070914, #101526 48%, #171f36);
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
       }
       .wrap {
         display: flex;
@@ -28,7 +37,7 @@
       .card {
         text-align: center;
         padding: 32px 40px;
-        border-radius: 24px;
+        border-radius: 14px;
         border: 1px solid rgba(255, 255, 255, 0.16);
         background: linear-gradient(
             135deg,
@@ -36,18 +45,21 @@
             rgba(255, 255, 255, 0.035)
           ),
           rgba(18, 24, 44, 0.52);
+        background-clip: padding-box;
         box-shadow: 0 24px 80px rgba(0, 0, 0, 0.36),
           inset 0 1px 0 rgba(255, 255, 255, 0.24);
         backdrop-filter: blur(24px) saturate(140%);
         min-width: 280px;
+        overflow: hidden;
       }
       .logo {
         width: 64px;
         height: 64px;
         margin: 0 auto 16px;
-        border-radius: 16px;
+        border-radius: 12px;
         border: 1px solid rgba(255, 255, 255, 0.16);
-        background: rgba(139, 125, 255, 0.18);
+        background: rgba(10, 132, 255, 0.22);
+        background-clip: padding-box;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -63,7 +75,7 @@
       .tagline {
         margin-top: 6px;
         font-size: 13px;
-        color: #7f89a8;
+        color: #a8b0c4;
       }
       .meta {
         margin-top: 20px;
@@ -74,16 +86,31 @@
     </style>
   </head>
   <body>
-    <div class="wrap">
-      <div class="card">
-        <div class="logo" aria-hidden="true">G</div>
-        <h1>GVFI</h1>
-        <p class="tagline">AI 视频工作站</p>
-        <div class="meta">
-          <div>Developed by Mr. Gong</div>
-          <div>Copyright © 2026 Mr. Gong. All Rights Reserved.</div>
+    <div class="frame">
+      <div class="wrap">
+        <div class="card">
+          <div class="logo" aria-hidden="true">G</div>
+          <h1>GVFI</h1>
+          <p class="tagline" id="tagline">AI Video Workstation</p>
+          <div class="meta">
+            <div>Developed by Mr. Gong</div>
+            <div>Copyright © 2026 Mr. Gong. All Rights Reserved.</div>
+          </div>
         </div>
       </div>
     </div>
+    <script>
+      (function () {
+        var params = new URLSearchParams(location.search || "");
+        var q = (params.get("lang") || "").toLowerCase();
+        var nav = (navigator.language || "en").toLowerCase();
+        var zh =
+          q.indexOf("zh") === 0 || (!q && nav.indexOf("zh") === 0);
+        document.documentElement.lang = zh ? "zh-CN" : "en";
+        document.getElementById("tagline").textContent = zh
+          ? "AI 视频工作站"
+          : "AI Video Workstation";
+      })();
+    </script>
   </body>
 </html>

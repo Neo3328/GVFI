@@ -37,7 +37,7 @@ export function DashboardStatCard({
   return (
     <article
       className={cn(
-        "flex min-h-[132px] flex-col justify-between rounded-[var(--radius-md)] p-[var(--space-4)]",
+        "flex min-h-[132px] flex-col justify-between overflow-hidden rounded-[var(--card-radius)] bg-clip-padding p-[var(--space-4)]",
         "border border-[color-mix(in_srgb,var(--accent)_24%,transparent)]",
         "bg-[linear-gradient(145deg,color-mix(in_srgb,var(--bg-2)_92%,var(--accent)_8%),color-mix(in_srgb,var(--bg-1)_88%,var(--accent-cyan)_12%))]",
         "shadow-[0_12px_40px_rgba(0,0,0,0.28)]",
@@ -50,7 +50,7 @@ export function DashboardStatCard({
         </span>
         <span
           className={cn(
-            "rounded-[var(--radius-pill)] px-2 py-0.5 text-[10px] font-medium capitalize",
+            "rounded-[var(--radius-pill)] px-2 py-0.5 text-[10px] font-medium",
             badgeToneClass[badgeTone]
           )}
         >

@@ -8,6 +8,8 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { tr } from "@/lib/i18n/runtime";
+import { createBrowserPersistStorage } from "@/lib/persist-storage";
 
 export type AiMessageRole = "user" | "assistant" | "system";
 
@@ -64,7 +66,7 @@ export const useAiSessionStore = create<AiSessionStore>()(
       activeSessionId: null,
       searchQuery: "",
 
-      createSession: (title = "新会话") => {
+      createSession: (title = tr("ai.session.newDefault")) => {
         const id = uid();
         const now = Date.now();
         const session: AiSession = {
@@ -191,6 +193,8 @@ export const useAiSessionStore = create<AiSessionStore>()(
     }),
     {
       name: "gvfi-ai-sessions-v1",
+      storage: createBrowserPersistStorage(),
+      skipHydration: true,
       partialize: (state) => ({
         sessions: state.sessions,
         activeSessionId: state.activeSessionId,

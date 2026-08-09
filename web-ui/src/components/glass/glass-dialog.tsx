@@ -1,3 +1,9 @@
+/**
+ * GVFI — Glass modal dialog.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
 "use client";
 
 import { useEffect, type ComponentProps, type ReactNode } from "react";
@@ -5,6 +11,7 @@ import { X } from "lucide-react";
 import { GlassButton } from "@/components/glass/glass-button";
 import { GlassIconButton } from "@/components/glass/glass-button";
 import { glassSurface3, glassTextTitle } from "@/components/glass/glass-styles";
+import { useT } from "@/hooks/use-t";
 import { cn } from "@/lib/utils";
 
 type GlassDialogProps = {
@@ -26,6 +33,7 @@ export function GlassDialog({
   footer,
   className,
 }: GlassDialogProps) {
+  const t = useT();
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
@@ -41,7 +49,7 @@ export function GlassDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <button
         type="button"
-        aria-label="关闭对话框"
+        aria-label={t("glass.closeDialog")}
         className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
         onClick={() => onOpenChange(false)}
       />
@@ -66,7 +74,7 @@ export function GlassDialog({
           </div>
           <GlassIconButton
             size="sm"
-            aria-label="关闭"
+            aria-label={t("glass.close")}
             onClick={() => onOpenChange(false)}
           >
             <X />

@@ -96,7 +96,7 @@ export function DashboardLineChart({
           <path
             d={maxPath}
             fill="none"
-            stroke="#ff718d"
+            stroke="var(--danger)"
             strokeWidth="2"
             strokeDasharray="6 4"
             opacity="0.75"

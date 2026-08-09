@@ -1,3 +1,9 @@
+/**
+ * GVFI — Workspace top bar (glass chrome + desktop drag region).
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
 "use client";
 
 import type { ReactNode } from "react";
@@ -5,6 +11,8 @@ import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { glassFocusRing, glassMotion } from "@/components/glass/glass-styles";
 import { StatusIndicator } from "@/components/workspace/status-indicator";
+import { WindowControls } from "@/components/workspace/window-controls";
+import { useT } from "@/hooks/use-t";
 
 export interface TopBarBreadcrumb {
   label: string;
@@ -33,6 +41,7 @@ export function TopBar({
   actions,
   className,
 }: TopBarProps) {
+  const t = useT();
   return (
     <header
       data-slot="top-bar"
@@ -59,7 +68,7 @@ export function TopBar({
         ) : (
           <>
             {breadcrumbs && breadcrumbs.length > 0 ? (
-              <nav aria-label="面包屑" className="flex flex-wrap items-center gap-1 text-[11px] text-[var(--text-muted)]">
+              <nav aria-label={t("chrome.breadcrumbAria")} className="flex flex-wrap items-center gap-1 text-[11px] text-[var(--text-muted)]">
                 {breadcrumbs.map((crumb, index) => (
                   <span key={`${crumb.label}-${index}`} className="flex items-center gap-1">
                     {index > 0 ? (
@@ -88,7 +97,7 @@ export function TopBar({
         )}
       </div>
 
-      <div className="flex shrink-0 items-center gap-[var(--space-3)]">
+      <div className="app-titlebar-no-drag flex shrink-0 items-center gap-[var(--space-3)]">
         {status !== "idle" ? (
           <span
             className={cn(
@@ -111,6 +120,7 @@ export function TopBar({
         ) : null}
         {actions}
       </div>
+      <WindowControls />
     </header>
   );
 }

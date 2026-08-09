@@ -6,7 +6,8 @@
  * RULE: Feature modules must not call provider APIs or llm-api directly.
  */
 
-import { useAiModelConfigStore } from "@/stores/ai-model-config-store";
+import { tr } from "@/lib/i18n/runtime";
+import type { LlmJobSettings } from "@/lib/llm-types";
 import {
   openAiCompatibleChat,
   openAiCompatibleTest,
@@ -23,7 +24,7 @@ import type {
   GatewayLlmJobResult,
   GatewayTestResult,
 } from "@/services/ai-gateway/types";
-import type { LlmJobSettings } from "@/lib/llm-types";
+import { useAiModelConfigStore } from "@/stores/ai-model-config-store";
 
 class AiGatewayImpl {
   private activeAbort: AbortController | null = null;
@@ -63,8 +64,7 @@ class AiGatewayImpl {
       // Light system bias for workspace chats (P0); full prompt center is P3.
       messages.unshift({
         role: "system",
-        content:
-          "你是 GVFI AI 工作台助手，擅长视频处理、工程与技术分析。用简洁中文回答。",
+        content: tr("ai.systemHint"),
       });
     }
 
@@ -125,7 +125,7 @@ class AiGatewayImpl {
   ): Promise<GatewayLlmJobResult> {
     const cfg = this.snapshotConfig();
     if (!cfg.apiKey.trim()) {
-      throw new Error("未配置 API Key — 请在 AI 工作台右侧填写");
+      throw new Error(tr("err.missingApiKey"));
     }
     const settings: LlmJobSettings = {
       engine: "llm",

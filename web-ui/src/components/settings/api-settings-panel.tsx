@@ -10,17 +10,18 @@ import Link from "next/link";
 import { ExternalLink, Sparkles } from "lucide-react";
 import { GlassPanel } from "@/components/glass/glass-card";
 import { glassTextCaption, glassTextTitle } from "@/components/glass/glass-styles";
-import { LLM_PROVIDER_PRESETS } from "@/lib/llm-types";
+import { useT } from "@/hooks/use-t";
+import { llmProviderLabel } from "@/lib/i18n/catalog-labels";
 import { useAiModelConfigStore } from "@/stores/ai-model-config-store";
 import { cn } from "@/lib/utils";
 
 export function ApiSettingsPanel() {
+  const t = useT();
   const provider = useAiModelConfigStore((s) => s.provider);
   const model = useAiModelConfigStore((s) => s.model);
   const baseUrl = useAiModelConfigStore((s) => s.baseUrl);
   const hasKey = useAiModelConfigStore((s) => s.hasApiKey());
-  const label =
-    LLM_PROVIDER_PRESETS.find((p) => p.id === provider)?.label ?? provider;
+  const label = llmProviderLabel(t, provider, provider);
 
   return (
     <GlassPanel className="p-4">
@@ -28,37 +29,39 @@ export function ApiSettingsPanel() {
         <div>
           <h2 className={cn(glassTextTitle, "flex items-center gap-2")}>
             <Sparkles className="size-4 text-[var(--accent-cyan)]" />
-            大模型配置
+            {t("settings.llm.title")}
           </h2>
           <p className={cn(glassTextCaption, "mt-1")}>
-            API Key / Base URL / Temperature 等已迁移至 AI 工作台统一管理
+            {t("settings.llm.desc")}
           </p>
         </div>
         <Link
           href="/app/ai"
           className="inline-flex shrink-0 items-center gap-1 rounded-[var(--radius-sm)] bg-[color-mix(in_srgb,var(--accent-cyan)_20%,transparent)] px-3 py-1.5 text-[12px] font-medium text-[var(--accent-cyan)]"
         >
-          在 AI 工作台编辑
+          {t("settings.llm.editInAi")}
           <ExternalLink className="size-3.5" />
         </Link>
       </div>
       <dl className="mt-4 grid gap-2 text-[12px] sm:grid-cols-2">
         <div>
-          <dt className="text-[var(--text-muted)]">提供商</dt>
+          <dt className="text-[var(--text-muted)]">{t("settings.llm.provider")}</dt>
           <dd className="text-[var(--text-strong)]">{label}</dd>
         </div>
         <div>
-          <dt className="text-[var(--text-muted)]">模型</dt>
+          <dt className="text-[var(--text-muted)]">{t("settings.llm.model")}</dt>
           <dd className="text-[var(--text-strong)]">{model}</dd>
         </div>
         <div className="sm:col-span-2">
-          <dt className="text-[var(--text-muted)]">Base URL</dt>
-          <dd className="truncate text-[var(--text-strong)]">{baseUrl || "—"}</dd>
+          <dt className="text-[var(--text-muted)]">{t("settings.llm.baseUrl")}</dt>
+          <dd className="truncate text-[var(--text-strong)]">
+            {baseUrl || t("common.emDash")}
+          </dd>
         </div>
         <div>
-          <dt className="text-[var(--text-muted)]">API Key</dt>
+          <dt className="text-[var(--text-muted)]">{t("settings.llm.apiKey")}</dt>
           <dd className="text-[var(--text-strong)]">
-            {hasKey ? "已配置" : "未配置"}
+            {hasKey ? t("settings.llm.configured") : t("settings.llm.notConfigured")}
           </dd>
         </div>
       </dl>

@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { useEffect } from "react";
 import { glassSurface3 } from "@/components/glass/glass-styles";
 import { motionToastEnter } from "@/components/workspace/motion";
+import { useT } from "@/hooks/use-t";
 import { cn } from "@/lib/utils";
 
 export type ToastVariant = "default" | "success" | "error" | "ai";
@@ -41,6 +42,7 @@ export function toast(message: Omit<ToastItem, "id">) {
 }
 
 export function GlassToaster() {
+  const t = useT();
   const toasts = useToastStore((s) => s.toasts);
   const dismiss = useToastStore((s) => s.dismiss);
 
@@ -76,14 +78,14 @@ export function GlassToaster() {
             </div>
             <button
               type="button"
-              aria-label="关闭通知"
+              aria-label={t("glass.closeToast")}
               className={cn(
                 "rounded-[var(--radius-sm)] px-1 text-[11px] text-[var(--text-muted)]",
                 "hover:text-[var(--text-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
               )}
               onClick={() => dismiss(item.id)}
             >
-              关闭
+              {t("glass.close")}
             </button>
           </div>
         </div>

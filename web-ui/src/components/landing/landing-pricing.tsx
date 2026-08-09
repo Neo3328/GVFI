@@ -1,39 +1,73 @@
+/**
+ * GVFI — Landing pricing section.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
+"use client";
+
 import Link from "next/link";
 import { Check } from "lucide-react";
 import {
   cuteButtonClassName,
   cuteOutlineButtonClassName,
 } from "@/components/cute-button";
+import { useT } from "@/hooks/use-t";
+import type { MessageKey } from "@/lib/i18n/types";
 import { cn } from "@/lib/utils";
 
-const plans = [
+type PlanDef = {
+  nameKey: MessageKey;
+  descKey: MessageKey;
+  featureKeys: MessageKey[];
+  price: string;
+  periodKey?: MessageKey;
+  highlighted: boolean;
+};
+
+const PLANS: PlanDef[] = [
   {
-    name: "免费体验",
+    nameKey: "landing.pricing.free.name",
+    descKey: "landing.pricing.free.desc",
+    featureKeys: [
+      "landing.pricing.free.f1",
+      "landing.pricing.free.f2",
+      "landing.pricing.free.f3",
+    ],
     price: "¥0",
-    period: "",
-    description: "本地 GVFI，个人尝鲜",
-    features: ["基础 RIFE 模型", "单任务队列", "iOS 风格控制台"],
     highlighted: false,
   },
   {
-    name: "创作者",
+    nameKey: "landing.pricing.creator.name",
+    descKey: "landing.pricing.creator.desc",
+    featureKeys: [
+      "landing.pricing.creator.f1",
+      "landing.pricing.creator.f2",
+      "landing.pricing.creator.f3",
+      "landing.pricing.creator.f4",
+    ],
     price: "¥49",
-    period: "/月",
-    description: "高频补帧与超分",
-    features: ["全部模型", "批量队列", "优先 GPU", "导出历史"],
+    periodKey: "landing.pricing.perMonth",
     highlighted: true,
   },
   {
-    name: "团队版",
+    nameKey: "landing.pricing.team.name",
+    descKey: "landing.pricing.team.desc",
+    featureKeys: [
+      "landing.pricing.team.f1",
+      "landing.pricing.team.f2",
+      "landing.pricing.team.f3",
+      "landing.pricing.team.f4",
+    ],
     price: "¥199",
-    period: "/月",
-    description: "多成员协作",
-    features: ["5 个席位", "共享看板", "API 接入", "技术支持"],
+    periodKey: "landing.pricing.perMonth",
     highlighted: false,
   },
 ];
 
 export function LandingPricing() {
+  const t = useT();
+
   return (
     <section
       id="pricing"
@@ -41,16 +75,16 @@ export function LandingPricing() {
     >
       <div className="mb-4 px-1">
         <h2 className="font-heading text-[28px] font-bold tracking-tight">
-          方案
+          {t("landing.pricing.title")}
         </h2>
         <p className="mt-2 text-[17px] text-muted-foreground">
-          当前控制台已开放免费体验
+          {t("landing.pricing.subtitle")}
         </p>
       </div>
       <div className="flex flex-col gap-3">
-        {plans.map((plan) => (
+        {PLANS.map((plan) => (
           <article
-            key={plan.name}
+            key={plan.nameKey}
             className={cn(
               "ios-grouped p-4",
               plan.highlighted && "ring-2 ring-primary/30"
@@ -58,31 +92,35 @@ export function LandingPricing() {
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-[17px] font-semibold">{plan.name}</h3>
+                <h3 className="text-[17px] font-semibold">
+                  {t(plan.nameKey)}
+                </h3>
                 <p className="text-[15px] text-muted-foreground">
-                  {plan.description}
+                  {t(plan.descKey)}
                 </p>
               </div>
               <div className="text-right">
                 <span className="font-heading text-[28px] font-bold">
                   {plan.price}
                 </span>
-                <span className="text-[15px] text-muted-foreground">
-                  {plan.period}
-                </span>
+                {plan.periodKey ? (
+                  <span className="text-[15px] text-muted-foreground">
+                    {t(plan.periodKey)}
+                  </span>
+                ) : null}
               </div>
             </div>
             <ul className="mt-4 flex flex-col gap-2">
-              {plan.features.map((feature) => (
+              {plan.featureKeys.map((featureKey) => (
                 <li
-                  key={feature}
+                  key={featureKey}
                   className="flex items-center gap-2 text-[15px] text-muted-foreground"
                 >
                   <Check
                     aria-hidden="true"
                     className="size-4 shrink-0 text-primary"
                   />
-                  {feature}
+                  {t(featureKey)}
                 </li>
               ))}
             </ul>
@@ -95,7 +133,9 @@ export function LandingPricing() {
                 "mt-4 w-full py-2.5 text-[17px]"
               )}
             >
-              {plan.highlighted ? "选择创作者" : "开始使用"}
+              {plan.highlighted
+                ? t("landing.pricing.chooseCreator")
+                : t("landing.pricing.start")}
             </Link>
           </article>
         ))}

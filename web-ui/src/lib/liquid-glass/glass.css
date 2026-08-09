@@ -20,11 +20,11 @@
   /* 玻璃底 */
   background: color-mix(
     in srgb,
-    var(--glass-tint-color, var(--lg-glass-fill, rgba(255, 255, 255, 0.55)))
+    var(--glass-tint-color, var(--lg-glass-fill, rgba(20, 24, 30, 0.55)))
       calc(var(--glass-tint-opacity, 0.3) * 100% + 40%),
     transparent
   );
-  border: 1px solid var(--lg-glass-border, rgba(255, 255, 255, 0.65));
+  border: 1px solid var(--lg-glass-border, rgba(255, 255, 255, 0.14));
   box-shadow:
     inset 0 1px 0 var(--lg-glass-highlight, rgba(255, 255, 255, 0.12)),
     0 8px 32px rgba(0, 0, 0, calc(var(--glass-shadow-strength, 0.12))),
@@ -115,15 +115,15 @@
 }
 
 .glass-button:hover {
-  transform: translateY(-1px);
+  transform: scale(0.975);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    0 8px 24px rgba(0, 0, 0, calc(var(--glass-shadow-strength, 0.14))),
+    0 4px 14px rgba(0, 0, 0, calc(var(--glass-shadow-strength, 0.12))),
     0 0 0 1px color-mix(in srgb, var(--lg-primary, #0066ff) 12%, transparent);
 }
 
 .glass-button:active {
-  transform: scale(0.97) translateY(0);
+  transform: scale(0.94);
 }
 
 .glass-button:disabled,
@@ -220,7 +220,7 @@
   .glass-button {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-    background: var(--lg-bg-elevated, #f5f7fc) !important;
+    background: var(--lg-panel-bg-strong, rgba(20, 24, 30, 0.85)) !important;
   }
 }
 

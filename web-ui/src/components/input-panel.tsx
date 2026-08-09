@@ -1,10 +1,18 @@
+/**
+ * GVFI — Video input / drop zone panel.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
 "use client";
 
 import { useId, useRef, useState } from "react";
 import { FileVideo, Upload } from "lucide-react";
 import { SectionCard } from "@/components/section-card";
 import { GlassButton } from "@/components/glass/glass-button";
+import { GlassDialog } from "@/components/glass/glass-dialog";
 import { GlassInput, GlassTextarea } from "@/components/glass/glass-input";
+import { useT } from "@/hooks/use-t";
 import { cn } from "@/lib/utils";
 
 interface InputPanelProps {
@@ -20,9 +28,12 @@ export function InputPanel({
   onFileSelected,
   onInputPathChange,
 }: InputPanelProps) {
+  const t = useT();
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
+  const [consentOpen, setConsentOpen] = useState(false);
+  const pendingFiles = useRef<FileList | File[] | null>(null);
 
   const acceptFile = (list: FileList | File[] | null) => {
     if (!list) return;
@@ -30,11 +41,33 @@ export function InputPanel({
     onFileSelected(next ?? null);
   };
 
+  const requestSelect = (list?: FileList | File[] | null) => {
+    pendingFiles.current = list ?? null;
+    setConsentOpen(true);
+  };
+
+  const confirmConsent = () => {
+    setConsentOpen(false);
+    if (pendingFiles.current) {
+      acceptFile(pendingFiles.current);
+      pendingFiles.current = null;
+      return;
+    }
+    inputRef.current?.click();
+  };
+
   return (
     <SectionCard
-      title="输入"
-      description="上传视频文件，或填写本机绝对路径供 GVFI 读取。"
+      title={t("video.input.title")}
+      description={t("video.input.desc")}
     >
+      <p
+        className="rounded-[var(--radius-sm)] border border-[var(--glass-border)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-3 py-2 text-[12px] leading-relaxed text-[var(--text-muted)]"
+        role="note"
+      >
+        {t("video.input.privacyNotice")}
+      </p>
+
       <input
         ref={inputRef}
         id={inputId}
@@ -51,8 +84,8 @@ export function InputPanel({
       <button
         type="button"
         aria-controls={inputId}
-        aria-label="选择或拖拽视频文件"
-        onClick={() => inputRef.current?.click()}
+        aria-label={t("video.input.dropAria")}
+        onClick={() => requestSelect()}
         onDragEnter={(event) => {
           event.preventDefault();
           setDragging(true);
@@ -68,42 +101,49 @@ export function InputPanel({
         onDrop={(event) => {
           event.preventDefault();
           setDragging(false);
-          acceptFile(event.dataTransfer.files);
+          requestSelect(event.dataTransfer.files);
         }}
         className={cn(
           "glass-card flex min-h-36 w-full cursor-pointer flex-col items-center justify-center gap-2 px-4 py-6 text-center transition-colors",
           "border border-[var(--glass-border)] bg-[color-mix(in_srgb,var(--bg-2)_70%,transparent)]",
-          dragging && "border-[var(--accent-cyan)] bg-[color-mix(in_srgb,var(--accent-cyan)_10%,var(--bg-2))]"
+          dragging &&
+            "border-[var(--accent-cyan)] bg-[color-mix(in_srgb,var(--accent-cyan)_10%,var(--bg-2))]"
         )}
       >
         <Upload className="size-5 text-[var(--accent-cyan)]" aria-hidden />
         <span className="text-sm font-medium text-[var(--text-strong)]">
-          拖拽视频到此处
+          {t("video.input.drop")}
         </span>
-        <span className="text-sm text-[var(--text-muted)]">或点击选择</span>
+        <span className="text-sm text-[var(--text-muted)]">
+          {t("video.input.orClick")}
+        </span>
       </button>
 
       <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
         <FileVideo className="size-4 text-[var(--accent)]" aria-hidden />
-        <span>当前文件：{fileName || "未选择"}</span>
+        <span>
+          {t("video.input.current", {
+            name: fileName || t("video.input.none"),
+          })}
+        </span>
       </div>
       <GlassTextarea
         readOnly
         value={fileName}
-        placeholder="暂无上传文件..."
-        aria-label="已选文件"
+        placeholder={t("video.input.placeholder")}
+        aria-label={t("video.input.selectedAria")}
         className="min-h-20"
       />
 
       <div className="flex flex-col gap-2">
         <label htmlFor="input-path" className="glass-field-label">
-          本机输入路径（可选）
+          {t("video.input.pathLabel")}
         </label>
         <GlassInput
           id="input-path"
           value={inputPath}
           onChange={(event) => onInputPathChange(event.target.value)}
-          placeholder="例如 D:\Videos\demo.mp4"
+          placeholder={t("video.input.pathPlaceholder")}
         />
       </div>
       <GlassButton
@@ -111,10 +151,40 @@ export function InputPanel({
         variant="glass"
         size="sm"
         className="w-full"
-        onClick={() => inputRef.current?.click()}
+        onClick={() => requestSelect()}
       >
-        选择视频文件
+        {t("video.input.choose")}
       </GlassButton>
+
+      <GlassDialog
+        open={consentOpen}
+        onOpenChange={setConsentOpen}
+        title={t("video.input.consentTitle")}
+        description={t("video.input.consentBody")}
+        footer={
+          <div className="flex justify-end gap-2">
+            <GlassButton
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                pendingFiles.current = null;
+                setConsentOpen(false);
+              }}
+            >
+              {t("common.cancel")}
+            </GlassButton>
+            <GlassButton
+              type="button"
+              variant="primary"
+              size="sm"
+              onClick={confirmConsent}
+            >
+              {t("video.input.consentConfirm")}
+            </GlassButton>
+          </div>
+        }
+      />
     </SectionCard>
   );
 }

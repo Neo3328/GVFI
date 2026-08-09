@@ -5,15 +5,17 @@ import { GlassButton } from "@/components/glass/glass-button";
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/glass/glass-card";
 import { GlassProgress } from "@/components/glass/glass-progress";
 import { GlassStatusIndicator } from "@/components/glass/glass-status-indicator";
+import { useT } from "@/hooks/use-t";
+import type { MessageKey } from "@/lib/i18n/types";
 import { cn } from "@/lib/utils";
 
-const STAGE_LABELS: Record<string, string> = {
-  queued: "排队",
-  extract: "抽帧",
-  rife: "插帧",
-  upsample: "超分",
-  encode: "合成",
-  done: "完成",
+const STAGE_KEYS: Record<string, MessageKey> = {
+  queued: "tasks.stage.queued",
+  extract: "tasks.stage.extract",
+  rife: "tasks.stage.rife",
+  upsample: "tasks.stage.upsample",
+  encode: "tasks.stage.encode",
+  done: "tasks.stage.done",
 };
 
 export type GlassTaskCardProps = {
@@ -41,8 +43,14 @@ export function GlassTaskCard({
   onOpen,
   className,
 }: GlassTaskCardProps) {
+  const t = useT();
   const running = status === "running" || status === "pending";
-  const stageLabel = stage ? (STAGE_LABELS[stage] ?? stage) : undefined;
+  const stageKey = stage ? STAGE_KEYS[stage] : undefined;
+  const stageLabel = stage
+    ? stageKey
+      ? t(stageKey)
+      : stage
+    : undefined;
 
   return (
     <GlassCard
@@ -72,7 +80,7 @@ export function GlassTaskCard({
           {running && onCancel ? (
             <div className="flex justify-end pt-1">
               <GlassButton variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onCancel(); }}>
-                取消
+                {t("common.cancel")}
               </GlassButton>
             </div>
           ) : null}

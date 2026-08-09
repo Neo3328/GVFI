@@ -20,6 +20,10 @@ import type {
   JobTask,
   JobsListResponse,
 } from "@/lib/gvfi-types";
+import { t } from "@/lib/i18n/t";
+import type { Locale, MessageKey } from "@/lib/i18n/types";
+import { DEFAULT_LOCALE } from "@/lib/i18n/types";
+import { useLocaleStore } from "@/stores/locale-store";
 
 export function mediaUrlForPath(absPath: string, preferDirect = false): string {
   const query = `path=${encodeURIComponent(absPath.trim())}`;
@@ -29,13 +33,27 @@ export function mediaUrlForPath(absPath: string, preferDirect = false): string {
   return `/api/media?${query}`;
 }
 
+function currentLocale(): Locale {
+  try {
+    return useLocaleStore.getState().locale;
+  } catch {
+    return DEFAULT_LOCALE;
+  }
+}
+
+function apiFallback(key: MessageKey, status: number): string {
+  return t(currentLocale(), key, { status });
+}
+
 export async function fetchAppearanceSettings(): Promise<AppearanceSettingsResponse["pyqt"]> {
   const response = await apiFetch("/settings/appearance", { cache: "no-store" });
   const payload = await readJson<AppearanceSettingsResponse & { error?: string }>(
     response
   );
   if (!response.ok) {
-    throw new Error(apiErrorMessage(payload, `外观设置读取失败 (${response.status})`));
+    throw new Error(
+      apiErrorMessage(payload, apiFallback("api.err.appearanceRead", response.status))
+    );
   }
   return payload.pyqt ?? {};
 }
@@ -46,7 +64,9 @@ export async function fetchJobLogs(taskId: string): Promise<JobLogsResponse> {
   });
   const payload = await readJson<JobLogsResponse & { error?: string }>(response);
   if (!response.ok) {
-    throw new Error(apiErrorMessage(payload, `日志读取失败 (${response.status})`));
+    throw new Error(
+      apiErrorMessage(payload, apiFallback("api.err.logsRead", response.status))
+    );
   }
   return payload;
 }
@@ -55,7 +75,9 @@ export async function fetchHealth(): Promise<HealthResponse> {
   const response = await apiFetch("/health", { cache: "no-store" });
   const payload = await readJson<HealthResponse & { error?: string }>(response);
   if (!response.ok) {
-    throw new Error(apiErrorMessage(payload, `GVFI 健康检查失败 (${response.status})`));
+    throw new Error(
+      apiErrorMessage(payload, apiFallback("api.err.health", response.status))
+    );
   }
   return payload;
 }
@@ -64,7 +86,9 @@ export async function listJobs(): Promise<JobsListResponse> {
   const response = await apiFetch("/jobs", { cache: "no-store" });
   const payload = await readJson<JobsListResponse & { error?: string }>(response);
   if (!response.ok) {
-    throw new Error(apiErrorMessage(payload, `任务列表失败 (${response.status})`));
+    throw new Error(
+      apiErrorMessage(payload, apiFallback("api.err.jobsList", response.status))
+    );
   }
   return payload;
 }
@@ -75,7 +99,9 @@ export async function getJob(taskId: string): Promise<JobTask> {
   });
   const payload = await readJson<JobResponse>(response);
   if (!response.ok || !payload.task) {
-    throw new Error(apiErrorMessage(payload, `查询任务失败 (${response.status})`));
+    throw new Error(
+      apiErrorMessage(payload, apiFallback("api.err.jobGet", response.status))
+    );
   }
   return payload.task;
 }
@@ -115,7 +141,9 @@ export async function createJob(options: {
 
   const payload = await readJson<CreateJobResponse>(response);
   if (!response.ok || !payload.task?.id) {
-    throw new Error(apiErrorMessage(payload, `启动失败 (${response.status})`));
+    throw new Error(
+      apiErrorMessage(payload, apiFallback("api.err.start", response.status))
+    );
   }
   return payload;
 }
@@ -126,12 +154,22 @@ export async function cancelJob(taskId: string): Promise<void> {
   });
   const payload = await readJson<{ error?: string; message?: string }>(response);
   if (!response.ok) {
-    throw new Error(apiErrorMessage(payload, `取消失败 (${response.status})`));
+    throw new Error(
+      apiErrorMessage(payload, apiFallback("api.err.cancel", response.status))
+    );
   }
 }
 
 export function isTerminalStatus(status: string): boolean {
   return ["succeeded", "failed", "cancelled"].includes(status);
+}
+
+/** Strip localized “current stage” chrome from status labels. */
+export function stripStagePrefix(label: string): string {
+  return label
+    .replace(/^●\s*当前工序：\s*/, "")
+    .replace(/^●\s*Current stage:\s*/i, "")
+    .replace(/^●\s*/, "");
 }
 
 export function stageLabelOf(task: {
@@ -140,22 +178,23 @@ export function stageLabelOf(task: {
   message: string;
   progress: number;
 }): string {
-  const stageMap: Record<string, string> = {
-    queued: "排队中",
-    extract: "抽帧",
-    rife: "RIFE 插帧",
-    interpolate: "插帧",
-    upsample: "超分",
-    encode: "视频合成",
-    analyze: "AI 分析",
-    done: "已完成",
-    cancelled: "已取消",
-    failed: "失败",
+  const locale = currentLocale();
+  const stageMap: Record<string, MessageKey> = {
+    queued: "process.stage.queued",
+    extract: "process.stage.extract",
+    rife: "process.stage.rife",
+    interpolate: "process.stage.interpolate",
+    upsample: "process.stage.upsample",
+    encode: "process.stage.encode",
+    analyze: "process.stage.analyze",
+    done: "process.stage.doneFull",
+    cancelled: "process.stage.cancelled",
+    failed: "process.stage.failed",
   };
-  const stage =
-    stageMap[task.stage] ?? task.stage ?? stageMap[task.status] ?? task.status;
+  const stageKey = stageMap[task.stage] ?? stageMap[task.status];
+  const stage = stageKey ? t(locale, stageKey) : task.stage || task.status;
   if (task.message) {
-    return `● 当前工序：${stage} · ${task.message}`;
+    return t(locale, "process.stage.withMessage", { stage, message: task.message });
   }
-  return `● 当前工序：${stage}`;
+  return t(locale, "process.stage.wrap", { detail: stage });
 }

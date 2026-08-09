@@ -20,7 +20,13 @@ import {
   GlassSelectValue,
 } from "@/components/glass/glass-select";
 import { GlassTextarea } from "@/components/glass/glass-input";
-import { LLM_PROVIDER_PRESETS, LLM_TASK_PRESETS } from "@/lib/llm-types";
+import { useT } from "@/hooks/use-t";
+import {
+  llmProviderLabel,
+  llmTaskLabel,
+  llmTaskPrompt,
+} from "@/lib/i18n/catalog-labels";
+import { LLM_TASK_PRESETS } from "@/lib/llm-types";
 import { useLlmConfigStore } from "@/stores/llm-config-store";
 
 interface LlmVideoPanelProps {
@@ -40,6 +46,7 @@ export function LlmVideoPanel({
   onStart,
   onStop,
 }: LlmVideoPanelProps) {
+  const t = useT();
   const {
     provider,
     model,
@@ -52,7 +59,7 @@ export function LlmVideoPanel({
     hasApiKey,
   } = useLlmConfigStore();
 
-  const preset = LLM_PROVIDER_PRESETS.find((p) => p.id === provider);
+  const providerLabel = llmProviderLabel(t, provider, provider);
   const clamped = Math.min(100, Math.max(0, progress));
 
   return (
@@ -61,31 +68,34 @@ export function LlmVideoPanel({
         <div className="flex items-start gap-2 rounded-[var(--radius-sm)] border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-200">
           <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>
-            请先在{" "}
+            {t("llm.panel.needKeyBefore")}{" "}
             <Link href="/app/settings" className="underline hover:text-amber-100">
-              参数设置
+              {t("llm.panel.settingsLink")}
             </Link>{" "}
-            中配置大模型 API Key。
+            {t("llm.panel.needKeyAfter")}
           </span>
         </div>
       ) : null}
 
       <GlassPanel
-        title="AI 大模型视频处理"
-        description="抽取关键帧并调用视觉大模型，生成场景分析、摘要或增强建议报告。"
+        title={t("llm.panel.title")}
+        description={t("llm.panel.desc")}
         headerAction={
           <span className="text-[11px] text-[var(--text-muted)]">
-            {preset?.label} · {model}
+            {providerLabel} · {model}
           </span>
         }
       >
         <div className="grid gap-4">
           <label className="flex flex-col gap-1.5">
             <span className="text-[12px] font-medium text-[var(--text-muted)]">
-              分析类型
+              {t("llm.panel.taskType")}
             </span>
             <GlassSelect
               value={taskPreset}
+              items={Object.fromEntries(
+                LLM_TASK_PRESETS.map((item) => [item.id, llmTaskLabel(t, item.id)])
+              )}
               onValueChange={(value) => {
                 if (typeof value === "string") {
                   setTaskPreset(value as typeof taskPreset);
@@ -98,7 +108,7 @@ export function LlmVideoPanel({
               <GlassSelectContent>
                 {LLM_TASK_PRESETS.map((item) => (
                   <GlassSelectItem key={item.id} value={item.id}>
-                    {item.label}
+                    {llmTaskLabel(t, item.id)}
                   </GlassSelectItem>
                 ))}
               </GlassSelectContent>
@@ -107,19 +117,19 @@ export function LlmVideoPanel({
 
           <label className="flex flex-col gap-1.5">
             <span className="text-[12px] font-medium text-[var(--text-muted)]">
-              自定义提示词（可选，留空则使用预设）
+              {t("llm.panel.customPrompt")}
             </span>
             <GlassTextarea
               value={customPrompt}
               onChange={(e) => setCustomPrompt(e.target.value)}
-              placeholder={LLM_TASK_PRESETS.find((p) => p.id === taskPreset)?.prompt}
+              placeholder={llmTaskPrompt(t, taskPreset)}
               rows={4}
             />
           </label>
 
           <label className="flex flex-col gap-1.5">
             <span className="text-[12px] font-medium text-[var(--text-muted)]">
-              抽帧数量（1–24）
+              {t("llm.panel.maxFrames")}
             </span>
             <GlassInput
               type="number"
@@ -134,13 +144,17 @@ export function LlmVideoPanel({
         </div>
       </GlassPanel>
 
-      <GlassPanel title="运行控制">
+      <GlassPanel title={t("llm.panel.runTitle")}>
         <div className="flex flex-col gap-3">
           <GlassProgressLabel>
-            <span className="text-[13px] text-[var(--text-muted)]">分析进度</span>
+            <span className="text-[13px] text-[var(--text-muted)]">{t("llm.panel.progress")}</span>
             <span className="text-[13px] tabular-nums">{clamped}%</span>
           </GlassProgressLabel>
-          <GlassProgress value={clamped} ai={isRunning} aria-label="LLM 分析进度" />
+          <GlassProgress
+            value={clamped}
+            ai={isRunning}
+            aria-label={t("llm.panel.progressAria")}
+          />
 
           <div className="flex flex-wrap gap-2">
             <GlassButton
@@ -150,7 +164,7 @@ export function LlmVideoPanel({
               onClick={onStart}
             >
               <Sparkles className="size-4" aria-hidden />
-              开始 AI 分析
+              {t("llm.panel.start")}
             </GlassButton>
             <GlassButton
               type="button"
@@ -158,13 +172,13 @@ export function LlmVideoPanel({
               disabled={!isRunning}
               onClick={onStop}
             >
-              停止
+              {t("llm.panel.stop")}
             </GlassButton>
           </div>
 
           {lastReportPath ? (
             <p className="text-[12px] text-[var(--text-muted)]">
-              报告已生成，见下方可视化栏目
+              {t("llm.panel.reportReady")}
             </p>
           ) : null}
         </div>

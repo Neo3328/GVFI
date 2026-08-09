@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { GlassButton } from "@/components/glass/glass-button";
 import { GlassPanel } from "@/components/glass/glass-card";
+import { useT } from "@/hooks/use-t";
 import { fetchAnalysisMarkdown } from "@/lib/llm-api";
 import { cn } from "@/lib/utils";
 
@@ -29,8 +30,13 @@ interface AnalysisReportPanelProps {
 }
 
 function parseMeta(markdown: string): { model?: string; frames?: string } {
-  const model = markdown.match(/[-*]\s*模型[：:]\s*(.+)/)?.[1]?.trim();
-  const frames = markdown.match(/[-*]\s*抽帧数[：:]\s*(.+)/)?.[1]?.trim();
+  /* Parse report body meta (zh/en labels emitted by analysis pipeline) */
+  const model = markdown
+    .match(/[-*]\s*(?:模型|Model)[：:]\s*(.+)/i)?.[1]
+    ?.trim();
+  const frames = markdown
+    .match(/[-*]\s*(?:抽帧数|Frames?)[：:]\s*(.+)/i)?.[1]
+    ?.trim();
   return { model, frames };
 }
 
@@ -39,6 +45,7 @@ export function AnalysisReportPanel({
   className,
   compact = false,
 }: AnalysisReportPanelProps) {
+  const t = useT();
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,15 +82,15 @@ export function AnalysisReportPanel({
   if (!reportPath) {
     return (
       <GlassPanel
-        title="AI 分析报告"
-        description="完成大模型分析后，将在此可视化呈现 Markdown 报告。"
+        title={t("report.title")}
+        description={t("report.emptyDesc")}
         className={className}
       >
         <div className="flex min-h-[160px] flex-col items-center justify-center gap-2 px-4 py-8 text-center">
           <FileText className="size-8 text-[var(--text-muted)] opacity-60" aria-hidden />
-          <p className="text-[13px] text-[var(--text-muted)]">暂无分析报告</p>
+          <p className="text-[13px] text-[var(--text-muted)]">{t("report.empty")}</p>
           <p className="text-[11px] text-[var(--text-muted)]">
-            在「设置」中启动 AI 分析，结果会自动显示在这里
+            {t("report.emptyHint")}
           </p>
         </div>
       </GlassPanel>
@@ -92,8 +99,8 @@ export function AnalysisReportPanel({
 
   return (
     <GlassPanel
-      title="AI 分析报告"
-      description="Markdown 可视化预览"
+      title={t("report.title")}
+      description={t("report.previewDesc")}
       className={className}
       headerAction={
         <div className="flex items-center gap-1">
@@ -103,14 +110,14 @@ export function AnalysisReportPanel({
             size="xs"
             disabled={loading}
             onClick={() => void load(reportPath)}
-            aria-label="刷新报告"
+            aria-label={t("report.refreshAria")}
           >
             {loading ? (
               <Loader2 className="size-3.5 animate-spin" aria-hidden />
             ) : (
               <RefreshCw className="size-3.5" aria-hidden />
             )}
-            刷新
+            {t("report.refresh")}
           </GlassButton>
           <GlassButton
             type="button"
@@ -128,7 +135,7 @@ export function AnalysisReportPanel({
             }}
           >
             <Copy className="size-3.5" aria-hidden />
-            {copied ? "已复制" : "复制"}
+            {copied ? t("report.copied") : t("report.copy")}
           </GlassButton>
         </div>
       }
@@ -141,12 +148,12 @@ export function AnalysisReportPanel({
           </span>
           {meta.model ? (
             <span className="rounded-full border border-[var(--glass-border)] px-2.5 py-0.5">
-              模型 · {meta.model}
+              {t("report.modelMeta", { model: meta.model })}
             </span>
           ) : null}
           {meta.frames ? (
             <span className="rounded-full border border-[var(--glass-border)] px-2.5 py-0.5">
-              抽帧 · {meta.frames}
+              {t("report.framesMeta", { frames: meta.frames })}
             </span>
           ) : null}
         </div>
@@ -160,28 +167,37 @@ export function AnalysisReportPanel({
         </p>
 
         {error ? (
-          <p className="rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] px-3 py-2 text-[12px] text-[#ffd0d8]">
+          <p className="rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] px-3 py-2 text-[12px] text-[color-mix(in_srgb,var(--danger)_72%,white)]">
             {error}
           </p>
         ) : null}
 
         <div
           className={cn(
-            "gvfi-md-prose relative overflow-auto rounded-[var(--radius-md)] border border-[var(--glass-border)]",
-            "bg-[color-mix(in_srgb,var(--bg-0)_55%,transparent)] px-4 py-4 sm:px-5 sm:py-5",
+            "relative overflow-hidden rounded-[var(--card-radius)] border border-[var(--glass-border)]",
+            "bg-[color-mix(in_srgb,var(--bg-0)_55%,transparent)] bg-clip-padding",
             compact ? "max-h-[320px]" : "max-h-[min(70vh,640px)] min-h-[220px]"
           )}
         >
-          {loading && !content ? (
-            <div className="flex h-40 items-center justify-center gap-2 text-[13px] text-[var(--text-muted)]">
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-              正在加载报告…
-            </div>
-          ) : content ? (
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-          ) : !error ? (
-            <p className="text-[13px] text-[var(--text-muted)]">报告内容为空</p>
-          ) : null}
+          <div
+            className={cn(
+              "gvfi-md-prose h-full overflow-auto px-4 py-4 sm:px-5 sm:py-5",
+              compact ? "max-h-[320px]" : "max-h-[min(70vh,640px)]"
+            )}
+          >
+            {loading && !content ? (
+              <div className="flex h-40 items-center justify-center gap-2 text-[13px] text-[var(--text-muted)]">
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+                {t("report.loading")}
+              </div>
+            ) : content ? (
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+            ) : !error ? (
+              <p className="text-[13px] text-[var(--text-muted)]">
+                {t("report.emptyContent")}
+              </p>
+            ) : null}
+          </div>
         </div>
       </div>
     </GlassPanel>

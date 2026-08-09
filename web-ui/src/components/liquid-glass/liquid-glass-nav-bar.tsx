@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useT } from "@/hooks/use-t";
 import { cn } from "@/lib/utils";
 import {
   destroyGlassTree,
@@ -40,6 +41,7 @@ export function LiquidGlassNavBar({
   borderRadius = EDGE_GLASS_SHAPE.navRadius,
   tintOpacity = EDGE_GLASS_CONTROLS.tintOpacity,
 }: LiquidGlassNavBarProps) {
+  const t = useT();
   const hostRef = useRef<HTMLDivElement>(null);
   const onNavigateRef = useRef(onNavigate);
   onNavigateRef.current = onNavigate;
@@ -89,7 +91,7 @@ export function LiquidGlassNavBar({
         minHeight: EDGE_GLASS_SHAPE.refHeight,
       }}
       className={cn("mx-auto flex w-full items-center justify-center", className)}
-      aria-label="Liquid Glass 导航"
+      aria-label={t("liquid.navAria")}
     />
   );
 }

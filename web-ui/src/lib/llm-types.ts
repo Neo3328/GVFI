@@ -4,42 +4,44 @@
  * Copyright © 2026 Mr. Gong. All Rights Reserved.
  */
 
+import type { MessageKey } from "@/lib/i18n/types";
+
 export type LlmProviderId = "openai" | "deepseek" | "moonshot" | "custom";
 
 export interface LlmProviderPreset {
   id: LlmProviderId;
-  label: string;
+  labelKey: MessageKey;
   baseUrl: string;
   defaultModel: string;
-  hint?: string;
+  hintKey?: MessageKey;
 }
 
 export const LLM_PROVIDER_PRESETS: LlmProviderPreset[] = [
   {
     id: "openai",
-    label: "OpenAI",
+    labelKey: "llm.provider.openai",
     baseUrl: "https://api.openai.com/v1",
     defaultModel: "gpt-4o",
-    hint: "支持 GPT-4o 视觉分析",
+    hintKey: "llm.provider.openai.hint",
   },
   {
     id: "deepseek",
-    label: "DeepSeek",
+    labelKey: "llm.provider.deepseek",
     baseUrl: "https://api.deepseek.com/v1",
     defaultModel: "deepseek-chat",
   },
   {
     id: "moonshot",
-    label: "Moonshot (Kimi)",
+    labelKey: "llm.provider.moonshot",
     baseUrl: "https://api.moonshot.cn/v1",
     defaultModel: "moonshot-v1-8k-vision-preview",
   },
   {
     id: "custom",
-    label: "自定义 (OpenAI 兼容)",
+    labelKey: "llm.provider.custom",
     baseUrl: "",
     defaultModel: "gpt-4o",
-    hint: "填写兼容 OpenAI Chat Completions 的 Base URL",
+    hintKey: "llm.provider.custom.hint",
   },
 ];
 
@@ -47,25 +49,23 @@ export type LlmTaskPresetId = "analyze" | "summary" | "enhance";
 
 export const LLM_TASK_PRESETS: {
   id: LlmTaskPresetId;
-  label: string;
-  prompt: string;
+  labelKey: MessageKey;
+  promptKey: MessageKey;
 }[] = [
   {
     id: "analyze",
-    label: "场景分析",
-    prompt:
-      "请分析视频各帧的画面内容、镜头运动、主体对象与场景变化，并给出后期处理建议（补帧/超分/调色）。",
+    labelKey: "llm.task.analyze",
+    promptKey: "llm.task.analyze.prompt",
   },
   {
     id: "summary",
-    label: "内容摘要",
-    prompt: "请用中文概括视频的主要内容、关键事件与时间线，适合作为视频简介。",
+    labelKey: "llm.task.summary",
+    promptKey: "llm.task.summary.prompt",
   },
   {
     id: "enhance",
-    label: "智能增强建议",
-    prompt:
-      "基于画面质量评估噪点、模糊、曝光问题，给出具体的 AI 增强参数建议（目标帧率、是否超分、推荐模型类型）。",
+    labelKey: "llm.task.enhance",
+    promptKey: "llm.task.enhance.prompt",
   },
 ];
 
@@ -90,7 +90,7 @@ export interface LlmConfigState {
   model: string;
   apiKey: string;
   baseUrl: string;
-  maxFrames: number;
   taskPreset: LlmTaskPresetId;
   customPrompt: string;
+  maxFrames: number;
 }

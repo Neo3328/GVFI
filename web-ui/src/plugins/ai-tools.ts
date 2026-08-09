@@ -4,6 +4,7 @@
  * Copyright © 2026 Mr. Gong. All Rights Reserved.
  */
 
+import { tr } from "@/lib/i18n/runtime";
 import { aiGateway } from "@/services/ai-gateway";
 
 export interface AiToolContext {
@@ -22,8 +23,12 @@ export interface AiToolPlugin {
 
 export const videoLlmAnalyzeTool: AiToolPlugin = {
   id: "video-llm-analyze",
-  label: "视频视觉分析",
-  description: "经 AI Gateway 提交本地 gvfi_api LLM 作业",
+  get label() {
+    return tr("ai.tool.videoAnalyze.label");
+  },
+  get description() {
+    return tr("ai.tool.videoAnalyze.desc");
+  },
   async execute(ctx) {
     const result = await aiGateway.enqueueLlmJob({
       file: ctx.file,
@@ -31,7 +36,7 @@ export const videoLlmAnalyzeTool: AiToolPlugin = {
       prompt: ctx.prompt,
       maxFrames: ctx.maxFrames,
     });
-    return { taskId: result.taskId, message: "已提交" };
+    return { taskId: result.taskId, message: tr("ai.tool.submitted") };
   },
 };
 
