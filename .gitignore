@@ -96,3 +96,6 @@ AI_Tools/WorkDir/
 *.avi
 *.mov
 !web-ui/public/**/*.mp4
+
+# 已移除的预设背景（清理审计）
+web-ui/public/backgrounds/
