@@ -159,6 +159,39 @@ scripts\sync-desktop-ui.cmd
 
 ---
 
+## 开源致谢
+
+GVFI 构建在以下优秀的开源项目之上，谨致谢意。完整许可证声明见 [`web-ui/THIRD_PARTY_NOTICES.md`](web-ui/THIRD_PARTY_NOTICES.md)（随安装包分发）。
+
+**前端 / 桌面**
+
+| 项目 | 用途 |
+|------|------|
+| [Next.js](https://github.com/vercel/next.js) | UI 框架 |
+| [React](https://github.com/facebook/react) | UI 运行时 |
+| [Electron](https://github.com/electron/electron) | 桌面壳 |
+| [electron-builder](https://github.com/electron-userland/electron-builder) | Windows 打包 |
+| [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss) | 样式 |
+| [shadcn/ui](https://github.com/shadcn-ui/ui) | 组件 |
+| [Base UI](https://github.com/mui/base-ui) | 基础组件 |
+| [Zustand](https://github.com/pmndrs/zustand) | 状态管理 |
+| [Lucide](https://github.com/lucide-icons/lucide) | 图标 |
+| [react-markdown](https://github.com/remarkjs/react-markdown) | 报告渲染 |
+| [html2canvas](https://github.com/niklasvh/html2canvas) | 截图 |
+
+**视频 / AI 运行时**
+
+| 项目 | 用途 |
+|------|------|
+| [RIFE (ECCV2022)](https://github.com/hzwer/ECCV2022-RIFE) | 视频补帧算法 |
+| [rife-ncnn-vulkan](https://github.com/nihui/rife-ncnn-vulkan) | 本地推理 |
+| [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) | 超分辨率 |
+| [RealCUGAN](https://github.com/bilibili/ailab) | 超分辨率 |
+| [ncnn](https://github.com/Tencent/ncnn) | 推理框架 |
+| [FFmpeg](https://github.com/FFmpeg/FFmpeg) | 媒体处理 |
+
+---
+
 ## 版权
 
 **GVFI** — AI 视频工作站

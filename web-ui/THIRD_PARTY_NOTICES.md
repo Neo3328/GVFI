@@ -7,27 +7,31 @@ This product includes or redistributes components that are subject to their own 
 
 ## Application stack (web-ui)
 
-| Component | License (typical) | Notes |
-|-----------|-------------------|--------|
-| Next.js | MIT | UI framework |
-| React / React DOM | MIT | UI runtime |
-| Electron | MIT | Desktop shell |
-| Zustand | MIT | Client state |
-| Lucide React | ISC | Icons |
-| Tailwind CSS | MIT | Styling |
-| Base UI | MIT | Primitives |
-| html2canvas | MIT | Capture utility |
-| react-markdown / remark-gfm | MIT | Report preview |
+| Component | License (typical) | Repository | Notes |
+|-----------|-------------------|------------|-------|
+| Next.js | MIT | https://github.com/vercel/next.js | UI framework |
+| React / React DOM | MIT | https://github.com/facebook/react | UI runtime |
+| Electron | MIT | https://github.com/electron/electron | Desktop shell |
+| electron-builder | MIT | https://github.com/electron-userland/electron-builder | Windows packaging |
+| Zustand | MIT | https://github.com/pmndrs/zustand | Client state |
+| Tailwind CSS | MIT | https://github.com/tailwindlabs/tailwindcss | Styling |
+| shadcn/ui | MIT | https://github.com/shadcn-ui/ui | Component primitives |
+| Base UI | MIT | https://github.com/mui/base-ui | Accessible primitives |
+| Lucide | ISC | https://github.com/lucide-icons/lucide | Icons |
+| react-markdown / remark-gfm | MIT | https://github.com/remarkjs/react-markdown | Report preview |
+| html2canvas | MIT | https://github.com/niklasvh/html2canvas | Capture utility |
 
 ## Video / AI runtime (bundled or adjacent)
 
-| Component | License (typical) | Notes |
-|-----------|-------------------|--------|
-| RIFE / ECCV2022-RIFE lineage | Academic / project license | Frame interpolation models & code |
-| rife-ncnn-vulkan | MIT (ncnn ecosystem) | Local inference binary |
-| FFmpeg | LGPL / GPL (build-dependent) | Media mux/demux |
-| Real-ESRGAN / RealCUGAN (if present) | BSD / project license | Super-resolution models |
-| OpenAI / DeepSeek / Moonshot APIs | Vendor ToS | Optional cloud LLM — keys never shipped |
+| Component | License (typical) | Repository | Notes |
+|-----------|-------------------|------------|-------|
+| RIFE (ECCV2022) | Academic / project license | https://github.com/hzwer/ECCV2022-RIFE | Frame interpolation models & code |
+| rife-ncnn-vulkan | MIT (ncnn ecosystem) | https://github.com/nihui/rife-ncnn-vulkan | Local inference binary |
+| Real-ESRGAN | BSD | https://github.com/xinntao/Real-ESRGAN | Super-resolution models |
+| RealCUGAN | Project license | https://github.com/bilibili/ailab | Super-resolution |
+| ncnn | BSD-3-Clause | https://github.com/Tencent/ncnn | Inference framework |
+| FFmpeg | LGPL / GPL (build-dependent) | https://github.com/FFmpeg/FFmpeg | Media mux/demux |
+| OpenAI / DeepSeek / Moonshot APIs | Vendor ToS | — | Optional cloud LLM — keys never shipped |
 
 ## Native packaging notes
 
