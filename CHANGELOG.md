@@ -2,6 +2,16 @@
 
 All notable changes to GVFI are documented in this file.
 
+## [Unreleased] — Repository hygiene
+
+- `.gitignore`: exclude `web-ui/_asar-extract/`, coverage/test report folders, Playwright output, `scripts/release-artifacts/`, stray uploads, signing keys/certs (`.pfx`/`.p12`/`.key`/`.jks`), `.asar` build artifacts, and final Release attachments (`GVFI-Setup-*.exe`, `GVFI-Portable-*.zip`, `SHA256SUMS.txt`) so installers stay GitHub Release–only.
+- `web-ui/.gitignore`: keep the secret-free `.env.example` trackable (`!.env.example`).
+- Docs: add `SECURITY.md`; README now notes the proprietary `LICENSE` and legal hub route.
+- Release naming: standardize on `GVFI-Setup-<version>-x64.exe` and `GVFI-Portable-<version>-x64.exe` (electron-builder `portable` target produces a single-file EXE regardless of extension), plus a generated `SHA256SUMS.txt` (`scripts/release-checksums.ps1`).
+- Packaging hardening: disable Next.js production browser source maps and exclude `*.map` / `.env*` from `extraResources` so installers do not ship development files.
+- Git index: stop tracking `web-ui/_asar-extract/**` (extracted Electron artifacts); files remain on disk, ignored going forward.
+- CI: add `.github/workflows/release.yml` — tag-triggered Windows build, locked `npm ci`, lint/type/test gates, artifact verification, SHA256SUMS generation, and GitHub Release upload. Signing secrets are read exclusively from GitHub Actions Secrets (`CSC_LINK`, `CSC_KEY_PASSWORD`).
+
 ## [1.0.0] — 2026-08-09 · First public Windows release
 
 ### Release readiness

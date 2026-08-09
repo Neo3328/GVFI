@@ -17,15 +17,17 @@ if (-not $DistDir) {
 }
 
 $names = @(
-  "GVFI-Setup-$Version.exe",
-  "GVFI-Portable-$Version.exe"
+  "GVFI-Setup-$Version-x64.exe",
+  "GVFI-Portable-$Version-x64.exe"
 )
+$outFile = Join-Path $DistDir "SHA256SUMS.txt"
 
 Write-Host "[GVFI] Looking for artifacts in: $DistDir"
 Write-Host "[GVFI] Version: $Version"
 Write-Host ""
 
 $found = 0
+$lines = @()
 foreach ($name in $names) {
   $path = Join-Path $DistDir $name
   if (-not (Test-Path -LiteralPath $path)) {
@@ -34,6 +36,7 @@ foreach ($name in $names) {
   }
   $hash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
   $size = (Get-Item -LiteralPath $path).Length
+  $lines += "$hash  $name"
   Write-Host "FILE     $name"
   Write-Host "SIZE     $size bytes"
   Write-Host "SHA256   $hash"
@@ -47,5 +50,7 @@ if ($found -eq 0) {
   exit 1
 }
 
-Write-Host "Paste SHA256 lines into releases\$Version\DOWNLOADS.md"
+$lines | Set-Content -LiteralPath $outFile -Encoding ASCII
+Write-Host "WROTE    $outFile"
+Write-Host "Upload GVFI-Setup-*.exe, GVFI-Portable-*.exe and SHA256SUMS.txt as GitHub Release assets."
 exit 0

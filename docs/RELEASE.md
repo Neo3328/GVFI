@@ -55,7 +55,8 @@ signtool verify /pa GVFI-Setup-1.0.0.exe
 | 产品版本 | **1.0.0** |
 | `web-ui/package.json` → `version` | `1.0.0` |
 | `web-ui/src/lib/brand.ts` → `APP_VERSION` | `1.0.0` |
-| 安装包文件名 | `GVFI-Setup-1.0.0.exe` / `GVFI-Portable-1.0.0.exe` |
+| 安装包文件名 | `GVFI-Setup-1.0.0-x64.exe` / `GVFI-Portable-1.0.0-x64.exe` |
+| 校验清单 | `SHA256SUMS.txt`（与安装包一并作为 GitHub Release 附件） |
 
 约定：语义化版本 `MAJOR.MINOR.PATCH`。破坏性变更升 MAJOR；功能升 MINOR；修复升 PATCH。
 
@@ -89,7 +90,13 @@ signtool verify /pa GVFI-Setup-1.0.0.exe
 powershell -ExecutionPolicy Bypass -File scripts\release-checksums.ps1 -Version 1.0.0
 ```
 
-将输出的 SHA256 粘贴到 `DOWNLOADS.md`，并与下载页一并公示。用户校验：
+该脚本会**在产物目录生成 `SHA256SUMS.txt`**。GitHub Release 时请上传：
+
+- `GVFI-Setup-1.0.0-x64.exe`
+- `GVFI-Portable-1.0.0-x64.exe`
+- `SHA256SUMS.txt`
+
+用户校验：
 
 ```powershell
 Get-FileHash .\GVFI-Setup-1.0.0.exe -Algorithm SHA256

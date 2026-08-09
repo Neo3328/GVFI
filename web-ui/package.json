@@ -58,7 +58,8 @@
     },
     "files": [
       "electron/**/*",
-      "package.json"
+      "package.json",
+      "!**/*.map"
     ],
     "extraResources": [
       {
@@ -67,28 +68,33 @@
         "filter": [
           "**/*",
           "!node_modules",
-          "!node_modules/**/*"
+          "!node_modules/**/*",
+          "!**/*.map",
+          "!**/.env*"
         ]
       },
       {
         "from": ".next/standalone/node_modules",
         "to": "standalone/node_modules",
         "filter": [
-          "**/*"
+          "**/*",
+          "!**/*.map"
         ]
       },
       {
         "from": ".next/static",
         "to": "standalone/.next/static",
         "filter": [
-          "**/*"
+          "**/*",
+          "!**/*.map"
         ]
       },
       {
         "from": "public",
         "to": "standalone/public",
         "filter": [
-          "**/*"
+          "**/*",
+          "!**/*.map"
         ]
       },
       {
@@ -105,18 +111,17 @@
           ]
         }
       ],
-      "publisherName": "Mr. Gong",
       "signAndEditExecutable": true
     },
     "portable": {
-      "artifactName": "GVFI-Portable-${version}.exe"
+      "artifactName": "GVFI-Portable-${version}-${arch}.exe"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "shortcutName": "GVFI",
-      "artifactName": "GVFI-Setup-${version}.exe",
+      "artifactName": "GVFI-Setup-${version}-${arch}.exe",
       "uninstallDisplayName": "GVFI ${version}"
     }
   }

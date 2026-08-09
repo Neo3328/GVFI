@@ -11,8 +11,9 @@ Copyright © 2026 Mr. Gong. All Rights Reserved.
 
 | 产物 | 文件名 | 下载地址 |
 |------|--------|----------|
-| 安装版 (NSIS) | `GVFI-Setup-1.0.0.exe` | _待填写：例如 https://example.com/releases/gvfi/1.0.0/GVFI-Setup-1.0.0.exe_ |
-| 便携版 | `GVFI-Portable-1.0.0.exe` | _待填写_ |
+| 安装版 (NSIS) | `GVFI-Setup-1.0.0-x64.exe` | _待填写：GitHub Release 附件直链_ |
+| 便携版 | `GVFI-Portable-1.0.0-x64.exe` | _待填写：GitHub Release 附件直链_ |
+| 校验清单 | `SHA256SUMS.txt` | _待填写：GitHub Release 附件直链_ |
 | 更新日志 | `RELEASE_NOTES.md` | 本仓库 `releases/1.0.0/RELEASE_NOTES.md` |
 | 使用说明 | `USER_GUIDE.md` | 本仓库 `docs/USER_GUIDE.md` |
 
@@ -20,8 +21,8 @@ Copyright © 2026 Mr. Gong. All Rights Reserved.
 
 | 文件 | SHA-256 |
 |------|---------|
-| `GVFI-Setup-1.0.0.exe` | _待填写（打包签名后生成）_ |
-| `GVFI-Portable-1.0.0.exe` | _待填写_ |
+| `GVFI-Setup-1.0.0-x64.exe` | _待填写（打包签名后生成）_ |
+| `GVFI-Portable-1.0.0-x64.exe` | _待填写_ |
 
 校验示例：
 

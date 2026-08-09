@@ -108,8 +108,9 @@ Copyright © 2026 Mr. Gong. All Rights Reserved.
 
 | 产物 | 预期路径 | 状态 |
 |------|----------|------|
-| NSIS 安装版 | `web-ui/dist-gvfi/GVFI-Setup-1.0.0.exe` | **未验证 / 文件不存在** |
-| Portable | `web-ui/dist-gvfi/GVFI-Portable-1.0.0.exe` | **未验证 / 文件不存在** |
+| NSIS 安装版 | `web-ui/dist-gvfi/GVFI-Setup-1.0.0-x64.exe` | **未验证 / 文件不存在** |
+| Portable | `web-ui/dist-gvfi/GVFI-Portable-1.0.0-x64.exe` | **未验证 / 文件不存在** |
+| 校验清单 | `web-ui/dist-gvfi/SHA256SUMS.txt` | 由 `scripts/release-checksums.ps1` 生成 |
 
 生成命令（尚未在本交付节点执行成功产出）：
 
@@ -134,8 +135,8 @@ npm run dist:win:release
 
 | 文件 | SHA-256 |
 |------|---------|
-| `GVFI-Setup-1.0.0.exe` | **未验证**（文件不存在） |
-| `GVFI-Portable-1.0.0.exe` | **未验证**（文件不存在） |
+| `GVFI-Setup-1.0.0-x64.exe` | **未验证**（文件不存在） |
+| `GVFI-Portable-1.0.0-x64.exe` | **未验证**（文件不存在） |
 
 ### 6.2 仅供对照的旧产物（非交付物）
 
@@ -158,8 +159,8 @@ powershell -ExecutionPolicy Bypass -File scripts\release-checksums.ps1 -Version 
 | 对象 | 状态 |
 |------|------|
 | 代码签名证书 / `CSC_LINK` 本机配置 | **未验证**（未见可用签名产物） |
-| `GVFI-Setup-1.0.0.exe` | **未验证**（不存在） |
-| `GVFI-Portable-1.0.0.exe` | **未验证**（不存在） |
+| `GVFI-Setup-1.0.0-x64.exe` | **未验证**（不存在） |
+| `GVFI-Portable-1.0.0-x64.exe` | **未验证**（不存在） |
 | `dist-gvfi-fresh\win-unpacked\GVFI.exe` | **NotSigned**（已用 `Get-AuthenticodeSignature` 确认） |
 
 `package.json` 中 `win.signAndEditExecutable: true`、`publisherName: "Mr. Gong"` 仅为构建配置意图；**不能等同于已签名。**

@@ -1,0 +1,158 @@
+# GVFI Windows Release — tag-triggered build & GitHub Release
+# Developed by Mr. Gong
+# Copyright © 2026 Mr. Gong. All Rights Reserved.
+#
+# Signing certificate configuration:
+#   Store values in GitHub repo Settings → Secrets and variables → Actions.
+#   Names: CSC_LINK, CSC_KEY_PASSWORD.
+#   Values are injected as environment variables only at runtime; never commit them.
+
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build & Release
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      # Do NOT hardcode certificates here; read from GitHub Secrets only.
+      CSC_LINK: ${{ secrets.CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Keep npm proxy clean on GitHub-hosted runners
+      npm_config_proxy: ""
+      npm_config_https_proxy: ""
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Derive version from tag
+        id: version
+        shell: pwsh
+        run: |
+          $tag = "${GITHUB_REF#refs/tags/}"
+          $ver = $tag -replace '^v', ''
+          if (-not ($ver -match '^\d+\.\d+\.\d+(-[0-9A-Za-z\.-]+)?$')) {
+            Write-Error "Tag '$tag' does not look like a semantic version (v1.2.3). Aborting."
+            exit 1
+          }
+          $pkg = Get-Content web-ui/package.json -Raw | ConvertFrom-Json
+          if ($pkg.version -ne $ver) {
+            Write-Error "Tag version $ver does not match package.json version $($pkg.version). Aborting."
+            exit 1
+          }
+          $brand = Get-Content web-ui/src/lib/brand.ts -Raw
+          if ($brand -notmatch [regex]::Escape("APP_VERSION = `"$ver`"")) {
+            Write-Error "brand.ts APP_VERSION does not match tag version $ver. Aborting."
+            exit 1
+          }
+          echo "version=$ver" >> $env:GITHUB_OUTPUT
+          Write-Host "Version check OK: $ver"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web-ui/package-lock.json
+
+      - name: Install locked dependencies
+        working-directory: web-ui
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint
+        working-directory: web-ui
+        run: npm run lint
+
+      - name: Type check
+        working-directory: web-ui
+        run: npx tsc --noEmit
+
+      - name: Test
+        working-directory: web-ui
+        run: npm test
+
+      - name: Production build
+        working-directory: web-ui
+        run: npm run build
+
+      - name: Prepare standalone resources
+        working-directory: web-ui
+        run: npm run prepare:standalone
+
+      - name: Build Windows installer & portable
+        working-directory: web-ui
+        run: npx electron-builder --win nsis portable --x64
+
+      - name: Verify artifacts exist
+        id: verify
+        shell: pwsh
+        working-directory: web-ui
+        run: |
+          $ver = "${{ steps.version.outputs.version }}"
+          $setup = "dist-gvfi/GVFI-Setup-$ver-x64.exe"
+          $portable = "dist-gvfi/GVFI-Portable-$ver-x64.exe"
+          if (-not (Test-Path $setup)) { Write-Error "Missing $setup"; exit 1 }
+          if (-not (Test-Path $portable)) { Write-Error "Missing $portable"; exit 1 }
+          Write-Host "Artifacts verified:"
+          Get-Item $setup, $portable | Select-Object Name, Length
+
+      - name: Generate SHA256SUMS.txt
+        working-directory: web-ui
+        shell: pwsh
+        run: |
+          $ver = "${{ steps.version.outputs.version }}"
+          $dist = Resolve-Path dist-gvfi
+          $names = @("GVFI-Setup-$ver-x64.exe", "GVFI-Portable-$ver-x64.exe")
+          $lines = foreach ($n in $names) {
+            $h = (Get-FileHash (Join-Path $dist $n) -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$h  $n"
+          }
+          $lines | Set-Content (Join-Path $dist "SHA256SUMS.txt") -Encoding ASCII
+          Write-Host "SHA256SUMS.txt generated:"
+          Get-Content (Join-Path $dist "SHA256SUMS.txt")
+
+      - name: Check signing status
+        shell: pwsh
+        working-directory: web-ui
+        run: |
+          $ver = "${{ steps.version.outputs.version }}"
+          $files = @("dist-gvfi/GVFI-Setup-$ver-x64.exe", "dist-gvfi/GVFI-Portable-$ver-x64.exe")
+          foreach ($f in $files) {
+            $sig = Get-AuthenticodeSignature $f
+            Write-Host "$f : $($sig.Status)"
+          }
+          if (-not $env:CSC_LINK) {
+            Write-Host "::warning::CSC_LINK secret not configured. Release will be unsigned; SmartScreen may warn users."
+          }
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: GVFI ${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: false
+          body_path: releases/${{ steps.version.outputs.version }}/RELEASE_NOTES.md
+          fail_on_unmatched_files: true
+          files: |
+            web-ui/dist-gvfi/GVFI-Setup-${{ steps.version.outputs.version }}-x64.exe
+            web-ui/dist-gvfi/GVFI-Portable-${{ steps.version.outputs.version }}-x64.exe
+            web-ui/dist-gvfi/SHA256SUMS.txt

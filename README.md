@@ -17,6 +17,9 @@ Copyright © 2026 Mr. Gong. All Rights Reserved.
 | **AI** | `/app/ai` | 大模型视觉分析与报告 |
 | **连接** | `/app/settings` | API Profile、大模型 URL/密钥 |
 | **系统** | `/app/system` | 外观 / 开发者 / 日志 / 关于 |
+| **法律** | （系统 → 关于） | 隐私政策、用户协议、第三方许可证 |
+
+**商业说明：** 默认授权为**专有软件**（保留全部权利），详见 [`LICENSE`](LICENSE)；安全报告请见 [`SECURITY.md`](SECURITY.md)。
 
 ---
 
@@ -149,8 +152,8 @@ scripts\sync-desktop-ui.cmd
 
 1. **代码签名**：设置 `CSC_LINK` / `CSC_KEY_PASSWORD` 后打包，降低 SmartScreen「未知发布者」提示  
 2. **版本**：`1.0.0`（`web-ui/package.json` + `APP_VERSION`）  
-3. **产物**：`cd web-ui && npm run dist:win:release` → Setup + Portable  
-4. **哈希**：`scripts\release-checksums.ps1 -Version 1.0.0` → 填入 `releases/1.0.0/DOWNLOADS.md`  
+3. **产物**：`cd web-ui && npm run dist:win:release` → `GVFI-Setup-1.0.0-x64.exe` + `GVFI-Portable-1.0.0-x64.exe`  
+4. **哈希**：`scripts\release-checksums.ps1 -Version 1.0.0` → 生成 `SHA256SUMS.txt`，连同两个安装包作为 **GitHub Release 附件**上传（勿提交到仓库）  
 5. **反馈**：配置 `FEEDBACK_EMAIL` / `FEEDBACK_URL`（`web-ui/src/lib/brand.ts`）  
 6. **升级**：本版手动安装；回滚保留上一版安装包与 SHA-256  
 
