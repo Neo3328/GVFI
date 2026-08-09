@@ -1,0 +1,337 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "../design-tokens/index.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei",
+    "Noto Sans SC", var(--font-noto), system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --font-heading: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei",
+    "Noto Sans SC", var(--font-noto), system-ui, sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-surface: var(--surface);
+  --color-separator: var(--separator);
+  --color-fill-tertiary: var(--fill-tertiary);
+  --color-lg-primary: var(--lg-primary);
+  --color-lg-accent-ai: var(--lg-accent-ai);
+  --color-bg-0: var(--bg-0);
+  --color-bg-1: var(--bg-1);
+  --color-bg-2: var(--bg-2);
+  --color-text-strong: var(--text-strong);
+  --color-text-normal: var(--text-normal);
+  --color-text-muted: var(--text-muted);
+  --color-accent-cyan: var(--accent-cyan);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --shadow-ios: var(--shadow-ios);
+  --shadow-lg-glass: var(--lg-shadow-glass);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-pill: var(--radius-pill);
+  --radius-xl: var(--radius-lg);
+  --radius-2xl: calc(var(--radius-lg) + 4px);
+  --radius-3xl: calc(var(--radius-lg) + 8px);
+  --radius-4xl: calc(var(--radius-lg) + 12px);
+  --spacing-1: var(--space-1);
+  --spacing-2: var(--space-2);
+  --spacing-3: var(--space-3);
+  --spacing-4: var(--space-4);
+  --spacing-5: var(--space-5);
+  --spacing-6: var(--space-6);
+  --spacing-8: var(--space-8);
+  --transition-duration-fast: var(--duration-fast);
+  --transition-duration-normal: var(--duration-normal);
+  --ease-standard: var(--ease-standard);
+}
+
+/* Legacy aliases — map old theme names to Liquid Glass */
+:root[data-theme="kawaii"],
+:root[data-theme="cream"],
+:root:not([data-theme]) {
+  /* studio is default via colors.css :root */
+}
+
+:root[data-theme="blush"] {
+  /* mapped to dark in JS; keep fallback */
+}
+
+:root {
+  --shadow-ios: var(--lg-shadow-glass);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply font-sans;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply text-foreground;
+    min-height: 100%;
+    min-height: 100dvh;
+    color: var(--text-normal);
+    /* Wallpaper is #lg-background-layer — keep shell clear for glass */
+    background: transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  .lg-glass-1 {
+    background: var(--lg-glass-fill);
+    border: 1px solid var(--lg-glass-border);
+    box-shadow: var(--lg-shadow-glass);
+    backdrop-filter: blur(var(--lg-glass-blur-1)) saturate(150%);
+  }
+
+  .lg-glass-2 {
+    background: color-mix(in srgb, var(--lg-glass-fill) calc(var(--lg-glass-opacity) * 100%), transparent);
+    border: 1px solid var(--lg-glass-border);
+    box-shadow: var(--lg-shadow-glass);
+    backdrop-filter: blur(var(--lg-glass-blur)) saturate(150%);
+  }
+
+  .lg-glass-3 {
+    background: var(--lg-glass-fill-2);
+    border: 1px solid var(--lg-glass-border);
+    box-shadow: var(--lg-shadow-glass);
+    backdrop-filter: blur(var(--lg-glass-blur-3)) saturate(160%);
+  }
+
+  .lg-glass-chrome {
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+    background: color-mix(in srgb, var(--lg-glass-fill) 75%, transparent);
+    backdrop-filter: blur(var(--lg-glass-blur-1)) saturate(150%);
+  }
+
+  .ios-blur-bar {
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+    background: color-mix(in srgb, var(--lg-glass-fill) 75%, transparent);
+    backdrop-filter: blur(var(--lg-glass-blur-1)) saturate(150%);
+  }
+
+  .ios-grouped {
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--lg-glass-fill) calc(var(--lg-glass-opacity) * 100%), transparent);
+    border: 1px solid var(--lg-glass-border);
+    box-shadow: var(--lg-shadow-glass);
+    backdrop-filter: blur(var(--lg-glass-blur)) saturate(150%);
+  }
+
+  .ios-safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .ios-safe-top {
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+  }
+
+  @keyframes glass-shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(300%);
+    }
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .lg-glass-1,
+  .lg-glass-2,
+  .lg-glass-3,
+  .lg-glass-chrome,
+  .ios-grouped {
+    backdrop-filter: none !important;
+    background: var(--lg-bg-elevated) !important;
+  }
+}
+
+/* AI analysis markdown visualization */
+.gvfi-md-prose {
+  color: var(--text-normal);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.gvfi-md-prose > :first-child {
+  margin-top: 0;
+}
+
+.gvfi-md-prose > :last-child {
+  margin-bottom: 0;
+}
+
+.gvfi-md-prose h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+  background: linear-gradient(135deg, var(--text-strong), var(--accent-cyan));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.gvfi-md-prose h2 {
+  margin: 1.4rem 0 0.55rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  font-size: 1.15rem;
+  font-weight: 650;
+  color: var(--text-strong);
+}
+
+.gvfi-md-prose h3 {
+  margin: 1.1rem 0 0.4rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent-cyan);
+}
+
+.gvfi-md-prose p {
+  margin: 0.55rem 0;
+}
+
+.gvfi-md-prose ul,
+.gvfi-md-prose ol {
+  margin: 0.55rem 0;
+  padding-left: 1.25rem;
+}
+
+.gvfi-md-prose li {
+  margin: 0.25rem 0;
+}
+
+.gvfi-md-prose li::marker {
+  color: var(--accent);
+}
+
+.gvfi-md-prose strong {
+  color: var(--text-strong);
+  font-weight: 650;
+}
+
+.gvfi-md-prose a {
+  color: var(--accent-cyan);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.gvfi-md-prose code {
+  border-radius: 6px;
+  border: 1px solid var(--glass-border);
+  background: color-mix(in srgb, var(--bg-2) 70%, transparent);
+  padding: 0.1em 0.35em;
+  font-size: 0.88em;
+  color: var(--accent-cyan);
+}
+
+.gvfi-md-prose pre {
+  margin: 0.85rem 0;
+  overflow-x: auto;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+  background: color-mix(in srgb, var(--bg-0) 80%, #000);
+  padding: 0.85rem 1rem;
+}
+
+.gvfi-md-prose pre code {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--text-normal);
+}
+
+.gvfi-md-prose blockquote {
+  margin: 0.85rem 0;
+  border-left: 3px solid var(--accent);
+  padding: 0.2rem 0 0.2rem 0.9rem;
+  color: var(--text-muted);
+}
+
+.gvfi-md-prose hr {
+  margin: 1.2rem 0;
+  border: 0;
+  border-top: 1px solid var(--glass-border);
+}
+
+.gvfi-md-prose table {
+  width: 100%;
+  margin: 0.85rem 0;
+  border-collapse: collapse;
+  font-size: 0.92em;
+}
+
+.gvfi-md-prose th,
+.gvfi-md-prose td {
+  border: 1px solid var(--glass-border);
+  padding: 0.45rem 0.65rem;
+  text-align: left;
+}
+
+.gvfi-md-prose th {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--text-strong);
+  font-weight: 600;
+}

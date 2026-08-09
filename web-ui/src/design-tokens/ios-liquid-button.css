@@ -1,0 +1,242 @@
+/**
+ * GVFI — iOS native Liquid Glass button press / spring release.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ *
+ * Press: 80ms ease-out axial scale + light/shadow shift
+ * Release: 120ms Apple spring ease-out with slight overshoot
+ * Does not alter click handlers or button semantics.
+ */
+
+:root {
+  --duration-press: 80ms;
+  --duration-release: 120ms;
+  /* Apple-like press ease-out */
+  --ease-ios-press: cubic-bezier(0.32, 0.72, 0, 1);
+  /* Spring release with tiny overshoot, quick settle */
+  --ease-ios-spring: cubic-bezier(0.22, 1.28, 0.36, 1);
+  --radius-button: 22px;
+  --ios-btn-scale-pressed: 0.96;
+  --ios-btn-opacity-rest: 1;
+  --ios-btn-opacity-pressed: 0.88;
+  --ios-btn-blur-rest: 22px;
+  --ios-btn-blur-pressed: 14px;
+  --ios-btn-glow-rest: 0.22;
+  --ios-btn-glow-pressed: 0.08;
+}
+
+/* Shared interactive glass button surface */
+.ios-lg-btn,
+[data-slot="glass-button"].ios-lg-btn,
+.glass-button.ios-lg-btn {
+  --ios-specular-y: 0%;
+  --ios-specular-a: 0.34;
+  --ios-frost: 1;
+  --ios-outer-glow: var(--ios-btn-glow-rest);
+  --ios-shadow-y: 10px;
+  --ios-shadow-blur: 28px;
+  --ios-shadow-a: 0.18;
+  --ios-contact-a: 0.1;
+
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: var(--radius-button);
+  transform: scale(1);
+  opacity: var(--ios-btn-opacity-rest);
+  will-change: transform, opacity, box-shadow, filter;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+
+  /* Soft outer glow + diffuse floor shadow */
+  box-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.22),
+    0 0 18px rgba(255, 255, 255, calc(var(--ios-outer-glow) * 0.45)),
+    0 var(--ios-shadow-y) var(--ios-shadow-blur) rgba(0, 0, 0, var(--ios-shadow-a)),
+    0 2px 6px rgba(0, 0, 0, var(--ios-contact-a)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+
+  backdrop-filter: blur(var(--ios-btn-blur-rest)) saturate(calc(140% + var(--ios-frost) * 40%));
+  -webkit-backdrop-filter: blur(var(--ios-btn-blur-rest))
+    saturate(calc(140% + var(--ios-frost) * 40%));
+
+  /* Release = spring restore */
+  transition:
+    transform var(--duration-release) var(--ease-ios-spring),
+    opacity var(--duration-release) var(--ease-ios-spring),
+    box-shadow var(--duration-release) var(--ease-ios-spring),
+    filter var(--duration-release) var(--ease-ios-spring),
+    backdrop-filter var(--duration-release) var(--ease-ios-press),
+    -webkit-backdrop-filter var(--duration-release) var(--ease-ios-press),
+    background var(--duration-release) var(--ease-ios-press),
+    border-color var(--duration-release) var(--ease-ios-press);
+}
+
+/* Specular sheet — top-edge flow highlight */
+.ios-lg-btn::before,
+[data-slot="glass-button"].ios-lg-btn::before,
+.glass-button.ios-lg-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(
+      120% 70% at 50% calc(-8% + var(--ios-specular-y)),
+      rgba(255, 255, 255, var(--ios-specular-a)),
+      transparent 58%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, calc(var(--ios-specular-a) * 0.55)) 0%,
+      transparent 36%
+    );
+  opacity: calc(0.55 + var(--ios-frost) * 0.35);
+  transition:
+    background var(--duration-release) var(--ease-ios-spring),
+    opacity var(--duration-release) var(--ease-ios-spring),
+    transform var(--duration-release) var(--ease-ios-spring);
+}
+
+/* Frost grain / soft fog texture */
+.ios-lg-btn::after,
+[data-slot="glass-button"].ios-lg-btn::after,
+.glass-button.ios-lg-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  opacity: calc(var(--ios-frost) * 0.22);
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.12) 0.6px, transparent 0.7px),
+    radial-gradient(rgba(255, 255, 255, 0.06) 0.5px, transparent 0.6px);
+  background-size: 3px 3px, 5px 5px;
+  background-position: 0 0, 1px 2px;
+  mix-blend-mode: soft-light;
+  transition: opacity var(--duration-release) var(--ease-ios-spring);
+}
+
+/* Idle hover — tiny float, not a press */
+.ios-lg-btn:hover:not(:disabled):not(:active),
+[data-slot="glass-button"].ios-lg-btn:hover:not(:disabled):not(:active),
+.glass-button.ios-lg-btn:hover:not(:disabled):not(:active) {
+  --ios-outer-glow: calc(var(--ios-btn-glow-rest) + 0.06);
+  --ios-shadow-y: 12px;
+  --ios-shadow-blur: 32px;
+  filter: brightness(1.03);
+}
+
+/**
+ * Pressed — axial squash (scale), denser glass, highlight slides down/fades,
+ * shadow collapses inward, frost eases off. 80ms ease-out.
+ */
+.ios-lg-btn:active:not(:disabled),
+[data-slot="glass-button"].ios-lg-btn:active:not(:disabled),
+.glass-button.ios-lg-btn:active:not(:disabled),
+.ios-lg-btn[data-pressed="true"]:not(:disabled) {
+  --ios-specular-y: 18%;
+  --ios-specular-a: 0.16;
+  --ios-frost: 0.35;
+  --ios-outer-glow: var(--ios-btn-glow-pressed);
+  --ios-shadow-y: 3px;
+  --ios-shadow-blur: 10px;
+  --ios-shadow-a: 0.1;
+  --ios-contact-a: 0.04;
+
+  transform: scale(var(--ios-btn-scale-pressed));
+  opacity: var(--ios-btn-opacity-pressed);
+  filter: brightness(0.97) saturate(1.05);
+  backdrop-filter: blur(var(--ios-btn-blur-pressed)) saturate(155%);
+  -webkit-backdrop-filter: blur(var(--ios-btn-blur-pressed)) saturate(155%);
+
+  transition:
+    transform var(--duration-press) var(--ease-ios-press),
+    opacity var(--duration-press) var(--ease-ios-press),
+    box-shadow var(--duration-press) var(--ease-ios-press),
+    filter var(--duration-press) var(--ease-ios-press),
+    backdrop-filter var(--duration-press) var(--ease-ios-press),
+    -webkit-backdrop-filter var(--duration-press) var(--ease-ios-press),
+    background var(--duration-press) var(--ease-ios-press);
+}
+
+.ios-lg-btn:active:not(:disabled)::before,
+[data-slot="glass-button"].ios-lg-btn:active:not(:disabled)::before,
+.glass-button.ios-lg-btn:active:not(:disabled)::before,
+.ios-lg-btn[data-pressed="true"]:not(:disabled)::before {
+  transform: translateY(2px) scaleY(0.92);
+  opacity: 0.45;
+  transition:
+    background var(--duration-press) var(--ease-ios-press),
+    opacity var(--duration-press) var(--ease-ios-press),
+    transform var(--duration-press) var(--ease-ios-press);
+}
+
+.ios-lg-btn:active:not(:disabled)::after,
+[data-slot="glass-button"].ios-lg-btn:active:not(:disabled)::after,
+.glass-button.ios-lg-btn:active:not(:disabled)::after,
+.ios-lg-btn[data-pressed="true"]:not(:disabled)::after {
+  opacity: 0.06;
+  transition: opacity var(--duration-press) var(--ease-ios-press);
+}
+
+/* Keyboard / programmatic pressed (Base UI data-active) */
+.ios-lg-btn[data-active]:not(:disabled) {
+  --ios-specular-y: 18%;
+  --ios-specular-a: 0.16;
+  --ios-frost: 0.35;
+  --ios-outer-glow: var(--ios-btn-glow-pressed);
+  --ios-shadow-y: 3px;
+  --ios-shadow-blur: 10px;
+  --ios-shadow-a: 0.1;
+  transform: scale(var(--ios-btn-scale-pressed));
+  opacity: var(--ios-btn-opacity-pressed);
+}
+
+/* Ghost — keep press physics, drop heavy frost fill */
+.ios-lg-btn.ios-lg-btn--ghost,
+[data-slot="glass-button"].ios-lg-btn--ghost {
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: transparent;
+}
+
+.ios-lg-btn.ios-lg-btn--ghost::before,
+.ios-lg-btn.ios-lg-btn--ghost::after {
+  opacity: 0 !important;
+}
+
+.ios-lg-btn.ios-lg-btn--ghost:active:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: none;
+  filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ios-lg-btn,
+  [data-slot="glass-button"].ios-lg-btn,
+  .glass-button.ios-lg-btn,
+  .ios-lg-btn:active:not(:disabled),
+  .ios-lg-btn::before,
+  .ios-lg-btn::after {
+    transition-duration: 0.01ms !important;
+    transform: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .ios-lg-btn,
+  [data-slot="glass-button"].ios-lg-btn,
+  .glass-button.ios-lg-btn {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .ios-lg-btn::after {
+    opacity: 0 !important;
+  }
+}

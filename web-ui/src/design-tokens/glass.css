@@ -1,0 +1,53 @@
+/**
+ * Glass material tokens — macOS Liquid Glass layering.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
+:root {
+  --lg-glass-blur-1: var(--glass-blur);
+  --lg-glass-blur-2: calc(var(--glass-blur) * 0.72);
+  --lg-glass-blur-3: calc(var(--glass-blur) * 0.5);
+  --lg-glass-blur-4: calc(var(--glass-blur) * 0.33);
+  --lg-glass-opacity: var(--glass-opacity);
+  --lg-glass-blur: var(--lg-glass-blur-2);
+  --lg-border-brightness: calc(var(--glass-border-opacity) * 100);
+  --lg-shadow-strength: calc(var(--glass-shadow-opacity) * 100);
+  --lg-glow-strength: 0;
+  --lg-bg-opacity: 100;
+  --lg-bg-blur: 0px;
+
+  /* Soft ambient stack — Weather material depth */
+  --lg-shadow-glass:
+    inset 0 1px 0 var(--lg-glass-highlight),
+    0 10px 36px rgba(0, 0, 0, calc(var(--glass-shadow-opacity) * 0.9)),
+    0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+:root[data-theme="studio"] {
+  --lg-shadow-glass:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 10px 32px rgba(0, 0, 0, 0.08),
+    0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+:root[data-theme="dark"],
+:root[data-theme="ai"] {
+  --lg-shadow-glass:
+    inset 0 1px 0 var(--lg-glass-highlight),
+    0 12px 40px rgba(0, 0, 0, calc(var(--glass-shadow-opacity))),
+    0 2px 10px rgba(0, 0, 0, 0.14);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass-blur: 0px;
+    --lg-glass-fill: var(--bg-2);
+    --lg-glass-fill-2: var(--bg-2);
+    --lg-glass-blur: 0px;
+    --lg-glass-blur-1: 0px;
+    --lg-glass-blur-2: 0px;
+    --lg-glass-blur-3: 0px;
+    --lg-glass-blur-4: 0px;
+  }
+}

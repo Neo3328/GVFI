@@ -1,0 +1,235 @@
+/**
+ * Liquid Glass — CSS 造型层
+ * 类名与 liquid-glass-js 兼容：.glass-container / .glass-button / .glass-button-text
+ * 视觉参数由 --lg-* 与 window.glassControls 联动
+ */
+
+/* ── Glass containers ───────────────────────────────────── */
+
+.glass-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lg-space-3, 12px);
+  padding: var(--lg-space-2, 8px) var(--lg-space-3, 12px);
+  box-sizing: border-box;
+  isolation: isolate;
+  overflow: visible;
+
+  /* 玻璃底 */
+  background: color-mix(
+    in srgb,
+    var(--glass-tint-color, var(--lg-glass-fill, rgba(255, 255, 255, 0.55)))
+      calc(var(--glass-tint-opacity, 0.3) * 100% + 40%),
+    transparent
+  );
+  border: 1px solid var(--lg-glass-border, rgba(255, 255, 255, 0.65));
+  box-shadow:
+    inset 0 1px 0 var(--lg-glass-highlight, rgba(255, 255, 255, 0.12)),
+    0 8px 32px rgba(0, 0, 0, calc(var(--glass-shadow-strength, 0.12))),
+    0 2px 8px rgba(0, 0, 0, 0.06);
+  backdrop-filter: blur(var(--glass-blur-radius, 16px)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-radius, 16px)) saturate(160%);
+
+  transition:
+    box-shadow var(--lg-duration-fast, 150ms) var(--lg-ease-out, ease),
+    transform var(--lg-duration-fast, 150ms) var(--lg-ease-out, ease),
+    border-color var(--lg-duration-fast, 150ms) ease;
+}
+
+.glass-container::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, calc(var(--glass-rim-intensity, 0.08) * 3)) 0%,
+    transparent 42%,
+    rgba(0, 0, 0, calc(var(--glass-edge-intensity, 0.02) * 2)) 100%
+  );
+  opacity: 0.9;
+}
+
+.glass-container-circle {
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
+  flex-grow: 0;
+  padding: var(--lg-space-3, 12px);
+  border-radius: 50%;
+}
+
+.glass-container-pill {
+  flex-shrink: 0;
+  flex-grow: 0;
+  border-radius: 9999px;
+  padding: var(--lg-space-2, 8px) var(--lg-space-4, 16px);
+}
+
+.glass-container-rounded {
+  border-radius: var(--glass-border-radius, 14px);
+}
+
+/* WebGL canvas 层（若启用 liquid-glass-js） */
+.glass-container > canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ── Glass buttons ──────────────────────────────────────── */
+
+.glass-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  cursor: pointer;
+  pointer-events: auto;
+  user-select: none;
+  border: 1px solid var(--lg-glass-border, rgba(255, 255, 255, 0.55));
+  background: color-mix(
+    in srgb,
+    var(--glass-tint-color, var(--lg-glass-fill, rgba(255, 255, 255, 0.5)))
+      calc(var(--glass-tint-opacity, 0.3) * 100% + 35%),
+    transparent
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 4px 16px rgba(0, 0, 0, calc(var(--glass-shadow-strength, 0.1))),
+    0 1px 3px rgba(0, 0, 0, 0.06);
+  backdrop-filter: blur(calc(var(--glass-blur-radius, 16px) * 0.75)) saturate(170%);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur-radius, 16px) * 0.75)) saturate(170%);
+  transition:
+    transform var(--lg-duration-fast, 150ms) var(--lg-ease-out, ease),
+    box-shadow var(--lg-duration-fast, 150ms) ease,
+    opacity var(--lg-duration-fast, 150ms) ease;
+}
+
+.glass-button:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 8px 24px rgba(0, 0, 0, calc(var(--glass-shadow-strength, 0.14))),
+    0 0 0 1px color-mix(in srgb, var(--lg-primary, #0066ff) 12%, transparent);
+}
+
+.glass-button:active {
+  transform: scale(0.97) translateY(0);
+}
+
+.glass-button:disabled,
+.glass-button[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.glass-button-circle {
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
+  flex-grow: 0;
+  border-radius: 50%;
+  padding: 0;
+}
+
+.glass-button-pill {
+  border-radius: 9999px;
+  padding-inline: calc(var(--glass-btn-size, 28px) * 0.85);
+  padding-block: calc(var(--glass-btn-size, 28px) * 0.28);
+  min-height: calc(var(--glass-btn-size, 28px) * 1.85);
+}
+
+.glass-button-rounded {
+  border-radius: calc(var(--glass-btn-size, 28px) * 0.36);
+  padding-inline: calc(var(--glass-btn-size, 28px) * 0.85);
+  padding-block: calc(var(--glass-btn-size, 28px) * 0.32);
+  min-height: calc(var(--glass-btn-size, 28px) * 1.9);
+}
+
+/* warp 开启时中心微光 */
+.glass-button-warp::after {
+  content: "";
+  position: absolute;
+  inset: 15%;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at 50% 30%,
+    rgba(255, 255, 255, calc(var(--glass-rim-intensity, 0.08) * 2)) 0%,
+    transparent 70%
+  );
+  opacity: 0.8;
+}
+
+.glass-button > canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ── Button text overlay ────────────────────────────────── */
+
+.glass-button-text {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--lg-text-on-glass, rgba(245, 247, 255, 0.96));
+  letter-spacing: -0.01em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+
+:root[data-theme="studio"] .glass-button-text {
+  color: var(--lg-text-on-glass, rgba(15, 23, 42, 0.92));
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.35);
+}
+
+:root[data-theme="dark"] .glass-button-text,
+:root[data-theme="ai"] .glass-button-text {
+  color: var(--lg-text-on-glass, rgba(245, 247, 255, 0.96));
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+
+/* 嵌套在容器内的按钮略紧凑 */
+.glass-container .glass-button {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+/* ── Reduced motion / transparency ──────────────────────── */
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass-container,
+  .glass-button {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: var(--lg-bg-elevated, #f5f7fc) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-container,
+  .glass-button {
+    transition: none !important;
+  }
+  .glass-button:hover {
+    transform: none;
+  }
+}

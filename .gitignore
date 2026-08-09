@@ -1,0 +1,98 @@
+# 构建与运行产物
+web-ui/.next/
+web-ui/out/
+web-ui/dist-gvfi/
+web-ui/dist-gvfi-build/
+web-ui/dist-gvfi-fresh/
+web-ui/dist-desktop/
+web-ui/_asar-repack/
+web-ui/node_modules/
+
+# 依赖与锁文件缓存
+**/node_modules/
+.pnp
+.pnp.js
+
+# 环境变量与密钥（切勿提交）
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+.venv/
+venv/
+
+# PyInstaller / 本地打包产物
+ECCV2022-RIFE/build/
+ECCV2022-RIFE/dist/
+**/Analysis-*.toc
+**/COLLECT-*.toc
+**/EXE-*.toc
+**/PKG-*.toc
+**/PYZ-*.pyz
+**/xref-*.html
+
+# 用户数据与输出（本地运行时生成）
+ECCV2022-RIFE/user_data/
+**/user_data/uploads/
+**/user_data/output/
+
+# 日志与系统文件
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.suo
+
+# Electron / 安装包
+*.blockmap
+*.exe.installer
+
+# Native 构建产物与工具包
+native/build/
+native/tools/*.zip
+*.pdb
+*.lib
+
+# Cursor 本地状态（保留 rules）
+.cursor/*
+!.cursor/rules/
+
+# ---- 大型本地运行时 / 模型（约数 GB，勿入库）----
+# AI_Tools 中完整工具链体积过大，本地保留即可
+AI_Tools/
+
+# RIFE / 超分可执行与模型权重（本地依赖）
+ECCV2022-RIFE/**/rife-ncnn-vulkan*/
+ECCV2022-RIFE/**/realesrgan*/
+ECCV2022-RIFE/ffmpeg.exe
+ECCV2022-RIFE/ffprobe.exe
+ECCV2022-RIFE/realesrgan-ncnn-vulkan.exe
+ECCV2022-RIFE/models/
+ECCV2022-RIFE/**/*.bin
+ECCV2022-RIFE/**/*.param
+ECCV2022-RIFE/**/*.pt
+ECCV2022-RIFE/**/*.pth
+ECCV2022-RIFE/**/*.onnx
+
+# 临时输出
+AI_Tools/output_video/
+AI_Tools/WorkDir/
+**/tmp/
+**/temp/
+*.mp4
+*.mkv
+*.avi
+*.mov
+!web-ui/public/**/*.mp4

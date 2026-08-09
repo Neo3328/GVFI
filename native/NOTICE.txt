@@ -1,0 +1,20 @@
+GVFI Native Runtime — Design Inspiration Notice
+================================================
+
+This directory contains an independent reimplementation of selected
+architectural patterns observed in Apple Darwin / XNU (notably IOKit
+IOWorkLoop / IOEventSource concepts and zone-style allocation ideas).
+
+- No Apple Original Code from APSL-covered XNU sources was copied.
+- Algorithms and control-flow ideas were studied and rewritten for
+  Windows user-space using C++20 and Win32 APIs.
+- XNU source reference tree (for study only):
+  d:\xnu-xnu-12377.121.6\xnu-xnu-12377.121.6
+- XNU license: Apple Public Source License 2.0 (APPLE_LICENSE).
+
+If you later incorporate literal APSL Covered Code, you must retain
+Apple copyright notices and comply with APSL 2.0 External Deployment
+obligations. Prefer clean-room reimplementation (this tree) unless
+APSL compliance for the larger work is explicitly planned.
+
+Copyright (c) 2026 Mr. Gong. All Rights Reserved.

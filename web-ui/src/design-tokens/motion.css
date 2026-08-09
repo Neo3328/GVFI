@@ -1,0 +1,29 @@
+/**
+ * Motion tokens — canonical aliases + iOS button spring
+ */
+
+:root {
+  --duration-press: 80ms;
+  --duration-release: 120ms;
+  --duration-control: 160ms;
+  --duration-page: 260ms;
+  --duration-toast-enter: 180ms;
+  --duration-toast-exit: 130ms;
+
+  --ease-ios-press: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-ios-spring: cubic-bezier(0.22, 1.28, 0.36, 1);
+
+  --lg-duration-instant: 100ms;
+  --lg-duration-fast: var(--duration-fast);
+  --lg-duration-control: var(--duration-control);
+  --lg-duration-normal: var(--duration-normal);
+  --lg-duration-page: var(--duration-page);
+  --lg-duration-toast-enter: var(--duration-toast-enter);
+  --lg-duration-toast-exit: var(--duration-toast-exit);
+  --lg-duration-slow: 400ms;
+  --lg-duration-press: var(--duration-press);
+  --lg-duration-release: var(--duration-release);
+  --lg-ease-out: var(--ease-standard);
+  --lg-ease-spring: var(--ease-ios-spring);
+  --lg-ease-press: var(--ease-ios-press);
+}
