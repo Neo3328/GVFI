@@ -26,6 +26,18 @@ Copyright © 2026 Mr. Gong. All Rights Reserved.
 - 系统要求：Windows 10/11（x64）。
 - 校验文件完整性：下载 `SHA256SUMS.txt`，用 `Get-FileHash .\文件名 -Algorithm SHA256` 比对。详见 [`releases/1.0.0/DOWNLOADS.md`](releases/1.0.0/DOWNLOADS.md)。
 
+**下载较慢？**
+
+GitHub 附件托管于海外 CDN，国内访问可能偏慢或不稳定。建议：
+- 优先用**浏览器直接下载**（支持断点续传），耐心等其完成；
+- **下载后务必核对 SHA-256**（见上表链接），不一致说明文件被截断/篡改，请重下；
+- 也可借助支持多线程的下载器（如 [aria2](https://github.com/aria2/aria2/releases)，Windows 便携版解压即用）：
+  ```powershell
+  aria2c -x 8 -c -o GVFI-Setup-1.0.0-x64.exe "https://github.com/Neo3328/GVFI/releases/download/v1.0.0/GVFI-Setup-1.0.0-x64.exe"
+  ```
+
+**国内镜像：** _待补充_（将上传至国内网盘后在此提供直链）。
+
 ---
 
 ## 功能概览
