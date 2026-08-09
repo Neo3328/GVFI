@@ -4,6 +4,10 @@
   "description": "GVFI AI 视频工作站桌面版",
   "author": "Mr. Gong",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Neo3328/GVFI.git"
+  },
   "main": "electron/main.js",
   "scripts": {
     "dev": "next dev",

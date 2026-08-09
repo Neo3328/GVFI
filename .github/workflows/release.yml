@@ -97,7 +97,7 @@ jobs:
 
       - name: Build Windows installer & portable
         working-directory: web-ui
-        run: npx electron-builder --win nsis portable --x64
+        run: npx electron-builder --win nsis portable --x64 --publish never
 
       - name: List build output (diagnostics)
         shell: pwsh
