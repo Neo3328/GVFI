@@ -44,6 +44,7 @@ from gvfi_runtime.rife_cli_pipeline import (
     collect_frames,
     stage_frame_range,
 )
+from gvfi_runtime.rife_scene_scheduler import RifeWorkerManager, RifeWorkerStats, SceneTask
 from tool_resolver import (
     RIFE_MODEL_CANDIDATES,
     RIFE_NCNN_DIRNAME,
@@ -309,6 +310,7 @@ class VideoWorker(QThread):
         self._source_width = 0
         self._source_height = 0
         self._rife_pipeline_stats = RifePipelineStats()
+        self._rife_stats_lock = threading.Lock()
         # Effective -j; refined per-file after probing resolution.
         self.params["rife_thread_config"] = resolve_rife_thread_config(
             self.params.get("rife_thread_config")
@@ -547,6 +549,10 @@ class VideoWorker(QThread):
         self.params["rife_thread_config"] = cfg
         return cfg
 
+    def _add_rife_io_time(self, elapsed: float) -> None:
+        with self._rife_stats_lock:
+            self._rife_pipeline_stats.io_time += float(elapsed)
+
     def _safe_cleanup(self, temp_dir):
         if not temp_dir or not os.path.exists(temp_dir):
             return
@@ -700,7 +706,7 @@ class VideoWorker(QThread):
             )
             if kept <= 0:
                 raise RuntimeError("去重后没有剩余帧")
-            self._rife_pipeline_stats.io_time += time.perf_counter() - dedup_started_at
+            self._add_rife_io_time(time.perf_counter() - dedup_started_at)
             active_frames = dedup_dir
         else:
             self.log_output.emit("  ↳ 去重帧: 已关闭")
@@ -735,39 +741,82 @@ class VideoWorker(QThread):
 
         if len(segments) == 1:
             self._run_rife(active_frames, frame_rife, out_counts[0])
+            self.log_output.emit(
+                RifeWorkerStats(
+                    worker_start=1,
+                    scene_count=1,
+                    model_reload_count=1,
+                    scene_process_count=1,
+                ).format_log()
+            )
         else:
             scene_root = os.path.join(os.path.dirname(work_frames), "scenes")
             os.makedirs(scene_root, exist_ok=True)
             active_paths = frame_paths(active_frames)
             next_index = 1
+            scene_tasks = []
             for scene_i, ((start, end), out_n) in enumerate(zip(segments, out_counts), start=1):
-                self._ensure_running()
                 scene_in = os.path.join(scene_root, f"in_{scene_i:03d}")
                 scene_out = os.path.join(scene_root, f"out_{scene_i:03d}")
                 if os.path.isdir(scene_in):
                     shutil.rmtree(scene_in, ignore_errors=True)
                 if os.path.isdir(scene_out):
                     shutil.rmtree(scene_out, ignore_errors=True)
+                input_paths = tuple(active_paths[start:end])
+                try:
+                    scene_gpu = int(self.params.get("gpu", 0))
+                except (TypeError, ValueError):
+                    scene_gpu = 0
+                scene_tasks.append(SceneTask(
+                    scene_index=scene_i,
+                    input_frames=input_paths,
+                    input_path=scene_in,
+                    output_path=scene_out,
+                    final_output_path=frame_rife,
+                    output_start_index=next_index,
+                    target_frames=out_n,
+                    model=self.RIFE_MODEL or "",
+                    gpu=scene_gpu,
+                    resolution=(self._source_width, self._source_height),
+                    requires_inference=len(input_paths) > 1 and out_n > len(input_paths),
+                ))
+                next_index += out_n if len(input_paths) > 1 and out_n > len(input_paths) else len(input_paths)
+
+            def stage_scene(task):
                 copied, stage_time, copy_fallbacks = stage_frame_range(
-                    active_paths, scene_in, start, end
+                    task.input_frames, task.input_path, 0, len(task.input_frames)
                 )
-                self._rife_pipeline_stats.io_time += stage_time
+                self._add_rife_io_time(stage_time)
                 self.log_output.emit(
-                    f"    · 场景 {scene_i}/{len(segments)}: {copied} -> {out_n} frames "
+                    f"    · 场景 {task.scene_index}/{len(scene_tasks)}: "
+                    f"{copied} -> {task.target_frames} frames "
                     f"(staging_copy_fallbacks={copy_fallbacks})"
                 )
-                if copied <= 1 or out_n <= copied:
-                    # Hard cut / single frame: copy through without interpolating.
-                    written, collect_time, _ = collect_frames(
-                        scene_in, frame_rife, start_index=next_index
+
+            def process_scene(task):
+                self._run_rife(task.input_path, task.output_path, task.target_frames)
+
+            def collect_scene(task):
+                source = task.output_path if task.requires_inference else task.input_path
+                written, collect_time, _ = collect_frames(
+                    source, task.final_output_path, start_index=task.output_start_index
+                )
+                self._add_rife_io_time(collect_time)
+                expected = task.target_frames if task.requires_inference else len(task.input_frames)
+                if written != expected:
+                    raise RuntimeError(
+                        f"scene {task.scene_index} produced {written} frames; expected {expected}"
                     )
-                else:
-                    self._run_rife(scene_in, scene_out, out_n)
-                    written, collect_time, _ = collect_frames(
-                        scene_out, frame_rife, start_index=next_index
-                    )
-                self._rife_pipeline_stats.io_time += collect_time
-                next_index += written
+
+            manager = RifeWorkerManager(queue_size=2)
+            worker_stats = manager.run(
+                scene_tasks,
+                stage=stage_scene,
+                process=process_scene,
+                collect=collect_scene,
+                ensure_running=self._ensure_running,
+            )
+            self.log_output.emit(worker_stats.format_log())
 
         produced = self._count_png_frames(frame_rife)
         self.log_output.emit(f"  rife output frames: {produced}")

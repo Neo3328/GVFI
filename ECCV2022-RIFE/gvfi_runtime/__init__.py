@@ -11,6 +11,7 @@ from .zone_pool import ZonePool
 from .job_orchestrator import JobStageOrchestrator, get_orchestrator
 from .frame_pipeline import Frame, FramePipeline, FrameQueue, FrameQueueClosed, decode_and_consume
 from .rife_cli_pipeline import RifePipelineStats
+from .rife_scene_scheduler import RifeWorkerManager, RifeWorkerStats, SceneTask, SceneTaskQueue
 from .native_bridge import (
     NativeGate,
     NativeWorkLoop,
@@ -38,6 +39,10 @@ __all__ = [
     "FrameQueueClosed",
     "decode_and_consume",
     "RifePipelineStats",
+    "SceneTask",
+    "SceneTaskQueue",
+    "RifeWorkerManager",
+    "RifeWorkerStats",
     "NativeGate",
     "NativeWorkLoop",
     "NativeZonePool",
