@@ -10,6 +10,7 @@ from .memory_pressure import MemoryPressureMonitor, MemorySnapshot, PressureLeve
 from .zone_pool import ZonePool
 from .job_orchestrator import JobStageOrchestrator, get_orchestrator
 from .frame_pipeline import Frame, FramePipeline, FrameQueue, FrameQueueClosed, decode_and_consume
+from .rife_cli_pipeline import RifePipelineStats
 from .native_bridge import (
     NativeGate,
     NativeWorkLoop,
@@ -36,6 +37,7 @@ __all__ = [
     "FrameQueue",
     "FrameQueueClosed",
     "decode_and_consume",
+    "RifePipelineStats",
     "NativeGate",
     "NativeWorkLoop",
     "NativeZonePool",

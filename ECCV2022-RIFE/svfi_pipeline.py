@@ -114,7 +114,10 @@ def remove_duplicate_frames(
         if prev_gray is None or _mad_score(prev_gray, gray) > threshold:
             kept += 1
             out_path = os.path.join(dst_dir, f"{kept:08d}.png")
-            shutil.copy2(path, out_path)
+            try:
+                os.link(path, out_path)
+            except OSError:
+                shutil.copy2(path, out_path)
             prev_gray = gray
 
     removed = len(paths) - kept

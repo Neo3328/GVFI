@@ -31,14 +31,19 @@ from PyQt5.QtGui import (QDragEnterEvent, QDropEvent, QFont, QColor, QPainter,
 
 from svfi_pipeline import (
     allocate_output_counts,
-    append_frames,
     build_segments,
     compute_target_frame_count,
-    copy_frame_range,
     detect_scene_cuts,
+    frame_paths,
     remove_duplicate_frames,
 )
 from gvfi_runtime.frame_pipeline import decode_and_consume
+from gvfi_runtime.rife_cli_pipeline import (
+    RifePipelineStats,
+    RifeProcessMonitor,
+    collect_frames,
+    stage_frame_range,
+)
 from tool_resolver import (
     RIFE_MODEL_CANDIDATES,
     RIFE_NCNN_DIRNAME,
@@ -303,6 +308,7 @@ class VideoWorker(QThread):
         self._last_failure_detail = ""
         self._source_width = 0
         self._source_height = 0
+        self._rife_pipeline_stats = RifePipelineStats()
         # Effective -j; refined per-file after probing resolution.
         self.params["rife_thread_config"] = resolve_rife_thread_config(
             self.params.get("rife_thread_config")
@@ -625,6 +631,7 @@ class VideoWorker(QThread):
     def _run_rife(self, input_dir, output_dir, target_frames):
         """Run rife-ncnn-vulkan on a PNG folder."""
         os.makedirs(output_dir, exist_ok=True)
+        input_frames = self._count_png_frames(input_dir)
         thread_cfg = self._effective_rife_thread_config()
         rife_cmd = [
             self.RIFE_EXE,
@@ -643,12 +650,29 @@ class VideoWorker(QThread):
         )
         old_cwd = self.base_dir
         self.base_dir = self.RIFE_DIR or self.base_dir
+        monitor = RifeProcessMonitor(output_dir, self.params.get("gpu", 0))
+        monitor.start()
         try:
             self._run_command(rife_cmd, "RIFE Vulkan")
         finally:
             self.base_dir = old_cwd
+            startup, inference, gpu_total, gpu_count = monitor.stop()
+            stats = self._rife_pipeline_stats
+            stats.process_count += 1
+            stats.startup_time += startup
+            stats.inference_time += inference
+            stats.gpu_sample_total += gpu_total
+            stats.gpu_sample_count += gpu_count
         if not self._has_png_frames(output_dir):
             raise RuntimeError("RIFE produced no PNG frames")
+        output_frames = self._count_png_frames(output_dir)
+        self._rife_pipeline_stats.total_frames += output_frames
+        self.log_output.emit(
+            f"  ↳ RIFE process {self._rife_pipeline_stats.process_count}: "
+            f"input_frames={input_frames} | target_frames={int(target_frames)} | "
+            f"output_frames={output_frames} | startup_time={startup:.3f}s | "
+            f"inference_time={inference:.3f}s"
+        )
 
     def _interpolate_with_svfi_opts(self, work_frames, frame_rife, source_fps, target_fps, original_count):
         """
@@ -657,6 +681,7 @@ class VideoWorker(QThread):
         2) optional scene-cut aware segmented interpolation
         3) otherwise single-pass RIFE to target frame count
         """
+        self._rife_pipeline_stats = RifePipelineStats()
         enable_dedup = bool(self.params.get("enable_dedup", True))
         enable_scdet = bool(self.params.get("enable_scdet", True))
         dedup_threshold = float(self.params.get("dedup_threshold", 1.5))
@@ -664,6 +689,7 @@ class VideoWorker(QThread):
 
         active_frames = work_frames
         if enable_dedup:
+            dedup_started_at = time.perf_counter()
             dedup_dir = os.path.join(os.path.dirname(work_frames), "dedup_frames")
             os.makedirs(dedup_dir, exist_ok=True)
             kept, _ = remove_duplicate_frames(
@@ -674,6 +700,7 @@ class VideoWorker(QThread):
             )
             if kept <= 0:
                 raise RuntimeError("去重后没有剩余帧")
+            self._rife_pipeline_stats.io_time += time.perf_counter() - dedup_started_at
             active_frames = dedup_dir
         else:
             self.log_output.emit("  ↳ 去重帧: 已关闭")
@@ -711,6 +738,7 @@ class VideoWorker(QThread):
         else:
             scene_root = os.path.join(os.path.dirname(work_frames), "scenes")
             os.makedirs(scene_root, exist_ok=True)
+            active_paths = frame_paths(active_frames)
             next_index = 1
             for scene_i, ((start, end), out_n) in enumerate(zip(segments, out_counts), start=1):
                 self._ensure_running()
@@ -720,20 +748,30 @@ class VideoWorker(QThread):
                     shutil.rmtree(scene_in, ignore_errors=True)
                 if os.path.isdir(scene_out):
                     shutil.rmtree(scene_out, ignore_errors=True)
-                copied = copy_frame_range(active_frames, scene_in, start, end)
+                copied, stage_time, copy_fallbacks = stage_frame_range(
+                    active_paths, scene_in, start, end
+                )
+                self._rife_pipeline_stats.io_time += stage_time
                 self.log_output.emit(
-                    f"    · 场景 {scene_i}/{len(segments)}: {copied} -> {out_n} frames"
+                    f"    · 场景 {scene_i}/{len(segments)}: {copied} -> {out_n} frames "
+                    f"(staging_copy_fallbacks={copy_fallbacks})"
                 )
                 if copied <= 1 or out_n <= copied:
                     # Hard cut / single frame: copy through without interpolating.
-                    written = append_frames(scene_in, frame_rife, start_index=next_index)
+                    written, collect_time, _ = collect_frames(
+                        scene_in, frame_rife, start_index=next_index
+                    )
                 else:
                     self._run_rife(scene_in, scene_out, out_n)
-                    written = append_frames(scene_out, frame_rife, start_index=next_index)
+                    written, collect_time, _ = collect_frames(
+                        scene_out, frame_rife, start_index=next_index
+                    )
+                self._rife_pipeline_stats.io_time += collect_time
                 next_index += written
 
         produced = self._count_png_frames(frame_rife)
         self.log_output.emit(f"  rife output frames: {produced}")
+        self.log_output.emit(self._rife_pipeline_stats.format_log())
         return produced
 
     def _process_file(self, index, file_path, temp_root):
