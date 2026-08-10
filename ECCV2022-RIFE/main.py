@@ -104,9 +104,25 @@ class TaskCancelled(RuntimeError):
 class ProcessExecutionError(RuntimeError):
     """外部视频工具执行失败，并保留可读的错误尾部。"""
 
-    def __init__(self, stage, return_code, detail):
+    def __init__(self, stage, return_code, detail, command=None):
         detail = (detail or "外部程序未返回错误详情").strip()
-        super().__init__(f"{stage}失败，退出码 {return_code}：{detail[-1200:]}")
+        # Keep a long stderr tail for diagnosis (UI error panel / API error_logs).
+        self.stage = stage
+        self.return_code = return_code
+        self.detail = detail[-8000:]
+        self.command = command
+        cmd_txt = ""
+        if command:
+            try:
+                cmd_txt = " ".join(str(x) for x in command)
+            except TypeError:
+                cmd_txt = str(command)
+            if len(cmd_txt) > 500:
+                cmd_txt = cmd_txt[:500] + "…"
+            cmd_txt = f"\n命令: {cmd_txt}"
+        super().__init__(
+            f"{stage}失败，退出码 {return_code}：{self.detail[-2000:]}{cmd_txt}"
+        )
 
 
 class AnimatedButton(QPushButton):
@@ -280,6 +296,34 @@ class VideoWorker(QThread):
         self._process_lock = threading.RLock()
         self._active_process = None
         self._current_temp_dir = None
+        self._last_failure_detail = ""
+
+    def _emit_failure_detail(self, context: str, exc: BaseException) -> None:
+        """Emit a multi-line diagnostic block for the UI error log panel."""
+        tb = "".join(
+            traceback.format_exception(type(exc), exc, exc.__traceback())
+        ).strip()
+        lines = [
+            f"  ❌ 处理异常失败：{context}",
+            f"  异常类型: {type(exc).__name__}",
+            f"  异常信息: {exc}",
+        ]
+        if isinstance(exc, ProcessExecutionError):
+            lines.append(f"  阶段: {exc.stage}")
+            lines.append(f"  退出码: {exc.return_code}")
+            if exc.detail:
+                lines.append("  --- 工具 stderr（尾部）---")
+                for row in exc.detail.splitlines()[-80:]:
+                    lines.append(f"  {row}")
+                lines.append("  --- stderr 结束 ---")
+        if tb:
+            lines.append("  --- Python traceback ---")
+            for row in tb.splitlines()[-60:]:
+                lines.append(f"  {row}")
+            lines.append("  --- traceback 结束 ---")
+        block = "\n".join(lines) + "\n"
+        self._last_failure_detail = block
+        self.log_output.emit(block)
 
     def _ensure_running(self):
         if self._stop_event.is_set() or self.isInterruptionRequested():
@@ -387,7 +431,9 @@ class VideoWorker(QThread):
         self._ensure_running()
 
         if process.returncode != 0 and not allow_failure:
-            raise ProcessExecutionError(stage, process.returncode, stderr_text)
+            raise ProcessExecutionError(
+                stage, process.returncode, stderr_text, command=command
+            )
 
         return process.returncode, stderr_text
 
@@ -619,6 +665,8 @@ class VideoWorker(QThread):
 
             # 1/4：音频提取失败不阻止无声视频继续处理。
             self.log_output.emit("  [1/4] FFmpeg 提取音频、拆分视频原始帧")
+            # Early tick so UI is not stuck at 0% during long FFmpeg extract
+            self._update_progress(index, 0, step_percent=8)
             has_audio = False
             if keep_audio:
                 audio_return_code, _ = self._run_command(
@@ -653,6 +701,8 @@ class VideoWorker(QThread):
             self._update_progress(index, 0)
 
             # 2/4：SVFI 风格去重 + 场景分段 + RIFE
+            self.log_output.emit("  [2/4] RIFE 插帧处理中…")
+            self._update_progress(index, 1, step_percent=8)
             self._interpolate_with_svfi_opts(
                 frame_raw, frame_rife, source_fps, target_fps, original_count
             )
@@ -685,6 +735,12 @@ class VideoWorker(QThread):
 
             # 4/4：帧序列与可用音轨合成最终视频。
             self.log_output.emit("  [4/4] FFmpeg 封装合成最终视频文件")
+            # 10-bit HEVC may carry HDR; do not force BT.709 tags on that path.
+            is_hevc_10bit = (
+                ("H.265" in target_codec or "HEVC" in target_codec)
+                and ("10bit" in target_codec or "10-bit" in target_codec)
+            )
+            use_sdr_bt709 = "ProRes" not in target_codec and not is_hevc_10bit
             if "H.265" in target_codec or "HEVC" in target_codec:
                 codec_arg = [
                     "-c:v", "libx265",
@@ -692,7 +748,7 @@ class VideoWorker(QThread):
                     "-preset", encode_preset,
                     "-x265-params", "log-level=error",
                 ]
-                if "10bit" in target_codec or "10-bit" in target_codec:
+                if is_hevc_10bit:
                     codec_arg.extend(["-pix_fmt", "yuv420p10le"])
                 else:
                     codec_arg.extend(["-pix_fmt", "yuv420p"])
@@ -715,6 +771,16 @@ class VideoWorker(QThread):
             ]
             if has_audio:
                 ffmpeg_merge.extend(["-i", audio_path])
+            # PNG frames are full-range RGB; convert to limited-range BT.709 YUV
+            # and tag the stream so players do not guess colorspace.
+            if use_sdr_bt709:
+                ffmpeg_merge.extend([
+                    "-vf", "scale=in_range=full:out_color_matrix=bt709:out_range=tv",
+                    "-colorspace", "bt709",
+                    "-color_primaries", "bt709",
+                    "-color_trc", "bt709",
+                    "-color_range", "tv",
+                ])
             ffmpeg_merge.extend(codec_arg)
             if "ProRes" not in target_codec and "-pix_fmt" not in codec_arg:
                 ffmpeg_merge.extend(["-pix_fmt", "yuv420p"])
@@ -763,7 +829,10 @@ class VideoWorker(QThread):
                     raise
                 except Exception as exc:
                     failed_count += 1
-                    self.log_output.emit(f"  ❌ 处理异常失败：{exc}\n")
+                    self._emit_failure_detail(
+                        f"文件 [{index + 1}/{len(self.file_list)}] {file_path}",
+                        exc,
+                    )
                 finally:
                     current_temp_dir = self._current_temp_dir
                     if current_temp_dir:
@@ -780,8 +849,9 @@ class VideoWorker(QThread):
             self.task_finished.emit(False, "⏹ 任务已被用户取消，后台子进程已终止")
             return
         except Exception as exc:
-            self.log_output.emit(f"❌ [系统] 初始化或文件读写失败：{exc}")
-            self.task_finished.emit(False, f"任务启动失败：{exc}")
+            self._emit_failure_detail("任务初始化 / 环境自检", exc)
+            summary = f"任务启动失败：{type(exc).__name__}: {exc}"
+            self.task_finished.emit(False, summary)
             return
         finally:
             with self._process_lock:
@@ -792,10 +862,10 @@ class VideoWorker(QThread):
             self.log_output.emit("\n🧹 [系统] 全部任务缓存清理完毕，磁盘空间已释放")
 
         if failed_count:
-            self.task_finished.emit(
-                False,
-                f"处理结束：成功 {completed_count} 个，失败 {failed_count} 个"
-            )
+            summary = f"处理结束：成功 {completed_count} 个，失败 {failed_count} 个"
+            if self._last_failure_detail:
+                summary = f"{summary}\n{self._last_failure_detail.strip()}"
+            self.task_finished.emit(False, summary)
         else:
             self.task_finished.emit(True, "✅ 所有任务处理完成！")
 
