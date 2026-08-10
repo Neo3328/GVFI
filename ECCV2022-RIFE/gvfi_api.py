@@ -391,6 +391,8 @@ def _settings_to_worker_params(settings: dict, tools: dict) -> dict:
         "model_select_reason": model_reason,
         "input_type": settings.get("input_type") or "unknown",
         "rife_thread_config": rife_thread_config,
+        # auto | hardware | software — internal config, no GUI control yet
+        "encoder_mode": str(settings.get("encoder_mode") or "auto").lower(),
         "enable_dedup": bool(settings.get("enableDedup", True)),
         "enable_scdet": bool(settings.get("enableScdet", True)),
         "dedup_threshold": float(settings.get("dedupThreshold", 1.5)),

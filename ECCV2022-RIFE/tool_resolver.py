@@ -11,6 +11,7 @@ Does not alter VideoWorker / svfi_pipeline contracts.
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 
 from svfi_pipeline import discover_rife_models
@@ -52,6 +53,111 @@ def resolve_sr_model_name(sr_model: str) -> str:
     if key in ("", "none", "off"):
         return ESRGAN_MODEL_DEFAULT
     return SR_MODEL_TO_NCNN.get(key, key)
+
+
+# HEVC hardware encoder priority: NVIDIA → Intel → AMD → CPU fallback.
+HEVC_HW_ENCODER_PRIORITY = ("hevc_nvenc", "hevc_qsv", "hevc_amf")
+ENCODER_MODES = ("auto", "hardware", "software")
+
+# Cache functional-probe results per ffmpeg path (probing spawns processes).
+_hw_encoder_cache: dict = {}
+_CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+
+def _probe_encoder_works(ffmpeg: str, encoder: str) -> bool:
+    """Actually encode a few frames — '-encoders' listing alone can lie on machines without that GPU."""
+    try:
+        proc = subprocess.run(
+            [
+                ffmpeg, "-hide_banner", "-v", "error",
+                "-f", "lavfi", "-i", "color=black:s=256x256:d=0.2:r=24",
+                "-frames:v", "3", "-c:v", encoder, "-f", "null", "-",
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            creationflags=_CREATE_NO_WINDOW if os.name == "nt" else 0,
+            timeout=20,
+            check=False,
+        )
+        return proc.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def detect_hevc_hw_encoder(ffmpeg: str):
+    """Return (encoder_name or None, reason) for the best working HEVC HW encoder."""
+    if not ffmpeg:
+        return None, "no_ffmpeg"
+    cached = _hw_encoder_cache.get(ffmpeg)
+    if cached is not None:
+        return cached
+    result = (None, "no_supported_gpu")
+    for encoder in HEVC_HW_ENCODER_PRIORITY:
+        if _probe_encoder_works(ffmpeg, encoder):
+            result = (encoder, "hw_probe_ok")
+            break
+    _hw_encoder_cache[ffmpeg] = result
+    return result
+
+
+def select_hevc_encoder(ffmpeg: str, encoder_mode: str = "auto"):
+    """
+    Resolve final HEVC encoder by mode:
+      auto     — hardware if a probe succeeds, else libx265
+      hardware — hardware if available, else libx265 (with reason)
+      software — always libx265
+    Returns (encoder, reason).
+    """
+    mode = str(encoder_mode or "auto").strip().lower()
+    if mode not in ENCODER_MODES:
+        mode = "auto"
+    if mode == "software":
+        return "libx265", "software_mode"
+    hw, reason = detect_hevc_hw_encoder(ffmpeg)
+    if hw:
+        return hw, "hw_probe_ok" if mode == "auto" else "hardware_mode"
+    return "libx265", reason
+
+
+def hevc_encoder_quality_args(encoder: str, crf: int, encode_preset: str, ten_bit: bool):
+    """
+    Map the single canonical quality value (CRF scale) onto each encoder.
+      libx265    → -crf
+      hevc_nvenc → -rc vbr -cq (same 0-51 scale)
+      hevc_qsv   → -global_quality (ICQ)
+      hevc_amf   → -rc cqp -qp_i/-qp_p
+    """
+    crf = max(0, min(51, int(crf)))
+    if encoder == "hevc_nvenc":
+        args = [
+            "-c:v", "hevc_nvenc",
+            "-rc", "vbr", "-cq", str(crf), "-b:v", "0",
+            "-preset", "p5", "-tune", "hq",
+        ]
+        args.extend(["-pix_fmt", "p010le" if ten_bit else "yuv420p"])
+        return args
+    if encoder == "hevc_qsv":
+        args = ["-c:v", "hevc_qsv", "-global_quality", str(crf), "-preset", "medium"]
+        args.extend(["-pix_fmt", "p010le" if ten_bit else "yuv420p"])
+        return args
+    if encoder == "hevc_amf":
+        args = [
+            "-c:v", "hevc_amf",
+            "-rc", "cqp", "-qp_i", str(crf), "-qp_p", str(crf),
+            "-quality", "balanced",
+        ]
+        args.extend(["-pix_fmt", "p010le" if ten_bit else "yuv420p"])
+        return args
+    # CPU fallback — unchanged from the original pipeline.
+    args = [
+        "-c:v", "libx265",
+        "-crf", str(crf),
+        "-preset", encode_preset,
+        "-x265-params", "log-level=error",
+    ]
+    args.extend(["-pix_fmt", "yuv420p10le" if ten_bit else "yuv420p"])
+    return args
 
 
 def normalize_rife_thread_config(value) -> str:

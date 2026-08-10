@@ -44,9 +44,11 @@ from tool_resolver import (
     find_dir,
     find_file,
     get_app_base_dir,
+    hevc_encoder_quality_args,
     resolve_rife_thread_config,
     resolve_runtime_tools,
     resolve_sr_model_name,
+    select_hevc_encoder,
 )
 from ui_prefs import (
     BUILTIN_PRESETS,
@@ -585,6 +587,16 @@ class VideoWorker(QThread):
             f"gpu={p.get('gpu', 'auto')}\n"
             f"thread_config={thread_cfg}"
         )
+        codec_text = str(p.get("codec") or "")
+        if "H.265" in codec_text or "HEVC" in codec_text:
+            encoder, enc_reason = select_hevc_encoder(
+                self.FFMPEG, p.get("encoder_mode", "auto")
+            )
+            self.log_output.emit(
+                "ENCODER CONFIG:\n"
+                f"hardware_encoder={encoder}\n"
+                f"reason={enc_reason}"
+            )
         sr = p.get("srModel") or "none"
         if not p.get("superResolution", True) or p.get("scale") == "原始":
             sr = "none"
@@ -847,16 +859,17 @@ class VideoWorker(QThread):
             )
             use_sdr_bt709 = "ProRes" not in target_codec and not is_hevc_10bit
             if "H.265" in target_codec or "HEVC" in target_codec:
-                codec_arg = [
-                    "-c:v", "libx265",
-                    "-crf", str(crf),
-                    "-preset", encode_preset,
-                    "-x265-params", "log-level=error",
-                ]
-                if is_hevc_10bit:
-                    codec_arg.extend(["-pix_fmt", "yuv420p10le"])
-                else:
-                    codec_arg.extend(["-pix_fmt", "yuv420p"])
+                encoder, enc_reason = select_hevc_encoder(
+                    self.FFMPEG, self.params.get("encoder_mode", "auto")
+                )
+                self.log_output.emit(
+                    "ENCODER CONFIG:\n"
+                    f"hardware_encoder={encoder}\n"
+                    f"reason={enc_reason}"
+                )
+                codec_arg = hevc_encoder_quality_args(
+                    encoder, crf, encode_preset, ten_bit=is_hevc_10bit
+                )
             elif "AV1" in target_codec:
                 codec_arg = [
                     "-c:v", "libsvtav1",
@@ -2088,6 +2101,7 @@ class MainWindow(QMainWindow):
                 # Prefer any future UI/settings override; default 2:4:4
                 None
             ),
+            "encoder_mode": "auto",
             "enable_dedup": self.chk_dedup.isChecked(),
             "enable_scdet": self.chk_scdet.isChecked(),
             "dedup_threshold": float(self.dedup_spin.value()),
