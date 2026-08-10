@@ -82,7 +82,7 @@ export function ParamsPanel({
   const modelItems =
     models.length > 0
       ? models
-      : [{ id: model || "rife-ncnn:rife-anime", name: model || "rife-anime", path: "" }];
+      : [{ id: model || "gvfi:rife-v4.6", name: model || "rife-v4.6", path: "" }];
   /* Stable code only — display strings come from formatDeviceLabel at render */
   const gpuItems: GvfiGpu[] =
     gpus.length > 0

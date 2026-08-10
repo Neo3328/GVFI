@@ -16,6 +16,8 @@ import sys
 from svfi_pipeline import discover_rife_models
 
 RIFE_NCNN_DIRNAME = "rife-ncnn-vulkan-20221029-windows"
+# General-purpose default — do not silently default all jobs to rife-anime.
+DEFAULT_RIFE_MODEL_NAME = "rife-v4.6"
 RIFE_MODEL_CANDIDATES = (
     "rife-v4.6",
     "rife-v4",
@@ -45,6 +47,27 @@ def resolve_sr_model_name(sr_model: str) -> str:
     if key in ("", "none", "off"):
         return ESRGAN_MODEL_DEFAULT
     return SR_MODEL_TO_NCNN.get(key, key)
+
+
+def pick_default_rife_model(rife_models):
+    """
+    Choose a safe general-purpose default model path.
+    Prefers rife-v4.6; never silently prefers rife-anime when alternatives exist.
+    """
+    if not rife_models:
+        return None
+    by_name = {os.path.basename(p.rstrip("\\/")): p for p in rife_models}
+    if DEFAULT_RIFE_MODEL_NAME in by_name:
+        return by_name[DEFAULT_RIFE_MODEL_NAME]
+    for name in RIFE_MODEL_CANDIDATES:
+        if name == "rife-anime":
+            continue
+        if name in by_name:
+            return by_name[name]
+    for path in rife_models:
+        if os.path.basename(path.rstrip("\\/")) != "rife-anime":
+            return path
+    return rife_models[0]
 
 
 def get_app_base_dir():
@@ -113,15 +136,19 @@ def resolve_runtime_tools(base_dir=None):
     )
 
     rife_models = discover_rife_models(rife_dir)
-    rife_model = None
-    if rife_models:
-        rife_model = rife_models[0]
-    elif rife_dir:
+    rife_model = pick_default_rife_model(rife_models)
+    if not rife_model and rife_dir:
         for name in RIFE_MODEL_CANDIDATES:
+            if name == "rife-anime":
+                continue
             candidate = os.path.join(rife_dir, name)
             if os.path.isdir(candidate):
                 rife_model = candidate
                 break
+        if not rife_model:
+            anime = os.path.join(rife_dir, "rife-anime")
+            if os.path.isdir(anime):
+                rife_model = anime
 
     esgan_exe = find_file("realesrgan-ncnn-vulkan.exe", base_dir=base)
     if not esgan_exe:

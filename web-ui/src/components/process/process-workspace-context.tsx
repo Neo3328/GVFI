@@ -56,11 +56,18 @@ function stageDetail(detailKey: MessageKey): string {
 }
 
 function resolveModelId(models: GvfiModel[], preferred: string): string {
-  if (models.some((item) => item.id === preferred)) return preferred;
+  const generalId = "gvfi:rife-v4.6";
+  if (preferred && models.some((item) => item.id === preferred)) return preferred;
   const byName = models.find(
     (item) => item.name === preferred || preferred.endsWith(item.name)
   );
-  return byName?.id ?? models[0]?.id ?? preferred;
+  if (byName) return byName.id;
+  const general = models.find(
+    (item) => item.id === generalId || item.name === "rife-v4.6"
+  );
+  if (general) return general.id;
+  const nonAnime = models.find((item) => item.name !== "rife-anime");
+  return nonAnime?.id ?? models[0]?.id ?? (preferred || generalId);
 }
 
 export interface ProcessWorkspaceContextValue {
@@ -152,11 +159,12 @@ export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) 
 
   const [presets, setPresets] = useState<WorkflowPreset[]>(BUILTIN_PRESETS);
   const [selectedPreset, setSelectedPreset] = useState(
-    BUILTIN_PRESETS[0]?.name ?? "anime-interp"
+    BUILTIN_PRESETS.find((p) => p.model === "gvfi:rife-v4.6")?.name ??
+      "cinema-hd"
   );
   const [file, setFile] = useState<File | null>(null);
   const [inputPath, setInputPath] = useState("");
-  const [model, setModel] = useState("gvfi:rife-anime");
+  const [model, setModel] = useState("gvfi:rife-v4.6");
   const [fps, setFps] = useState<FpsOption>("120");
   const [resolution, setResolution] = useState<ResolutionOption>("source");
   const [gpu, setGpu] = useState(0);
@@ -364,22 +372,24 @@ export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) 
     );
 
     try {
+      const settings = {
+        model,
+        fps: Number(fps),
+        superResolution,
+        srModel,
+        resolution,
+        gpu,
+        precision,
+        quality,
+        inputPath: inputPath.trim() || undefined,
+      };
+      useJobStore.getState().setLastRenderSettings(settings);
       const result = await renderService.createJob({
         file,
-        settings: {
-          model,
-          fps: Number(fps),
-          superResolution,
-          srModel,
-          resolution,
-          gpu,
-          precision,
-          quality,
-          inputPath: inputPath.trim() || undefined,
-        },
+        settings,
       });
       setTaskId(result.task.id);
-      applyTask(result.task, result.warnings);
+      void applyTask(result.task, result.warnings);
       if (!isTerminalStatus(result.task.status)) {
         startPolling(result.task.id);
       }
@@ -437,7 +447,7 @@ export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) 
         },
       });
       setTaskId(result.task.id);
-      applyTask(result.task, result.warnings);
+      void applyTask(result.task, result.warnings);
       if (!isTerminalStatus(result.task.status)) {
         startPolling(result.task.id);
       } else if (result.task.output_path) {

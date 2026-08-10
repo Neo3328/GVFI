@@ -33,7 +33,11 @@ except Exception:
 from PyQt5.QtCore import QCoreApplication, QTimer
 
 from main import VideoWorker
-from tool_resolver import resolve_runtime_tools
+from tool_resolver import (
+    DEFAULT_RIFE_MODEL_NAME,
+    pick_default_rife_model,
+    resolve_runtime_tools,
+)
 from svfi_pipeline import discover_rife_models
 from llm_video import run_llm_video_job, test_llm_connection
 
@@ -252,19 +256,61 @@ def _health_payload() -> dict:
     }
 
 
-def _resolve_rife_model(model_id: str, tools: dict) -> str:
+def _resolve_rife_model_choice(model_id: str, tools: dict) -> Tuple[str, str, str]:
+    """
+    Resolve JobSettings.model to (path, selected_name, reason).
+
+    reason:
+      - user_selected — explicit non-empty model matched
+      - default_general_model — empty / missing → rife-v4.6 (or next general)
+      - fallback_default_general_model — requested id missing → general default
+    """
     catalog = _model_catalog(tools)
-    if model_id:
+    requested = (model_id or "").strip()
+
+    def _default_path() -> str:
+        path = pick_default_rife_model([item["path"] for item in catalog]) or tools.get(
+            "rife_model"
+        )
+        return path or ""
+
+    if requested:
         for item in catalog:
-            if item["id"] == model_id or item["name"] in model_id:
-                return item["path"]
-        if os.path.isdir(model_id):
-            return model_id
-        basename = model_id.split(":")[-1]
+            if item["id"] == requested or item["name"] in requested:
+                return item["path"], item["name"], "user_selected"
+        if os.path.isdir(requested):
+            name = os.path.basename(requested.rstrip("\\/"))
+            return requested, name, "user_selected"
+        basename = requested.split(":")[-1]
         for item in catalog:
             if item["name"] == basename:
-                return item["path"]
-    return tools.get("rife_model") or ""
+                return item["path"], item["name"], "user_selected"
+        path = _default_path()
+        name = os.path.basename(path.rstrip("\\/")) if path else DEFAULT_RIFE_MODEL_NAME
+        return path, name, "fallback_default_general_model"
+
+    path = _default_path()
+    name = os.path.basename(path.rstrip("\\/")) if path else DEFAULT_RIFE_MODEL_NAME
+    return path, name, "default_general_model"
+
+
+def _resolve_rife_model(model_id: str, tools: dict) -> str:
+    path, _, _ = _resolve_rife_model_choice(model_id, tools)
+    return path
+
+
+def _format_model_config_log(
+    *,
+    selected_model: str,
+    reason: str,
+    input_type: str = "unknown",
+) -> str:
+    return (
+        "MODEL CONFIG:\n"
+        f"input_type={input_type}\n"
+        f"selected_model={selected_model}\n"
+        f"reason={reason}"
+    )
 
 
 # Canonical JobSettings names from web-ui → worker. One name per concept.
@@ -306,7 +352,7 @@ def _settings_to_worker_params(settings: dict, tools: dict) -> dict:
 
     crf = _quality_to_crf(quality)
     codec = settings.get("codec") or "H.265 (HEVC)"
-    rife_path = _resolve_rife_model(model, tools)
+    rife_path, selected_model, model_reason = _resolve_rife_model_choice(model, tools)
 
     return {
         # Canonical contract fields (same names as web-ui JobSettings)
@@ -324,6 +370,9 @@ def _settings_to_worker_params(settings: dict, tools: dict) -> dict:
         "crf": crf,
         "encode_preset": "slow" if crf <= 16 else "medium",
         "rife_model": rife_path,
+        "selected_model": selected_model,
+        "model_select_reason": model_reason,
+        "input_type": settings.get("input_type") or "unknown",
         "enable_dedup": bool(settings.get("enableDedup", True)),
         "enable_scdet": bool(settings.get("enableScdet", True)),
         "dedup_threshold": float(settings.get("dedupThreshold", 1.5)),
@@ -334,14 +383,19 @@ def _settings_to_worker_params(settings: dict, tools: dict) -> dict:
 
 def _format_effective_config(params: dict) -> str:
     """Human-readable final config line for job-start logs."""
-    model_path = params.get("rife_model") or params.get("model") or ""
-    model_label = os.path.basename(str(model_path).rstrip("\\/")) or str(
-        params.get("model") or "unknown"
-    )
+    model_label = params.get("selected_model") or os.path.basename(
+        str(params.get("rife_model") or params.get("model") or "").rstrip("\\/")
+    ) or "unknown"
     sr = params.get("srModel") or "none"
     if not params.get("superResolution", True) or params.get("scale") == "原始":
         sr = "none"
+    model_block = _format_model_config_log(
+        selected_model=str(model_label),
+        reason=str(params.get("model_select_reason") or "default_general_model"),
+        input_type=str(params.get("input_type") or "unknown"),
+    )
     return (
+        f"{model_block}\n"
         "任务开始：\n"
         f"model={model_label}\n"
         f"gpu={params.get('gpu', 0)}\n"

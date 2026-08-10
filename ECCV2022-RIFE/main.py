@@ -520,8 +520,18 @@ class VideoWorker(QThread):
         """Emit final params so UI settings can be verified against execution."""
         p = self.params
         model_label = (
-            os.path.basename(str(self.RIFE_MODEL or "").rstrip("\\/"))
+            p.get("selected_model")
+            or os.path.basename(str(self.RIFE_MODEL or "").rstrip("\\/"))
             or str(p.get("model") or "unknown")
+        )
+        reason = p.get("model_select_reason") or (
+            "user_selected" if (p.get("rife_model") or p.get("model")) else "default_general_model"
+        )
+        self.log_output.emit(
+            "MODEL CONFIG:\n"
+            f"input_type={p.get('input_type', 'unknown')}\n"
+            f"selected_model={model_label}\n"
+            f"reason={reason}"
         )
         sr = p.get("srModel") or "none"
         if not p.get("superResolution", True) or p.get("scale") == "原始":
@@ -2003,6 +2013,9 @@ class MainWindow(QMainWindow):
             "crf": self._parse_crf(),
             "encode_preset": "slow" if self._parse_crf() <= 16 else "medium",
             "rife_model": self._selected_rife_model_path(),
+            "selected_model": self.model_combo["combo"].currentText(),
+            "model_select_reason": "user_selected",
+            "input_type": "unknown",
             "enable_dedup": self.chk_dedup.isChecked(),
             "enable_scdet": self.chk_scdet.isChecked(),
             "dedup_threshold": float(self.dedup_spin.value()),
