@@ -11,6 +11,7 @@ set(GVFI_NATIVE_SOURCES
   src/memory_pressure.cpp
   src/zone_pool.cpp
   src/gvfi_capi.cpp
+  src/gvfi_native.cpp
 )
 
 add_library(gvfi_native SHARED ${GVFI_NATIVE_SOURCES})
@@ -52,3 +53,4 @@ endfunction()
 gvfi_add_test(test_work_loop tests/test_work_loop.cpp)
 gvfi_add_test(test_zone_pool tests/test_zone_pool.cpp)
 gvfi_add_test(test_memory_pressure tests/test_memory_pressure.cpp)
+gvfi_add_test(test_native_cabi tests/test_native_cabi.cpp)

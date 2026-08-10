@@ -86,6 +86,8 @@ class TestNativeBackendPlaceholder(unittest.TestCase):
         backend = create_interpolator_backend("native")
         self.assertIsInstance(backend, NativeInterpolatorBackend)
         backend.initialize()
+        self.assertEqual(backend._library.version, "gvfi_native/0.2.0")
+        self.assertTrue(backend._library.handle.value)
         backend.load_model("rife-v4.6")
         self.assertTrue(backend.initialized)
         frame = Frame(b"\x00\x00\x00", 1, 1, "rgb24", 0, 0.0)
@@ -95,6 +97,7 @@ class TestNativeBackendPlaceholder(unittest.TestCase):
         backend.release()
         backend.release()
         self.assertFalse(backend.initialized)
+        self.assertFalse(backend._library.handle.value)
         self.assertEqual(backend.model_path, "")
 
     def test_unknown_mode_is_rejected(self) -> None:

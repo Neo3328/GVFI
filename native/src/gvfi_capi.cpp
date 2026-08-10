@@ -1,4 +1,3 @@
-#define GVFI_NATIVE_EXPORTS
 #include "gvfi/gvfi_capi.h"
 
 #include "gvfi/memory_pressure.hpp"
@@ -31,8 +30,6 @@ struct Callback {
 }  // namespace
 
 extern "C" {
-
-const char* gvfi_version(void) { return "gvfi_native/0.1.0"; }
 
 gvfi_workloop_t gvfi_workloop_create(void) {
   return reinterpret_cast<gvfi_workloop_t>(new WorkLoop());

@@ -21,6 +21,7 @@ from .interpolator_backend import (
     RifeCLIBackend,
     create_interpolator_backend,
 )
+from .native_library import NativeLibraryError, NativeLibraryLoader, NativeResult
 from .native_bridge import (
     NativeGate,
     NativeWorkLoop,
@@ -59,6 +60,9 @@ __all__ = [
     "RifeCLIBackend",
     "NativeInterpolatorBackend",
     "create_interpolator_backend",
+    "NativeLibraryError",
+    "NativeLibraryLoader",
+    "NativeResult",
     "NativeGate",
     "NativeWorkLoop",
     "NativeZonePool",

@@ -107,6 +107,7 @@ def build():
         "--hidden-import=gvfi_runtime.rife_cli_pipeline",
         "--hidden-import=gvfi_runtime.rife_scene_scheduler",
         "--hidden-import=gvfi_runtime.interpolator_backend",
+        "--hidden-import=gvfi_runtime.native_library",
         "--hidden-import=ui_prefs",
         "--hidden-import=numpy",
         "--hidden-import=PyQt5.sip",
@@ -118,6 +119,9 @@ def build():
 
     if os.path.isdir("realesrgan"):
         cmd.insert(-1, f"--add-data=realesrgan{SEP}realesrgan")
+    native_dll = os.path.join("gvfi_runtime", "native_bin", "gvfi_native.dll")
+    if os.path.isfile(native_dll):
+        cmd.insert(-1, f"--add-binary={native_dll}{SEP}gvfi_runtime/native_bin")
 
     print(f"[BUILD] 开始打包: {APP_NAME}")
     print("... 预计需要几分钟...\n")

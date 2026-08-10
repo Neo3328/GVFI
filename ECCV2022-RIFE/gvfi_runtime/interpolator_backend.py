@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from typing import Callable, Optional
 
 from .frame_pipeline import Frame
+from .native_library import NativeLibraryError, NativeLibraryLoader, NativeResult
 
 
 class BackendError(RuntimeError):
@@ -128,10 +129,21 @@ class RifeCLIBackend(InterpolatorBackend):
 class NativeInterpolatorBackend(InterpolatorBackend):
     """Lifecycle placeholder for Phase C native inference work."""
 
+    def __init__(self, library_path: Optional[str] = None) -> None:
+        super().__init__()
+        self._library = NativeLibraryLoader(library_path)
+
     name = "native"
 
     def initialize(self) -> None:
-        self.initialized = True
+        try:
+            self._library.load()
+            self._library.create()
+            self._library.initialize()
+            self.initialized = True
+        except NativeLibraryError as exc:
+            self._library.destroy()
+            raise BackendError(str(exc)) from exc
 
     def load_model(self, model_path: str) -> None:
         if not self.initialized:
@@ -145,11 +157,22 @@ class NativeInterpolatorBackend(InterpolatorBackend):
         *,
         timestamp: float,
     ) -> Frame:
-        raise BackendNotImplementedError("native interpolation is not implemented")
+        if not self.initialized:
+            raise BackendError("native backend is not initialized")
+        try:
+            result = self._library.process(frame0, frame1, timestamp)
+        except NativeLibraryError as exc:
+            raise BackendError(str(exc)) from exc
+        if result is NativeResult.NOT_IMPLEMENTED:
+            raise BackendNotImplementedError("native interpolation is not implemented")
+        raise BackendError(f"unexpected native process result: {result.name}")
 
     def release(self) -> None:
-        self.model_path = ""
-        self.initialized = False
+        try:
+            self._library.destroy()
+        finally:
+            self.model_path = ""
+            self.initialized = False
 
 
 def create_interpolator_backend(
@@ -158,10 +181,11 @@ def create_interpolator_backend(
     executable: str = "",
     working_directory: Optional[str] = None,
     command_runner: Optional[CommandRunner] = None,
+    native_library_path: Optional[str] = None,
 ) -> InterpolatorBackend:
     normalized = str(mode or "cli").strip().lower()
     if normalized == "native":
-        return NativeInterpolatorBackend()
+        return NativeInterpolatorBackend(native_library_path)
     if normalized != "cli":
         raise ValueError(f"unsupported interpolator backend: {mode}")
     if command_runner is None:
