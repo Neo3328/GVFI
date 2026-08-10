@@ -12,6 +12,14 @@ from .job_orchestrator import JobStageOrchestrator, get_orchestrator
 from .frame_pipeline import Frame, FramePipeline, FrameQueue, FrameQueueClosed, decode_and_consume
 from .rife_cli_pipeline import RifePipelineStats
 from .rife_scene_scheduler import RifeWorkerManager, RifeWorkerStats, SceneTask, SceneTaskQueue
+from .interpolator_backend import (
+    BackendCapabilityError,
+    BackendError,
+    InterpolatorBackend,
+    NativeInterpolatorBackend,
+    RifeCLIBackend,
+    create_interpolator_backend,
+)
 from .native_bridge import (
     NativeGate,
     NativeWorkLoop,
@@ -43,6 +51,12 @@ __all__ = [
     "SceneTaskQueue",
     "RifeWorkerManager",
     "RifeWorkerStats",
+    "BackendError",
+    "BackendCapabilityError",
+    "InterpolatorBackend",
+    "RifeCLIBackend",
+    "NativeInterpolatorBackend",
+    "create_interpolator_backend",
     "NativeGate",
     "NativeWorkLoop",
     "NativeZonePool",

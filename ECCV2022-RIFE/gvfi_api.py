@@ -358,6 +358,9 @@ def _settings_to_worker_params(settings: dict, tools: dict) -> dict:
     pipeline_mode = str(settings.get("pipeline_mode") or settings.get("pipelineMode") or "disk").lower()
     if pipeline_mode not in ("disk", "memory"):
         pipeline_mode = "disk"
+    backend_mode = str(settings.get("backend_mode") or settings.get("backendMode") or "cli").lower()
+    if backend_mode not in ("cli", "native"):
+        backend_mode = "cli"
     try:
         queue_size = max(1, int(settings.get("queue_size") or settings.get("queueSize") or 32))
     except (TypeError, ValueError):
@@ -412,6 +415,7 @@ def _settings_to_worker_params(settings: dict, tools: dict) -> dict:
         "pipeline_mode": pipeline_mode,
         "queue_size": queue_size,
         "worker_count": worker_count,
+        "backend_mode": backend_mode,
     }
 
 
@@ -444,6 +448,7 @@ def _format_effective_config(params: dict) -> str:
         f"crf={params.get('crf', '')}"
         f"\nPIPELINE CONFIG:\nmode={params.get('pipeline_mode', 'disk')}\n"
         f"queue_size={params.get('queue_size', 32)}\nworker_count={params.get('worker_count', 1)}"
+        f"\nBACKEND CONFIG:\nbackend={params.get('backend_mode', 'cli')}\nmodel={model_label}"
     )
 
 

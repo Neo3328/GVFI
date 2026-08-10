@@ -45,6 +45,7 @@ from gvfi_runtime.rife_cli_pipeline import (
     stage_frame_range,
 )
 from gvfi_runtime.rife_scene_scheduler import RifeWorkerManager, RifeWorkerStats, SceneTask
+from gvfi_runtime.interpolator_backend import RifeCLIBackend, create_interpolator_backend
 from tool_resolver import (
     RIFE_MODEL_CANDIDATES,
     RIFE_NCNN_DIRNAME,
@@ -311,6 +312,12 @@ class VideoWorker(QThread):
         self._source_height = 0
         self._rife_pipeline_stats = RifePipelineStats()
         self._rife_stats_lock = threading.Lock()
+        self._interpolator_backend = create_interpolator_backend(
+            self.params.get("backend_mode", "cli"),
+            executable=self.RIFE_EXE or "",
+            working_directory=self.RIFE_DIR or self.base_dir,
+            command_runner=self._run_backend_command,
+        )
         # Effective -j; refined per-file after probing resolution.
         self.params["rife_thread_config"] = resolve_rife_thread_config(
             self.params.get("rife_thread_config")
@@ -456,6 +463,21 @@ class VideoWorker(QThread):
             )
 
         return process.returncode, stderr_text
+
+    def _run_backend_command(self, command, stage, working_directory=None):
+        old_cwd = self.base_dir
+        self.base_dir = working_directory or self.base_dir
+        try:
+            self._run_command(command, stage)
+        finally:
+            self.base_dir = old_cwd
+
+    def _ensure_interpolator_backend(self):
+        if not self._interpolator_backend.initialized:
+            self._interpolator_backend.initialize()
+        model_path = self.RIFE_MODEL or ""
+        if self._interpolator_backend.model_path != model_path:
+            self._interpolator_backend.load_model(model_path)
 
     @staticmethod
     def _has_png_frames(directory):
@@ -608,6 +630,11 @@ class VideoWorker(QThread):
             f"queue_size={p.get('queue_size', 32)}\n"
             f"worker_count={p.get('worker_count', 1)}"
         )
+        self.log_output.emit(
+            "BACKEND CONFIG:\n"
+            f"backend={self._interpolator_backend.name}\n"
+            f"model={model_label}"
+        )
         codec_text = str(p.get("codec") or "")
         if "H.265" in codec_text or "HEVC" in codec_text:
             encoder, enc_reason = select_hevc_encoder(
@@ -636,32 +663,29 @@ class VideoWorker(QThread):
 
     def _run_rife(self, input_dir, output_dir, target_frames):
         """Run rife-ncnn-vulkan on a PNG folder."""
+        self._ensure_interpolator_backend()
         os.makedirs(output_dir, exist_ok=True)
         input_frames = self._count_png_frames(input_dir)
         thread_cfg = self._effective_rife_thread_config()
-        rife_cmd = [
-            self.RIFE_EXE,
-            "-i", input_dir,
-            "-o", output_dir,
-            "-n", str(int(target_frames)),
-            "-m", self.RIFE_MODEL,
-            "-f", "%08d.png",
-            "-j", thread_cfg,
-        ]
-        if "gpu" in self.params and self.params.get("gpu") is not None:
-            rife_cmd.extend(["-g", str(int(self.params["gpu"]))])
         self.log_output.emit(
             f"  ↳ RIFE -j {thread_cfg} | -g {self.params.get('gpu', 'auto')} | "
             f"{self._source_width}x{self._source_height}"
         )
-        old_cwd = self.base_dir
-        self.base_dir = self.RIFE_DIR or self.base_dir
         monitor = RifeProcessMonitor(output_dir, self.params.get("gpu", 0))
         monitor.start()
         try:
-            self._run_command(rife_cmd, "RIFE Vulkan")
+            if not isinstance(self._interpolator_backend, RifeCLIBackend):
+                raise RuntimeError(
+                    "native backend inference is not implemented; use backend_mode=cli"
+                )
+            self._interpolator_backend.process_directory(
+                input_dir,
+                output_dir,
+                target_frames=int(target_frames),
+                gpu=self.params.get("gpu"),
+                thread_config=thread_cfg,
+            )
         finally:
-            self.base_dir = old_cwd
             startup, inference, gpu_total, gpu_count = monitor.stop()
             stats = self._rife_pipeline_stats
             stats.process_count += 1
@@ -1038,6 +1062,7 @@ class VideoWorker(QThread):
 
         try:
             self._validate_environment()
+            self._ensure_interpolator_backend()
             temp_root = self._prepare_temp_root()
             self.log_output.emit("🚀 [环境自检] FFmpeg: 就绪 | RIFE Vulkan: 就绪 | Real-ESRGAN: 就绪")
             if self.file_list:
@@ -1087,6 +1112,7 @@ class VideoWorker(QThread):
             self.task_finished.emit(False, summary)
             return
         finally:
+            self._interpolator_backend.release()
             with self._process_lock:
                 process = self._active_process
             self._terminate_process_tree(process)

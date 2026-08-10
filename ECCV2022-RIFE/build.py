@@ -106,6 +106,7 @@ def build():
         "--hidden-import=gvfi_runtime.frame_pipeline",
         "--hidden-import=gvfi_runtime.rife_cli_pipeline",
         "--hidden-import=gvfi_runtime.rife_scene_scheduler",
+        "--hidden-import=gvfi_runtime.interpolator_backend",
         "--hidden-import=ui_prefs",
         "--hidden-import=numpy",
         "--hidden-import=PyQt5.sip",
