@@ -17,6 +17,10 @@ class BackendCapabilityError(BackendError):
     """Raised when a backend cannot serve the requested data interface."""
 
 
+class BackendNotImplementedError(BackendCapabilityError, NotImplementedError):
+    """Raised when a declared backend capability is intentionally a placeholder."""
+
+
 CommandRunner = Callable[[list[str], str, Optional[str]], None]
 
 
@@ -141,7 +145,7 @@ class NativeInterpolatorBackend(InterpolatorBackend):
         *,
         timestamp: float,
     ) -> Frame:
-        raise BackendCapabilityError("native interpolation is not implemented in Phase C0")
+        raise BackendNotImplementedError("native interpolation is not implemented")
 
     def release(self) -> None:
         self.model_path = ""

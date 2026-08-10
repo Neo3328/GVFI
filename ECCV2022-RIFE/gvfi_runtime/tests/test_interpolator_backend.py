@@ -16,6 +16,7 @@ if ENGINE_ROOT not in sys.path:
 from gvfi_runtime.frame_pipeline import Frame  # noqa: E402
 from gvfi_runtime.interpolator_backend import (  # noqa: E402
     BackendCapabilityError,
+    BackendNotImplementedError,
     NativeInterpolatorBackend,
     RifeCLIBackend,
     create_interpolator_backend,
@@ -88,10 +89,13 @@ class TestNativeBackendPlaceholder(unittest.TestCase):
         backend.load_model("rife-v4.6")
         self.assertTrue(backend.initialized)
         frame = Frame(b"\x00\x00\x00", 1, 1, "rgb24", 0, 0.0)
-        with self.assertRaisesRegex(BackendCapabilityError, "not implemented"):
+        with self.assertRaisesRegex(BackendNotImplementedError, "not implemented") as error:
             backend.process_frames(frame, frame, timestamp=0.5)
+        self.assertIsInstance(error.exception, NotImplementedError)
+        backend.release()
         backend.release()
         self.assertFalse(backend.initialized)
+        self.assertEqual(backend.model_path, "")
 
     def test_unknown_mode_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
