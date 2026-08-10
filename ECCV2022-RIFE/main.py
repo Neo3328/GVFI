@@ -715,6 +715,15 @@ class VideoWorker(QThread):
             ]
             if has_audio:
                 ffmpeg_merge.extend(["-i", audio_path])
+            # PNG 序列是不带色彩元数据的 RGB 全范围帧；swscale 默认用 BT.601 矩阵
+            # 转 YUV 且输出不打标记，播放器对高清内容会按 BT.709 猜测 → 发灰/偏色。
+            # 这里固定按 BT.709 矩阵转换、限定 limited(TV) range，并写入色彩元数据。
+            ffmpeg_merge.extend([
+                "-vf", "scale=out_color_matrix=bt709:out_range=tv",
+                "-colorspace", "bt709",
+                "-color_primaries", "bt709",
+                "-color_trc", "bt709",
+            ])
             ffmpeg_merge.extend(codec_arg)
             if "ProRes" not in target_codec and "-pix_fmt" not in codec_arg:
                 ffmpeg_merge.extend(["-pix_fmt", "yuv420p"])
