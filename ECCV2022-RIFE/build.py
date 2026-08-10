@@ -103,6 +103,7 @@ def build():
         f"--add-data=models{SEP}models",
         f"--add-data=rife-ncnn-vulkan-20221029-windows{SEP}rife-ncnn-vulkan-20221029-windows",
         "--hidden-import=svfi_pipeline",
+        "--hidden-import=gvfi_runtime.frame_pipeline",
         "--hidden-import=ui_prefs",
         "--hidden-import=numpy",
         "--hidden-import=PyQt5.sip",

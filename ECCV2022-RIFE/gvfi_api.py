@@ -355,6 +355,17 @@ def _settings_to_worker_params(settings: dict, tools: dict) -> dict:
         gpu = int(settings.get("gpu", 0))
     except (TypeError, ValueError):
         gpu = 0
+    pipeline_mode = str(settings.get("pipeline_mode") or settings.get("pipelineMode") or "disk").lower()
+    if pipeline_mode not in ("disk", "memory"):
+        pipeline_mode = "disk"
+    try:
+        queue_size = max(1, int(settings.get("queue_size") or settings.get("queueSize") or 32))
+    except (TypeError, ValueError):
+        queue_size = 32
+    try:
+        worker_count = max(1, int(settings.get("worker_count") or settings.get("workerCount") or 1))
+    except (TypeError, ValueError):
+        worker_count = 1
 
     if not super_sr or resolution == "source":
         scale = "原始"
@@ -398,6 +409,9 @@ def _settings_to_worker_params(settings: dict, tools: dict) -> dict:
         "dedup_threshold": float(settings.get("dedupThreshold", 1.5)),
         "scdet_threshold": float(settings.get("scdetThreshold", 12.0)),
         "keep_audio": bool(settings.get("keepAudio", True)),
+        "pipeline_mode": pipeline_mode,
+        "queue_size": queue_size,
+        "worker_count": worker_count,
     }
 
 
@@ -428,6 +442,8 @@ def _format_effective_config(params: dict) -> str:
         f"fps={params.get('fps', '')}\n"
         f"codec={params.get('codec', '')}\n"
         f"crf={params.get('crf', '')}"
+        f"\nPIPELINE CONFIG:\nmode={params.get('pipeline_mode', 'disk')}\n"
+        f"queue_size={params.get('queue_size', 32)}\nworker_count={params.get('worker_count', 1)}"
     )
 
 

@@ -38,6 +38,7 @@ from svfi_pipeline import (
     detect_scene_cuts,
     remove_duplicate_frames,
 )
+from gvfi_runtime.frame_pipeline import decode_and_consume
 from tool_resolver import (
     RIFE_MODEL_CANDIDATES,
     RIFE_NCNN_DIRNAME,
@@ -349,6 +350,8 @@ class VideoWorker(QThread):
         if self.params.get("scale") != "原始":
             required.append(("Real-ESRGAN Vulkan", self.ESGAN_EXE))
             required.append(("Real-ESRGAN models", self.MODELS_DIR))
+        if self.params.get("pipeline_mode", "disk") == "memory":
+            required = required[:2]
 
         for tool_name, tool_path in required:
             if not tool_path or not os.path.exists(tool_path):
@@ -587,6 +590,12 @@ class VideoWorker(QThread):
             f"gpu={p.get('gpu', 'auto')}\n"
             f"thread_config={thread_cfg}"
         )
+        self.log_output.emit(
+            "PIPELINE CONFIG:\n"
+            f"mode={p.get('pipeline_mode', 'disk')}\n"
+            f"queue_size={p.get('queue_size', 32)}\n"
+            f"worker_count={p.get('worker_count', 1)}"
+        )
         codec_text = str(p.get("codec") or "")
         if "H.265" in codec_text or "HEVC" in codec_text:
             encoder, enc_reason = select_hevc_encoder(
@@ -768,6 +777,20 @@ class VideoWorker(QThread):
                 f"  ↳ 源分辨率: {self._source_width}x{self._source_height} | "
                 f"RIFE -j {self.params.get('rife_thread_config')}"
             )
+
+            if self.params.get("pipeline_mode", "disk") == "memory":
+                consumed = decode_and_consume(
+                    self.FFMPEG,
+                    file_path,
+                    self._source_width,
+                    self._source_height,
+                    queue_size=self.params.get("queue_size", 32),
+                    worker_count=self.params.get("worker_count", 1),
+                    fps=source_fps,
+                    stop_event=self._stop_event,
+                )
+                self.log_output.emit(f"  memory frame pipeline consumed {consumed} frames (RIFE not connected)")
+                return out_file_path
             self.log_output.emit(
                 f"  ↳ 参数: {target_fps:g}fps | {scale_val}超分 | {target_codec} | CRF {crf} | "
                 f"去重={'开' if self.params.get('enable_dedup', True) else '关'} | "

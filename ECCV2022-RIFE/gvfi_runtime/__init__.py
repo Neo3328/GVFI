@@ -9,6 +9,7 @@ from .event_source import CommandGate, EventSource, TimerEventSource
 from .memory_pressure import MemoryPressureMonitor, MemorySnapshot, PressureLevel
 from .zone_pool import ZonePool
 from .job_orchestrator import JobStageOrchestrator, get_orchestrator
+from .frame_pipeline import Frame, FramePipeline, FrameQueue, FrameQueueClosed, decode_and_consume
 from .native_bridge import (
     NativeGate,
     NativeWorkLoop,
@@ -30,6 +31,11 @@ __all__ = [
     "ZonePool",
     "JobStageOrchestrator",
     "get_orchestrator",
+    "Frame",
+    "FramePipeline",
+    "FrameQueue",
+    "FrameQueueClosed",
+    "decode_and_consume",
     "NativeGate",
     "NativeWorkLoop",
     "NativeZonePool",
