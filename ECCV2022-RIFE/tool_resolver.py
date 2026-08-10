@@ -31,6 +31,21 @@ RIFE_MODEL_CANDIDATES = (
 )
 ESRGAN_MODEL_DEFAULT = "realesr-animevideov3"
 
+# UI srModel id → realesrgan-ncnn-vulkan -n name (one canonical UI name: srModel)
+SR_MODEL_TO_NCNN = {
+    "realesrgan": "realesr-animevideov3",
+    "realcugan": "realesrgan-x4plus-anime",
+    "swinir": "realesrnet-x4plus",
+}
+
+
+def resolve_sr_model_name(sr_model: str) -> str:
+    """Map JobSettings.srModel to Real-ESRGAN ncnn model name (-n)."""
+    key = str(sr_model or "realesrgan").strip().lower()
+    if key in ("", "none", "off"):
+        return ESRGAN_MODEL_DEFAULT
+    return SR_MODEL_TO_NCNN.get(key, key)
+
 
 def get_app_base_dir():
     """获取程序根目录（兼容源码运行与 PyInstaller onedir/onefile）。"""

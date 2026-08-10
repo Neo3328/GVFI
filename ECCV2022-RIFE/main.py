@@ -39,13 +39,13 @@ from svfi_pipeline import (
     remove_duplicate_frames,
 )
 from tool_resolver import (
-    ESRGAN_MODEL_DEFAULT,
     RIFE_MODEL_CANDIDATES,
     RIFE_NCNN_DIRNAME,
     find_dir,
     find_file,
     get_app_base_dir,
     resolve_runtime_tools,
+    resolve_sr_model_name,
 )
 from ui_prefs import (
     BUILTIN_PRESETS,
@@ -516,6 +516,29 @@ class VideoWorker(QThread):
         )
         self.progress_updated.emit(max(0, min(int(progress), 100)))
 
+    def _log_effective_config(self):
+        """Emit final params so UI settings can be verified against execution."""
+        p = self.params
+        model_label = (
+            os.path.basename(str(self.RIFE_MODEL or "").rstrip("\\/"))
+            or str(p.get("model") or "unknown")
+        )
+        sr = p.get("srModel") or "none"
+        if not p.get("superResolution", True) or p.get("scale") == "原始":
+            sr = "none"
+        self.log_output.emit(
+            "任务开始：\n"
+            f"model={model_label}\n"
+            f"gpu={p.get('gpu', 'auto')}\n"
+            f"precision={p.get('precision', 'fp16')}\n"
+            f"quality={p.get('quality', '')}\n"
+            f"srModel={sr}\n"
+            f"resolution={p.get('resolution', p.get('scale', ''))}\n"
+            f"fps={p.get('fps', '')}\n"
+            f"codec={p.get('codec', '')}\n"
+            f"crf={p.get('crf', '')}"
+        )
+
     def _run_rife(self, input_dir, output_dir, target_frames):
         """Run rife-ncnn-vulkan on a PNG folder."""
         os.makedirs(output_dir, exist_ok=True)
@@ -527,6 +550,8 @@ class VideoWorker(QThread):
             "-m", self.RIFE_MODEL,
             "-f", "%08d.png",
         ]
+        if "gpu" in self.params and self.params.get("gpu") is not None:
+            rife_cmd.extend(["-g", str(int(self.params["gpu"]))])
         old_cwd = self.base_dir
         self.base_dir = self.RIFE_DIR or self.base_dir
         try:
@@ -713,17 +738,23 @@ class VideoWorker(QThread):
                 scale_num = scale_val.lower().replace("x", "").strip()
                 if scale_num not in ("2", "3", "4"):
                     scale_num = "2"
-                self.log_output.emit(f"  [3/4] Real-ESRGAN {scale_num}x")
+                sr_ui = self.params.get("srModel") or "realesrgan"
+                sr_name = resolve_sr_model_name(sr_ui)
+                self.log_output.emit(
+                    f"  [3/4] Real-ESRGAN {scale_num}x (srModel={sr_ui} → {sr_name})"
+                )
                 esgan_cmd = [
                     self.ESGAN_EXE,
                     "-i", frame_rife,
                     "-o", frame_sr,
                     "-s", scale_num,
-                    "-n", ESRGAN_MODEL_DEFAULT,
+                    "-n", str(sr_name),
                     "-f", "png",
                 ]
                 if self.MODELS_DIR:
                     esgan_cmd.extend(["-m", self.MODELS_DIR])
+                if "gpu" in self.params and self.params.get("gpu") is not None:
+                    esgan_cmd.extend(["-g", str(int(self.params["gpu"]))])
                 self._run_command(esgan_cmd, "Real-ESRGAN Vulkan")
                 if not self._has_png_frames(frame_sr):
                     raise RuntimeError("图片超分完成后未生成任何 PNG 帧")
@@ -812,6 +843,7 @@ class VideoWorker(QThread):
             self._validate_environment()
             temp_root = self._prepare_temp_root()
             self.log_output.emit("🚀 [环境自检] FFmpeg: 就绪 | RIFE Vulkan: 就绪 | Real-ESRGAN: 就绪")
+            self._log_effective_config()
             self.log_output.emit(
                 f"📂 [输出配置] 目标路径: {'源文件目录' if self.same_as_src else self.out_path}"
             )
