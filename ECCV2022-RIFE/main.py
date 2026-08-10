@@ -44,6 +44,7 @@ from tool_resolver import (
     find_dir,
     find_file,
     get_app_base_dir,
+    resolve_rife_thread_config,
     resolve_runtime_tools,
     resolve_sr_model_name,
 )
@@ -297,6 +298,12 @@ class VideoWorker(QThread):
         self._active_process = None
         self._current_temp_dir = None
         self._last_failure_detail = ""
+        self._source_width = 0
+        self._source_height = 0
+        # Effective -j; refined per-file after probing resolution.
+        self.params["rife_thread_config"] = resolve_rife_thread_config(
+            self.params.get("rife_thread_config")
+        )
 
     def _emit_failure_detail(self, context: str, exc: BaseException) -> None:
         """Emit a multi-line diagnostic block for the UI error log panel."""
@@ -491,6 +498,44 @@ class VideoWorker(QThread):
             pass
         return 30.0
 
+    def _probe_video_size(self, video_path):
+        """Return (width, height) via ffprobe; (0, 0) on failure."""
+        if not self.FFPROBE:
+            return 0, 0
+        try:
+            process = subprocess.run(
+                [
+                    self.FFPROBE, "-v", "error",
+                    "-select_streams", "v:0",
+                    "-show_entries", "stream=width,height",
+                    "-of", "csv=p=0:s=x",
+                    video_path,
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                stdin=subprocess.DEVNULL,
+                creationflags=CREATE_NO_WINDOW if os.name == "nt" else 0,
+                cwd=self.base_dir,
+                check=False,
+            )
+            text = (process.stdout or b"").decode("utf-8", "replace").strip()
+            if "x" in text:
+                w_s, h_s = text.split("x", 1)
+                return int(w_s), int(h_s)
+        except (OSError, ValueError, subprocess.SubprocessError):
+            pass
+        return 0, 0
+
+    def _effective_rife_thread_config(self):
+        """Resolution-aware -j; auto-lower for 2160p+."""
+        cfg = resolve_rife_thread_config(
+            self.params.get("rife_thread_config"),
+            width=self._source_width,
+            height=self._source_height,
+        )
+        self.params["rife_thread_config"] = cfg
+        return cfg
+
     def _safe_cleanup(self, temp_dir):
         if not temp_dir or not os.path.exists(temp_dir):
             return
@@ -533,6 +578,13 @@ class VideoWorker(QThread):
             f"selected_model={model_label}\n"
             f"reason={reason}"
         )
+        thread_cfg = self._effective_rife_thread_config()
+        self.log_output.emit(
+            "RIFE CONFIG:\n"
+            f"model={model_label}\n"
+            f"gpu={p.get('gpu', 'auto')}\n"
+            f"thread_config={thread_cfg}"
+        )
         sr = p.get("srModel") or "none"
         if not p.get("superResolution", True) or p.get("scale") == "原始":
             sr = "none"
@@ -552,6 +604,7 @@ class VideoWorker(QThread):
     def _run_rife(self, input_dir, output_dir, target_frames):
         """Run rife-ncnn-vulkan on a PNG folder."""
         os.makedirs(output_dir, exist_ok=True)
+        thread_cfg = self._effective_rife_thread_config()
         rife_cmd = [
             self.RIFE_EXE,
             "-i", input_dir,
@@ -559,9 +612,14 @@ class VideoWorker(QThread):
             "-n", str(int(target_frames)),
             "-m", self.RIFE_MODEL,
             "-f", "%08d.png",
+            "-j", thread_cfg,
         ]
         if "gpu" in self.params and self.params.get("gpu") is not None:
             rife_cmd.extend(["-g", str(int(self.params["gpu"]))])
+        self.log_output.emit(
+            f"  ↳ RIFE -j {thread_cfg} | -g {self.params.get('gpu', 'auto')} | "
+            f"{self._source_width}x{self._source_height}"
+        )
         old_cwd = self.base_dir
         self.base_dir = self.RIFE_DIR or self.base_dir
         try:
@@ -691,7 +749,13 @@ class VideoWorker(QThread):
             encode_preset = self.params.get("encode_preset", "medium")
 
             source_fps = self._probe_fps(file_path)
+            self._source_width, self._source_height = self._probe_video_size(file_path)
+            self.params["rife_thread_config"] = self._effective_rife_thread_config()
             self.log_output.emit(f"▶ [{index + 1}/{len(self.file_list)}] 开始处理: {file_name}")
+            self.log_output.emit(
+                f"  ↳ 源分辨率: {self._source_width}x{self._source_height} | "
+                f"RIFE -j {self.params.get('rife_thread_config')}"
+            )
             self.log_output.emit(
                 f"  ↳ 参数: {target_fps:g}fps | {scale_val}超分 | {target_codec} | CRF {crf} | "
                 f"去重={'开' if self.params.get('enable_dedup', True) else '关'} | "
@@ -853,6 +917,10 @@ class VideoWorker(QThread):
             self._validate_environment()
             temp_root = self._prepare_temp_root()
             self.log_output.emit("🚀 [环境自检] FFmpeg: 就绪 | RIFE Vulkan: 就绪 | Real-ESRGAN: 就绪")
+            if self.file_list:
+                self._source_width, self._source_height = self._probe_video_size(
+                    self.file_list[0]
+                )
             self._log_effective_config()
             self.log_output.emit(
                 f"📂 [输出配置] 目标路径: {'源文件目录' if self.same_as_src else self.out_path}"
@@ -2016,6 +2084,10 @@ class MainWindow(QMainWindow):
             "selected_model": self.model_combo["combo"].currentText(),
             "model_select_reason": "user_selected",
             "input_type": "unknown",
+            "rife_thread_config": resolve_rife_thread_config(
+                # Prefer any future UI/settings override; default 2:4:4
+                None
+            ),
             "enable_dedup": self.chk_dedup.isChecked(),
             "enable_scdet": self.chk_scdet.isChecked(),
             "dedup_threshold": float(self.dedup_spin.value()),

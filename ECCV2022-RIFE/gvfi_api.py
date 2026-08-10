@@ -36,6 +36,7 @@ from main import VideoWorker
 from tool_resolver import (
     DEFAULT_RIFE_MODEL_NAME,
     pick_default_rife_model,
+    resolve_rife_thread_config,
     resolve_runtime_tools,
 )
 from svfi_pipeline import discover_rife_models
@@ -313,6 +314,18 @@ def _format_model_config_log(
     )
 
 
+def _format_rife_config_log(params: dict) -> str:
+    model_label = params.get("selected_model") or os.path.basename(
+        str(params.get("rife_model") or params.get("model") or "").rstrip("\\/")
+    ) or "unknown"
+    return (
+        "RIFE CONFIG:\n"
+        f"model={model_label}\n"
+        f"gpu={params.get('gpu', 0)}\n"
+        f"thread_config={params.get('rife_thread_config', '2:4:4')}"
+    )
+
+
 # Canonical JobSettings names from web-ui → worker. One name per concept.
 # quality (0..1 UI slider, or CRF if >1) → derived crf for FFmpeg only.
 
@@ -353,6 +366,10 @@ def _settings_to_worker_params(settings: dict, tools: dict) -> dict:
     crf = _quality_to_crf(quality)
     codec = settings.get("codec") or "H.265 (HEVC)"
     rife_path, selected_model, model_reason = _resolve_rife_model_choice(model, tools)
+    # Configurable; resolution-aware clamp applied later in VideoWorker with probed size.
+    rife_thread_config = resolve_rife_thread_config(
+        settings.get("rife_thread_config")
+    )
 
     return {
         # Canonical contract fields (same names as web-ui JobSettings)
@@ -373,6 +390,7 @@ def _settings_to_worker_params(settings: dict, tools: dict) -> dict:
         "selected_model": selected_model,
         "model_select_reason": model_reason,
         "input_type": settings.get("input_type") or "unknown",
+        "rife_thread_config": rife_thread_config,
         "enable_dedup": bool(settings.get("enableDedup", True)),
         "enable_scdet": bool(settings.get("enableScdet", True)),
         "dedup_threshold": float(settings.get("dedupThreshold", 1.5)),
@@ -394,8 +412,10 @@ def _format_effective_config(params: dict) -> str:
         reason=str(params.get("model_select_reason") or "default_general_model"),
         input_type=str(params.get("input_type") or "unknown"),
     )
+    rife_block = _format_rife_config_log(params)
     return (
         f"{model_block}\n"
+        f"{rife_block}\n"
         "任务开始：\n"
         f"model={model_label}\n"
         f"gpu={params.get('gpu', 0)}\n"

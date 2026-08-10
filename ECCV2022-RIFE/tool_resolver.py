@@ -33,6 +33,11 @@ RIFE_MODEL_CANDIDATES = (
 )
 ESRGAN_MODEL_DEFAULT = "realesr-animevideov3"
 
+# rife-ncnn-vulkan -j load:proc:save (safe default for ~1080p)
+RIFE_THREAD_CONFIG_DEFAULT = "2:4:4"
+# Conservative profile for 2160p+ to limit VRAM pressure
+RIFE_THREAD_CONFIG_UHD = "1:2:2"
+
 # UI srModel id → realesrgan-ncnn-vulkan -n name (one canonical UI name: srModel)
 SR_MODEL_TO_NCNN = {
     "realesrgan": "realesr-animevideov3",
@@ -47,6 +52,53 @@ def resolve_sr_model_name(sr_model: str) -> str:
     if key in ("", "none", "off"):
         return ESRGAN_MODEL_DEFAULT
     return SR_MODEL_TO_NCNN.get(key, key)
+
+
+def normalize_rife_thread_config(value) -> str:
+    """Validate ncnn-style -j load:proc:save (or multi-gpu load:p1,p2:save)."""
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    parts = text.split(":")
+    if len(parts) != 3:
+        return ""
+    for part in parts:
+        for token in part.split(","):
+            token = token.strip()
+            if not token.isdigit() or int(token) < 1:
+                return ""
+    return text
+
+
+def _thread_config_weight(config: str) -> int:
+    """Rough concurrency weight for comparing profiles."""
+    total = 0
+    for part in config.split(":"):
+        for token in part.split(","):
+            total += int(token)
+    return total
+
+
+def resolve_rife_thread_config(configured=None, width=0, height=0) -> str:
+    """
+    Pick rife-ncnn-vulkan -j value.
+
+    - Prefer explicit rife_thread_config when valid.
+    - Default to 2:4:4 for typical HD work.
+    - Auto-lower to 1:2:2 when source is 2160p+ (VRAM safety).
+    """
+    base = normalize_rife_thread_config(configured) or RIFE_THREAD_CONFIG_DEFAULT
+    try:
+        w = int(width or 0)
+        h = int(height or 0)
+    except (TypeError, ValueError):
+        w, h = 0, 0
+    is_uhd = h >= 2160 or w >= 3840 or max(w, h) >= 2160
+    if is_uhd:
+        uhd = RIFE_THREAD_CONFIG_UHD
+        if _thread_config_weight(base) > _thread_config_weight(uhd):
+            return uhd
+    return base
 
 
 def pick_default_rife_model(rife_models):
