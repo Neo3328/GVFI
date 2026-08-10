@@ -34,6 +34,20 @@ class _NativeFrame(ctypes.Structure):
     ]
 
 
+class _NativeBackendInfo(ctypes.Structure):
+    _fields_ = [
+        ("struct_size", ctypes.c_uint32),
+        ("abi_version", ctypes.c_uint32),
+        ("ncnn_enabled", ctypes.c_int32),
+        ("initialized", ctypes.c_int32),
+        ("model_loaded", ctypes.c_int32),
+        ("device_index", ctypes.c_int32),
+        ("vulkan_api_version", ctypes.c_uint32),
+        ("gpu_name", ctypes.c_char * 256),
+        ("ncnn_version", ctypes.c_char * 64),
+    ]
+
+
 _PIXEL_FORMATS = {
     "rgb24": (1, 3),
     "bgr24": (2, 3),
@@ -99,6 +113,13 @@ class NativeLibraryLoader:
         dll.gvfi_destroy.argtypes = [ctypes.c_void_p]
         dll.gvfi_initialize.restype = ctypes.c_int
         dll.gvfi_initialize.argtypes = [ctypes.c_void_p]
+        dll.gvfi_get_backend_info.restype = ctypes.c_int
+        dll.gvfi_get_backend_info.argtypes = [
+            ctypes.c_void_p,
+            ctypes.POINTER(_NativeBackendInfo),
+        ]
+        dll.gvfi_load_model.restype = ctypes.c_int
+        dll.gvfi_load_model.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
         dll.gvfi_process.restype = ctypes.c_int
         dll.gvfi_process.argtypes = [
             ctypes.c_void_p,
@@ -122,6 +143,41 @@ class NativeLibraryLoader:
         dll = self._require_dll()
         self._require_handle()
         self._require_success(dll.gvfi_initialize(self.handle), "gvfi_initialize")
+
+    def backend_info(self) -> dict:
+        dll = self._require_dll()
+        self._require_handle()
+        info = _NativeBackendInfo()
+        info.struct_size = ctypes.sizeof(info)
+        self._require_success(
+            dll.gvfi_get_backend_info(self.handle, ctypes.byref(info)),
+            "gvfi_get_backend_info",
+        )
+        return {
+            "abi_version": int(info.abi_version),
+            "ncnn_enabled": bool(info.ncnn_enabled),
+            "initialized": bool(info.initialized),
+            "model_loaded": bool(info.model_loaded),
+            "device_index": int(info.device_index),
+            "vulkan_api_version": int(info.vulkan_api_version),
+            "gpu_name": bytes(info.gpu_name).split(b"\0", 1)[0].decode("utf-8", "replace"),
+            "ncnn_version": bytes(info.ncnn_version)
+            .split(b"\0", 1)[0]
+            .decode("ascii", "replace"),
+        }
+
+    def load_model(self, param_path: str, bin_path: str) -> NativeResult:
+        dll = self._require_dll()
+        self._require_handle()
+        if not param_path or not bin_path:
+            raise NativeLibraryError("native model requires param and bin paths")
+        return NativeResult(
+            dll.gvfi_load_model(
+                self.handle,
+                os.fsencode(param_path),
+                os.fsencode(bin_path),
+            )
+        )
 
     def process(self, frame0: Frame, frame1: Frame, timestamp: float) -> NativeResult:
         dll = self._require_dll()

@@ -45,10 +45,31 @@ typedef struct gvfi_frame {
   double timestamp;
 } gvfi_frame_t;
 
+#define GVFI_BACKEND_INFO_ABI_VERSION 1u
+#define GVFI_BACKEND_NAME_CAPACITY 256u
+#define GVFI_NCNN_VERSION_CAPACITY 64u
+
+typedef struct gvfi_backend_info {
+  uint32_t struct_size;
+  uint32_t abi_version;
+  int32_t ncnn_enabled;
+  int32_t initialized;
+  int32_t model_loaded;
+  int32_t device_index;
+  uint32_t vulkan_api_version;
+  char gpu_name[GVFI_BACKEND_NAME_CAPACITY];
+  char ncnn_version[GVFI_NCNN_VERSION_CAPACITY];
+} gvfi_backend_info_t;
+
 GVFI_NATIVE_API const char* gvfi_version(void);
 GVFI_NATIVE_API gvfi_result_t gvfi_create(gvfi_handle_t* out_handle);
 GVFI_NATIVE_API gvfi_result_t gvfi_destroy(gvfi_handle_t handle);
 GVFI_NATIVE_API gvfi_result_t gvfi_initialize(gvfi_handle_t handle);
+GVFI_NATIVE_API gvfi_result_t gvfi_get_backend_info(gvfi_handle_t handle,
+                                                    gvfi_backend_info_t* info);
+GVFI_NATIVE_API gvfi_result_t gvfi_load_model(gvfi_handle_t handle,
+                                              const char* param_path,
+                                              const char* bin_path);
 GVFI_NATIVE_API gvfi_result_t gvfi_process(gvfi_handle_t handle,
                                            const gvfi_frame_t* frame0,
                                            const gvfi_frame_t* frame1,

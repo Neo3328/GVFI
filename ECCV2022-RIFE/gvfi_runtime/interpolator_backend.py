@@ -148,7 +148,22 @@ class NativeInterpolatorBackend(InterpolatorBackend):
     def load_model(self, model_path: str) -> None:
         if not self.initialized:
             raise BackendError("native backend is not initialized")
-        self.model_path = str(model_path or "")
+        model_path = str(model_path or "")
+        param_path = os.path.join(model_path, "model.param")
+        bin_path = os.path.join(model_path, "model.bin")
+        if not os.path.isfile(param_path) or not os.path.isfile(bin_path):
+            raise BackendError(
+                "native prototype expects model.param and model.bin in the model directory"
+            )
+        try:
+            result = self._library.load_model(param_path, bin_path)
+        except NativeLibraryError as exc:
+            raise BackendError(str(exc)) from exc
+        if result is NativeResult.NOT_IMPLEMENTED:
+            raise BackendNotImplementedError("ncnn Vulkan backend is not enabled")
+        if result is not NativeResult.SUCCESS:
+            raise BackendError(f"native model loading failed: {result.name}")
+        self.model_path = model_path
 
     def process_frames(
         self,

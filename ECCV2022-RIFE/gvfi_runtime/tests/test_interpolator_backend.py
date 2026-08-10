@@ -86,10 +86,14 @@ class TestNativeBackendPlaceholder(unittest.TestCase):
         backend = create_interpolator_backend("native")
         self.assertIsInstance(backend, NativeInterpolatorBackend)
         backend.initialize()
-        self.assertEqual(backend._library.version, "gvfi_native/0.2.0")
+        self.assertEqual(backend._library.version, "gvfi_native/0.3.0")
         self.assertTrue(backend._library.handle.value)
-        backend.load_model("rife-v4.6")
         self.assertTrue(backend.initialized)
+        with tempfile.TemporaryDirectory() as model:
+            open(os.path.join(model, "model.param"), "wb").close()
+            open(os.path.join(model, "model.bin"), "wb").close()
+            with self.assertRaisesRegex(BackendNotImplementedError, "not enabled"):
+                backend.load_model(model)
         frame = Frame(b"\x00\x00\x00", 1, 1, "rgb24", 0, 0.0)
         with self.assertRaisesRegex(BackendNotImplementedError, "not implemented") as error:
             backend.process_frames(frame, frame, timestamp=0.5)

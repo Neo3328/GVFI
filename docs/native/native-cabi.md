@@ -46,7 +46,7 @@ classes, STL types, exceptions, ncnn objects, or Vulkan handles.
 
 | Function | Contract in C2 |
 | --- | --- |
-| `gvfi_version()` | Returns the static ASCII version `gvfi_native/0.2.0`. |
+| `gvfi_version()` | Returns the versioned ASCII family `gvfi_native/<semver>`. |
 | `gvfi_create(out_handle)` | Allocates an opaque instance and writes its handle. |
 | `gvfi_initialize(handle)` | Marks the instance initialized; repeated calls succeed. |
 | `gvfi_process(handle, frame0, frame1, timestamp, output)` | Validates arguments and returns `NOT_IMPLEMENTED` after initialization. |
