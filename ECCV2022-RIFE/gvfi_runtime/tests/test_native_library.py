@@ -29,7 +29,7 @@ class TestNativeLibraryLoader(unittest.TestCase):
         self.loader.destroy()
 
     def test_dll_lifecycle_and_process_status(self) -> None:
-        self.assertEqual(self.loader.load(), "gvfi_native/0.3.0")
+        self.assertEqual(self.loader.load(), "gvfi_native/0.4.0")
         self.loader.create()
         handle = self.loader.handle.value
         self.assertTrue(handle)
@@ -39,19 +39,18 @@ class TestNativeLibraryLoader(unittest.TestCase):
         info = self.loader.backend_info()
         self.assertEqual(info["abi_version"], 1)
         self.assertTrue(info["initialized"])
-        self.assertFalse(info["ncnn_enabled"])
+        self.assertTrue(info["ncnn_enabled"])
         self.assertFalse(info["model_loaded"])
-        self.assertEqual(info["device_index"], -1)
-        self.assertEqual(info["gpu_name"], "")
-        self.assertEqual(info["ncnn_version"], "")
-        self.assertIs(
-            self.loader.load_model("test.param", "test.bin"),
-            NativeResult.NOT_IMPLEMENTED,
-        )
+        self.assertGreaterEqual(info["device_index"], 0)
+        self.assertTrue(info["gpu_name"])
+        self.assertTrue(info["ncnn_version"])
+        self.assertIs(self.loader.load_model("test.param", "test.bin"), NativeResult.FAILED)
 
         frame0 = Frame(b"\x00\x00\x00", 1, 1, "rgb24", 0, 0.0)
         frame1 = Frame(b"\xff\xff\xff", 1, 1, "rgb24", 1, 1.0)
-        self.assertIs(self.loader.process(frame0, frame1, 12.5), NativeResult.NOT_IMPLEMENTED)
+        result, output = self.loader.process(frame0, frame1, 0.5)
+        self.assertIs(result, NativeResult.FAILED)
+        self.assertIsNone(output)
 
         self.loader.destroy()
         self.loader.destroy()

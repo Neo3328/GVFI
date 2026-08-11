@@ -65,6 +65,7 @@ GVFI_NATIVE_API const char* gvfi_version(void);
 GVFI_NATIVE_API gvfi_result_t gvfi_create(gvfi_handle_t* out_handle);
 GVFI_NATIVE_API gvfi_result_t gvfi_destroy(gvfi_handle_t handle);
 GVFI_NATIVE_API gvfi_result_t gvfi_initialize(gvfi_handle_t handle);
+GVFI_NATIVE_API gvfi_result_t gvfi_release(gvfi_handle_t handle);
 GVFI_NATIVE_API gvfi_result_t gvfi_get_backend_info(gvfi_handle_t handle,
                                                     gvfi_backend_info_t* info);
 GVFI_NATIVE_API gvfi_result_t gvfi_load_model(gvfi_handle_t handle,

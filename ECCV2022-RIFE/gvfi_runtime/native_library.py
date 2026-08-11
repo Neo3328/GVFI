@@ -113,6 +113,8 @@ class NativeLibraryLoader:
         dll.gvfi_destroy.argtypes = [ctypes.c_void_p]
         dll.gvfi_initialize.restype = ctypes.c_int
         dll.gvfi_initialize.argtypes = [ctypes.c_void_p]
+        dll.gvfi_release.restype = ctypes.c_int
+        dll.gvfi_release.argtypes = [ctypes.c_void_p]
         dll.gvfi_get_backend_info.restype = ctypes.c_int
         dll.gvfi_get_backend_info.argtypes = [
             ctypes.c_void_p,
@@ -179,12 +181,28 @@ class NativeLibraryLoader:
             )
         )
 
-    def process(self, frame0: Frame, frame1: Frame, timestamp: float) -> NativeResult:
+    def process(self, frame0: Frame, frame1: Frame, timestamp: float) -> tuple[NativeResult, Optional[Frame]]:
         dll = self._require_dll()
         self._require_handle()
         native0, buffer0 = self._convert_frame(frame0)
         native1, buffer1 = self._convert_frame(frame1)
-        output = _NativeFrame()
+        if frame0.width != frame1.width or frame0.height != frame1.height:
+            raise NativeLibraryError("native input frame dimensions must match")
+        format_name = str(frame0.pixel_format or "").lower()
+        format_info = _PIXEL_FORMATS.get(format_name)
+        if format_info is None or format_info[1] != 3:
+            raise NativeLibraryError("native RIFE output currently supports RGB24/BGR24")
+        output_buffer = ctypes.create_string_buffer(int(frame0.width) * int(frame0.height) * 3)
+        output = _NativeFrame(
+            ctypes.cast(output_buffer, ctypes.c_void_p),
+            len(output_buffer),
+            int(frame0.width),
+            int(frame0.height),
+            int(frame0.width) * 3,
+            format_info[0],
+            int(frame0.frame_index),
+            float(timestamp),
+        )
         result = NativeResult(
             dll.gvfi_process(
                 self.handle,
@@ -195,7 +213,22 @@ class NativeLibraryLoader:
             )
         )
         _ = buffer0, buffer1
-        return result
+        if result is not NativeResult.SUCCESS:
+            return result, None
+        data_size = int(frame0.width) * int(frame0.height) * 3
+        return result, Frame(
+            bytes(output_buffer.raw[:data_size]),
+            int(output.width),
+            int(output.height),
+            format_name,
+            int(output.frame_index),
+            float(output.timestamp),
+        )
+
+    def release(self) -> None:
+        if self.dll is None or not self.handle.value:
+            return
+        self._require_success(self.dll.gvfi_release(self.handle), "gvfi_release")
 
     def destroy(self) -> None:
         if self.dll is None or not self.handle.value:

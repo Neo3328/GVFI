@@ -45,7 +45,7 @@ from gvfi_runtime.rife_cli_pipeline import (
     stage_frame_range,
 )
 from gvfi_runtime.rife_scene_scheduler import RifeWorkerManager, RifeWorkerStats, SceneTask
-from gvfi_runtime.interpolator_backend import RifeCLIBackend, create_interpolator_backend
+from gvfi_runtime.interpolator_backend import create_interpolator_backend
 from tool_resolver import (
     RIFE_MODEL_CANDIDATES,
     RIFE_NCNN_DIRNAME,
@@ -317,6 +317,7 @@ class VideoWorker(QThread):
             executable=self.RIFE_EXE or "",
             working_directory=self.RIFE_DIR or self.base_dir,
             command_runner=self._run_backend_command,
+            log_callback=self.log_output.emit,
         )
         # Effective -j; refined per-file after probing resolution.
         self.params["rife_thread_config"] = resolve_rife_thread_config(
@@ -356,12 +357,10 @@ class VideoWorker(QThread):
 
     def _validate_environment(self):
         missing = []
-        required = [
-            ("FFmpeg", self.FFMPEG),
-            ("ffprobe", self.FFPROBE),
-            ("RIFE Vulkan", self.RIFE_EXE),
-            ("RIFE 模型目录", self.RIFE_MODEL),
-        ]
+        required = [("FFmpeg", self.FFMPEG), ("ffprobe", self.FFPROBE)]
+        if self.params.get("backend_mode", "cli") == "cli":
+            required.append(("RIFE Vulkan", self.RIFE_EXE))
+        required.append(("RIFE 模型目录", self.RIFE_MODEL))
         if self.params.get("scale") != "原始":
             required.append(("Real-ESRGAN Vulkan", self.ESGAN_EXE))
             required.append(("Real-ESRGAN models", self.MODELS_DIR))
@@ -674,10 +673,6 @@ class VideoWorker(QThread):
         monitor = RifeProcessMonitor(output_dir, self.params.get("gpu", 0))
         monitor.start()
         try:
-            if not isinstance(self._interpolator_backend, RifeCLIBackend):
-                raise RuntimeError(
-                    "native backend inference is not implemented; use backend_mode=cli"
-                )
             self._interpolator_backend.process_directory(
                 input_dir,
                 output_dir,

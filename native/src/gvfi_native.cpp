@@ -5,6 +5,7 @@
 #include <memory>
 #include <new>
 #include <string>
+#include <vector>
 
 #ifdef GVFI_ENABLE_NCNN_BACKEND
 #include "gvfi/ncnn_vulkan_backend.hpp"
@@ -32,16 +33,58 @@ void copy_text(char (&destination)[N], const std::string& source) {
 }
 
 bool valid_input_frame(const gvfi_frame_t* frame) {
-  return frame && frame->data && frame->data_size > 0 && frame->width > 0 &&
-         frame->height > 0 && frame->row_stride > 0 &&
-         frame->pixel_format != GVFI_PIXEL_FORMAT_UNKNOWN;
+  if (!frame || !frame->data || frame->width == 0 || frame->height == 0 ||
+      (frame->pixel_format != GVFI_PIXEL_FORMAT_RGB24 &&
+       frame->pixel_format != GVFI_PIXEL_FORMAT_BGR24)) {
+    return false;
+  }
+  const size_t minimum_stride = static_cast<size_t>(frame->width) * 3;
+  return frame->row_stride >= minimum_stride &&
+         frame->data_size >= static_cast<size_t>(frame->row_stride) * frame->height;
+}
+
+void copy_to_bgr(const gvfi_frame_t& source, std::vector<unsigned char>& destination) {
+  const auto* data = static_cast<const unsigned char*>(source.data);
+  const size_t packed_stride = static_cast<size_t>(source.width) * 3;
+  destination.resize(packed_stride * source.height);
+  for (uint32_t y = 0; y < source.height; ++y) {
+    const unsigned char* input = data + static_cast<size_t>(y) * source.row_stride;
+    unsigned char* output = destination.data() + static_cast<size_t>(y) * packed_stride;
+    if (source.pixel_format == GVFI_PIXEL_FORMAT_BGR24) {
+      std::memcpy(output, input, packed_stride);
+      continue;
+    }
+    for (uint32_t x = 0; x < source.width; ++x) {
+      output[x * 3] = input[x * 3 + 2];
+      output[x * 3 + 1] = input[x * 3 + 1];
+      output[x * 3 + 2] = input[x * 3];
+    }
+  }
+}
+
+void copy_from_bgr(const std::vector<unsigned char>& source, gvfi_frame_t& destination) {
+  auto* data = static_cast<unsigned char*>(destination.data);
+  const size_t packed_stride = static_cast<size_t>(destination.width) * 3;
+  for (uint32_t y = 0; y < destination.height; ++y) {
+    const unsigned char* input = source.data() + static_cast<size_t>(y) * packed_stride;
+    unsigned char* output = data + static_cast<size_t>(y) * destination.row_stride;
+    if (destination.pixel_format == GVFI_PIXEL_FORMAT_BGR24) {
+      std::memcpy(output, input, packed_stride);
+      continue;
+    }
+    for (uint32_t x = 0; x < destination.width; ++x) {
+      output[x * 3] = input[x * 3 + 2];
+      output[x * 3 + 1] = input[x * 3 + 1];
+      output[x * 3 + 2] = input[x * 3];
+    }
+  }
 }
 
 }  // namespace
 
 extern "C" {
 
-const char* gvfi_version(void) { return "gvfi_native/0.3.0"; }
+const char* gvfi_version(void) { return "gvfi_native/0.4.0"; }
 
 gvfi_result_t gvfi_create(gvfi_handle_t* out_handle) {
   if (!out_handle) {
@@ -78,6 +121,22 @@ gvfi_result_t gvfi_initialize(gvfi_handle_t handle) {
   }
 #endif
   instance->initialized = true;
+  return GVFI_SUCCESS;
+}
+
+gvfi_result_t gvfi_release(gvfi_handle_t handle) {
+  if (!handle) {
+    return GVFI_INVALID_ARGUMENT;
+  }
+  auto* instance = reinterpret_cast<NativeInstance*>(handle);
+#ifdef GVFI_ENABLE_NCNN_BACKEND
+  if (instance->ncnn_backend) {
+    instance->ncnn_backend->release();
+    instance->ncnn_backend.reset();
+  }
+#endif
+  instance->initialized = false;
+  instance->last_error.clear();
   return GVFI_SUCCESS;
 }
 
@@ -138,10 +197,38 @@ gvfi_result_t gvfi_process(gvfi_handle_t handle,
       !output || !std::isfinite(timestamp)) {
     return GVFI_INVALID_ARGUMENT;
   }
-  if (!reinterpret_cast<NativeInstance*>(handle)->initialized) {
+  auto* instance = reinterpret_cast<NativeInstance*>(handle);
+  if (!instance->initialized) {
     return GVFI_FAILED;
   }
+#ifdef GVFI_ENABLE_NCNN_BACKEND
+  if (frame0->width != frame1->width || frame0->height != frame1->height ||
+      timestamp < 0.0 || timestamp > 1.0 || !valid_input_frame(output) ||
+      output->width != frame0->width || output->height != frame0->height) {
+    return GVFI_INVALID_ARGUMENT;
+  }
+  if (!instance->ncnn_backend || !instance->ncnn_backend->info().model_loaded) {
+    return GVFI_FAILED;
+  }
+  std::vector<unsigned char> input0;
+  std::vector<unsigned char> input1;
+  std::vector<unsigned char> result(static_cast<size_t>(frame0->width) *
+                                    frame0->height * 3);
+  copy_to_bgr(*frame0, input0);
+  copy_to_bgr(*frame1, input1);
+  if (!instance->ncnn_backend->processBgr(
+          input0.data(), input1.data(), static_cast<int>(frame0->width),
+          static_cast<int>(frame0->height), static_cast<float>(timestamp),
+          result.data(), instance->last_error)) {
+    return GVFI_FAILED;
+  }
+  copy_from_bgr(result, *output);
+  output->frame_index = frame0->frame_index;
+  output->timestamp = timestamp;
+  return GVFI_SUCCESS;
+#else
   return GVFI_NOT_IMPLEMENTED;
+#endif
 }
 
 }  // extern "C"

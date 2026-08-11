@@ -3,8 +3,15 @@
 from __future__ import annotations
 
 import os
+import hashlib
+import math
+import time
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Callable, Optional
+
+import cv2
+import numpy as np
 
 from .frame_pipeline import Frame
 from .native_library import NativeLibraryError, NativeLibraryLoader, NativeResult
@@ -127,11 +134,18 @@ class RifeCLIBackend(InterpolatorBackend):
 
 
 class NativeInterpolatorBackend(InterpolatorBackend):
-    """Lifecycle placeholder for Phase C native inference work."""
+    """Persistent in-process RIFE v4.6 backend backed by gvfi_native.dll."""
 
-    def __init__(self, library_path: Optional[str] = None) -> None:
+    MODEL_HASHES = {
+        "flownet.param": "28DF14D57A225725EE5386F52EBA422488450D37C9F40800ED4F62E8BA846692",
+        "flownet.bin": "F334ED2260149CE0188A6DCF049844E8B0CDD912E01CBCFB63553157D2508958",
+    }
+
+    def __init__(self, library_path: Optional[str] = None, log_callback: Optional[Callable[[str], None]] = None) -> None:
         super().__init__()
         self._library = NativeLibraryLoader(library_path)
+        self._log = log_callback or (lambda _message: None)
+        self._forward_count = 0
 
     name = "native"
 
@@ -149,12 +163,18 @@ class NativeInterpolatorBackend(InterpolatorBackend):
         if not self.initialized:
             raise BackendError("native backend is not initialized")
         model_path = str(model_path or "")
-        param_path = os.path.join(model_path, "model.param")
-        bin_path = os.path.join(model_path, "model.bin")
-        if not os.path.isfile(param_path) or not os.path.isfile(bin_path):
-            raise BackendError(
-                "native prototype expects model.param and model.bin in the model directory"
-            )
+        param_path = os.path.join(model_path, "flownet.param")
+        bin_path = os.path.join(model_path, "flownet.bin")
+        for path in (param_path, bin_path):
+            if not os.path.isfile(path):
+                raise BackendError(f"native RIFE model file is unavailable: {path}")
+            digest = hashlib.sha256()
+            with open(path, "rb") as stream:
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            expected = self.MODEL_HASHES[os.path.basename(path)]
+            if digest.hexdigest().upper() != expected:
+                raise BackendError(f"native RIFE model hash mismatch: {path}")
         try:
             result = self._library.load_model(param_path, bin_path)
         except NativeLibraryError as exc:
@@ -164,6 +184,9 @@ class NativeInterpolatorBackend(InterpolatorBackend):
         if result is not NativeResult.SUCCESS:
             raise BackendError(f"native model loading failed: {result.name}")
         self.model_path = model_path
+        info = self.backend_info()
+        self._log("MODEL LOAD:\nbackend=native\nmodel=" + model_path +
+                  f"\ngpu={info['gpu_name']}\nncnn={info['ncnn_version']}")
 
     def process_frames(
         self,
@@ -174,20 +197,94 @@ class NativeInterpolatorBackend(InterpolatorBackend):
     ) -> Frame:
         if not self.initialized:
             raise BackendError("native backend is not initialized")
+        started_at = time.perf_counter()
         try:
-            result = self._library.process(frame0, frame1, timestamp)
+            result, output = self._library.process(frame0, frame1, timestamp)
         except NativeLibraryError as exc:
             raise BackendError(str(exc)) from exc
         if result is NativeResult.NOT_IMPLEMENTED:
             raise BackendNotImplementedError("native interpolation is not implemented")
-        raise BackendError(f"unexpected native process result: {result.name}")
+        if result is not NativeResult.SUCCESS or output is None:
+            raise BackendError(f"native RIFE forward failed: {result.name}")
+        self._forward_count += 1
+        if self._forward_count == 1 or self._forward_count % 100 == 0:
+            self._log("RIFE NATIVE FORWARD:\n" +
+                      f"frame_index={frame0.frame_index}\n" +
+                      f"input_resolution={frame0.width}x{frame0.height}\n" +
+                      f"elapsed_ms={(time.perf_counter() - started_at) * 1000.0:.3f}")
+        return output
+
+    def process_directory(self, input_path: str, output_path: str, *, target_frames: int,
+                          gpu: Optional[int], thread_config: str) -> None:
+        del gpu, thread_config
+        if not self.initialized or not self.model_path:
+            raise BackendError("native RIFE backend is not ready")
+        paths = sorted(Path(input_path).glob("*.png"))
+        output_count = int(target_frames)
+        if not paths or output_count <= 0:
+            raise BackendError("native RIFE directory input is empty or target count is invalid")
+        os.makedirs(output_path, exist_ok=True)
+        cache = {}
+
+        def read_frame(index):
+            if index not in cache:
+                image = cv2.imread(str(paths[index]), cv2.IMREAD_COLOR)
+                if image is None or image.ndim != 3 or image.shape[2] != 3:
+                    raise BackendError(f"native RIFE failed to read RGB8 input: {paths[index]}")
+                cache.clear()
+                cache[index] = image
+            return cache[index]
+
+        input_count = len(paths)
+        scale = input_count / output_count
+        for output_index in range(output_count):
+            if input_count == 1:
+                left = right = 0
+                fraction = 0.0
+            else:
+                position = output_index * scale
+                left = int(math.floor(position))
+                fraction = position - left
+                if left >= input_count - 1:
+                    left = input_count - 2
+                    fraction = 1.0
+                right = left + 1
+            image0 = read_frame(left)
+            if right == left or fraction <= 1e-12:
+                output_image = image0
+            else:
+                image1 = read_frame(right)
+                if image0.shape != image1.shape:
+                    raise BackendError("native RIFE input frame dimensions changed within a scene")
+                height, width = image0.shape[:2]
+                result = self.process_frames(
+                    Frame(image0, width, height, "bgr24", left, float(left)),
+                    Frame(image1, width, height, "bgr24", right, float(right)),
+                    timestamp=fraction,
+                )
+                output_image = np.frombuffer(result.frame_data, dtype=np.uint8).reshape(result.height, result.width, 3)
+            destination = os.path.join(output_path, f"{output_index + 1:08d}.png")
+            if not cv2.imwrite(destination, output_image):
+                raise BackendError(f"native RIFE failed to write output: {destination}")
+
+    def backend_info(self) -> dict:
+        if not self.initialized:
+            raise BackendError("native backend is not initialized")
+        try:
+            return self._library.backend_info()
+        except NativeLibraryError as exc:
+            raise BackendError(str(exc)) from exc
 
     def release(self) -> None:
         try:
-            self._library.destroy()
+            self._library.release()
         finally:
-            self.model_path = ""
-            self.initialized = False
+            try:
+                self._library.destroy()
+            finally:
+                self.model_path = ""
+                self.initialized = False
+                self._forward_count = 0
 
 
 def create_interpolator_backend(
@@ -197,10 +294,11 @@ def create_interpolator_backend(
     working_directory: Optional[str] = None,
     command_runner: Optional[CommandRunner] = None,
     native_library_path: Optional[str] = None,
+    log_callback: Optional[Callable[[str], None]] = None,
 ) -> InterpolatorBackend:
     normalized = str(mode or "cli").strip().lower()
     if normalized == "native":
-        return NativeInterpolatorBackend(native_library_path)
+        return NativeInterpolatorBackend(native_library_path, log_callback)
     if normalized != "cli":
         raise ValueError(f"unsupported interpolator backend: {mode}")
     if command_runner is None:

@@ -16,6 +16,7 @@ if ENGINE_ROOT not in sys.path:
 from gvfi_runtime.frame_pipeline import Frame  # noqa: E402
 from gvfi_runtime.interpolator_backend import (  # noqa: E402
     BackendCapabilityError,
+    BackendError,
     BackendNotImplementedError,
     NativeInterpolatorBackend,
     RifeCLIBackend,
@@ -86,18 +87,14 @@ class TestNativeBackendPlaceholder(unittest.TestCase):
         backend = create_interpolator_backend("native")
         self.assertIsInstance(backend, NativeInterpolatorBackend)
         backend.initialize()
-        self.assertEqual(backend._library.version, "gvfi_native/0.3.0")
+        self.assertEqual(backend._library.version, "gvfi_native/0.4.0")
         self.assertTrue(backend._library.handle.value)
         self.assertTrue(backend.initialized)
         with tempfile.TemporaryDirectory() as model:
-            open(os.path.join(model, "model.param"), "wb").close()
-            open(os.path.join(model, "model.bin"), "wb").close()
-            with self.assertRaisesRegex(BackendNotImplementedError, "not enabled"):
+            open(os.path.join(model, "flownet.param"), "wb").close()
+            open(os.path.join(model, "flownet.bin"), "wb").close()
+            with self.assertRaises(BackendError):
                 backend.load_model(model)
-        frame = Frame(b"\x00\x00\x00", 1, 1, "rgb24", 0, 0.0)
-        with self.assertRaisesRegex(BackendNotImplementedError, "not implemented") as error:
-            backend.process_frames(frame, frame, timestamp=0.5)
-        self.assertIsInstance(error.exception, NotImplementedError)
         backend.release()
         backend.release()
         self.assertFalse(backend.initialized)

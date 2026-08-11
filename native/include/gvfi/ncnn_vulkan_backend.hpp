@@ -25,6 +25,13 @@ class NcnnVulkanBackend {
 
   bool initialize(int device_index, std::string& error);
   bool loadModel(const char* param_path, const char* bin_path, std::string& error);
+  bool processBgr(const unsigned char* frame0,
+                  const unsigned char* frame1,
+                  int width,
+                  int height,
+                  float timestamp,
+                  unsigned char* output,
+                  std::string& error);
   void release() noexcept;
   const NcnnBackendInfo& info() const noexcept;
 
