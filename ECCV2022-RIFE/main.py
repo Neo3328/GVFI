@@ -45,7 +45,11 @@ from gvfi_runtime.rife_cli_pipeline import (
     stage_frame_range,
 )
 from gvfi_runtime.rife_scene_scheduler import RifeWorkerManager, RifeWorkerStats, SceneTask
-from gvfi_runtime.interpolator_backend import create_interpolator_backend
+from gvfi_runtime.interpolator_backend import (
+    BackendError,
+    BackendNotImplementedError,
+    create_interpolator_backend,
+)
 from tool_resolver import (
     RIFE_MODEL_CANDIDATES,
     RIFE_NCNN_DIRNAME,
@@ -69,6 +73,10 @@ from ui_prefs import (
     save_settings,
     save_user_presets,
 )
+
+# Sentinel error raised when Native backend fails and CLI fallback is needed.
+class NativeFallback(RuntimeError):
+    """Raised when the requested native RIFE backend fails and CLI fallback is required."""
 
 
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -312,8 +320,13 @@ class VideoWorker(QThread):
         self._source_height = 0
         self._rife_pipeline_stats = RifePipelineStats()
         self._rife_stats_lock = threading.Lock()
+        # Native fallback state — task-level, reset for each task.
+        self._requested_backend = str(self.params.get("backend_mode", "cli")).lower().strip()
+        self._active_backend = self._requested_backend  # updated on fallback
+        self._fallback_occurred = False
+        self._fallback_reason = ""
         self._interpolator_backend = create_interpolator_backend(
-            self.params.get("backend_mode", "cli"),
+            self._requested_backend,
             executable=self.RIFE_EXE or "",
             working_directory=self.RIFE_DIR or self.base_dir,
             command_runner=self._run_backend_command,
@@ -472,11 +485,63 @@ class VideoWorker(QThread):
             self.base_dir = old_cwd
 
     def _ensure_interpolator_backend(self):
-        if not self._interpolator_backend.initialized:
-            self._interpolator_backend.initialize()
-        model_path = self.RIFE_MODEL or ""
-        if self._interpolator_backend.model_path != model_path:
-            self._interpolator_backend.load_model(model_path)
+        """Initialize (or fall back) the interpolator backend once per task.
+
+        If backend_mode=native and initialization/model-load fails, falls back
+        to CLI within the same task. The fallback is one-time only; if CLI
+        also fails the error propagates normally.
+        """
+        # Already on CLI after a previous fallback — just ensure it is ready.
+        if self._active_backend == "cli":
+            if not self._interpolator_backend.initialized:
+                self._interpolator_backend.initialize()
+            model_path = self.RIFE_MODEL or ""
+            if self._interpolator_backend.model_path != model_path:
+                self._interpolator_backend.load_model(model_path)
+            return
+
+        # Try Native.
+        try:
+            if not self._interpolator_backend.initialized:
+                self._interpolator_backend.initialize()
+            model_path = self.RIFE_MODEL or ""
+            if self._interpolator_backend.model_path != model_path:
+                self._interpolator_backend.load_model(model_path)
+        except (BackendError, NativeFallback, BackendNotImplementedError) as exc:
+            self._switch_to_cli(str(exc))
+
+    def _switch_to_cli(self, reason: str) -> None:
+        """Switch from Native to CLI backend within the current task."""
+        if self._active_backend == "cli":
+            return  # Already on CLI, nothing to do.
+        self.log_output.emit(
+            f"  ⚠️ NATIVE BACKEND FAILED — FALLING BACK TO CLI\n"
+            f"    reason: {reason}\n"
+            f"    Native backend will not be used for this task."
+        )
+        self._interpolator_backend.release()
+        self._fallback_occurred = True
+        self._fallback_reason = reason[:200]  # truncate long paths
+        self._active_backend = "cli"
+        # Build a fresh CLI backend — it shares the same command runner.
+        self._interpolator_backend = create_interpolator_backend(
+            "cli",
+            executable=self.RIFE_EXE or "",
+            working_directory=self.RIFE_DIR or self.base_dir,
+            command_runner=self._run_backend_command,
+            log_callback=self.log_output.emit,
+        )
+        # Mark backend as needing init so _ensure_interpolator_backend will set it up.
+        self._interpolator_backend.initialized = False
+        self._interpolator_backend.model_path = ""
+        self.log_output.emit(
+            "BACKEND CONFIG:\n"
+            f"mode=cli\n"
+            f"requested_backend={self._requested_backend}\n"
+            f"active_backend=cli\n"
+            f"fallback=native_to_cli\n"
+            f"reason={self._fallback_reason}"
+        )
 
     @staticmethod
     def _has_png_frames(directory):
@@ -631,8 +696,11 @@ class VideoWorker(QThread):
         )
         self.log_output.emit(
             "BACKEND CONFIG:\n"
-            f"backend={self._interpolator_backend.name}\n"
-            f"model={model_label}"
+            f"mode={self._interpolator_backend.name}\n"
+            f"requested_backend={self._requested_backend}\n"
+            f"active_backend={self._active_backend}\n"
+            f"fallback={'native_to_cli' if self._fallback_occurred else 'none'}\n"
+            f"reason={self._fallback_reason or 'initial'}"
         )
         codec_text = str(p.get("codec") or "")
         if "H.265" in codec_text or "HEVC" in codec_text:
@@ -661,7 +729,7 @@ class VideoWorker(QThread):
         )
 
     def _run_rife(self, input_dir, output_dir, target_frames):
-        """Run rife-ncnn-vulkan on a PNG folder."""
+        """Run RIFE on a PNG folder, with automatic CLI fallback on Native failure."""
         self._ensure_interpolator_backend()
         os.makedirs(output_dir, exist_ok=True)
         input_frames = self._count_png_frames(input_dir)
@@ -680,6 +748,27 @@ class VideoWorker(QThread):
                 gpu=self.params.get("gpu"),
                 thread_config=thread_cfg,
             )
+        except (BackendError, BackendNotImplementedError) as exc:
+            # Only attempt fallback once per task.
+            if self._active_backend == "native":
+                monitor.stop()
+                self._switch_to_cli(str(exc))
+                # Re-initialize CLI backend now that we've switched.
+                if not self._interpolator_backend.initialized:
+                    self._interpolator_backend.initialize()
+                self._interpolator_backend.load_model(self.RIFE_MODEL or "")
+                # Restart monitor for CLI run.
+                monitor = RifeProcessMonitor(output_dir, self.params.get("gpu", 0))
+                monitor.start()
+                self._interpolator_backend.process_directory(
+                    input_dir,
+                    output_dir,
+                    target_frames=int(target_frames),
+                    gpu=self.params.get("gpu"),
+                    thread_config=thread_cfg,
+                )
+            else:
+                raise
         finally:
             startup, inference, gpu_total, gpu_count = monitor.stop()
             stats = self._rife_pipeline_stats
