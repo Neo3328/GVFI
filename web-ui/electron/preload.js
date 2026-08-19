@@ -15,6 +15,10 @@ contextBridge.exposeInMainWorld("gvfiDesktop", {
   windowIsMaximized: () => ipcRenderer.invoke("gvfi:window-is-maximized"),
   setLocale: (locale) => ipcRenderer.invoke("gvfi:set-locale", locale),
   getLocale: () => ipcRenderer.invoke("gvfi:get-locale"),
+  restartApi: () => ipcRenderer.invoke("gvfi:restart-api"),
+  writeTextCopy: (payload) => ipcRenderer.invoke("gvfi:write-text-copy", payload),
+  revealInFolder: (targetPath) =>
+    ipcRenderer.invoke("gvfi:reveal-in-folder", targetPath),
   onMaximizedChange: (callback) => {
     if (typeof callback !== "function") return () => {};
     const handler = (_event, value) => callback(Boolean(value));

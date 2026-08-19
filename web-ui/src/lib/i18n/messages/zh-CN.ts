@@ -171,10 +171,14 @@ export const zhCN = {
   "ai.chat.session": "会话",
   "ai.chat.emptyTitle": "开始与模型对话",
   "ai.chat.emptyHint":
-    "支持技术分析、代码辅助与视频处理建议。视频视觉分析请用右侧面板。",
+    "可粘贴报错日志做诊断修复，或附加文本文件生成修改副本。视频视觉分析请用右侧面板。",
   "ai.chat.placeholder": "请输入任务… 也可粘贴完整报错日志进行分析",
   "ai.chat.attach": "附件",
-  "ai.chat.attachTitle": "P0 附件占位",
+  "ai.chat.attachTitle": "附加文本文件（将生成修改副本）",
+  "ai.chat.attachRemove": "移除附件",
+  "ai.chat.attachTooLarge": "附件超过 256KB，请缩小后再试",
+  "ai.chat.attachUnsupported": "仅支持文本类文件（json/txt/md/py/ts/js 等）",
+  "ai.chat.attachFail": "读取附件失败",
   "ai.chat.send": "发送",
   "ai.chat.stop": "停止",
   "ai.chat.needKey": "请先在右侧配置 API 密钥",
@@ -411,6 +415,25 @@ export const zhCN = {
   "settings.api.namePlaceholder": "名称",
   "settings.api.customName": "自定义 API",
   "settings.api.addEnable": "添加并启用",
+
+  /* API quick connect */
+  "settings.api.quickConnect.title": "一键连接本地服务",
+  "settings.api.quickConnect.desc":
+    "首次使用？点击下方按钮自动探测并连接本地渲染引擎（127.0.0.1:8765），无需手动填写任何配置。",
+  "settings.api.quickConnect.button": "一键连接本地 API",
+  "settings.api.quickConnect.checking": "正在连接…",
+  "settings.api.quickConnect.success": "已连接本地服务，可以开始使用",
+  "settings.api.quickConnect.failed": "未检测到本地服务",
+  "settings.api.quickConnect.hint":
+    "请确认应用已完整启动（桌面版会自动启动本地引擎）；若仍失败，请到「系统 → 日志」查看原因，或手动运行安装目录下的 GVFI_API.cmd 后重试。",
+  "settings.api.quickConnect.notReady": "服务已响应，但渲染引擎未就绪",
+  "settings.api.quickConnect.logOk": "一键连接成功：本地 API 已就绪",
+  "settings.api.quickConnect.logFail": "一键连接失败：本地 API 无响应",
+  "settings.api.quickConnect.restart": "重启本地引擎",
+  "settings.api.quickConnect.restarting": "正在重启…",
+  "settings.api.quickConnect.restartFailed":
+    "重启后服务仍未就绪，请到「系统 → 日志」查看原因",
+  "settings.api.quickConnect.logRestart": "请求重启本地引擎",
 
   /* Settings layout */
   "settings.aboutLink": "关于 GVFI",
@@ -711,13 +734,27 @@ export const zhCN = {
 
   /* AI system / error-log bridge */
   "ai.systemHint":
-    "你是 GVFI AI 工作台助手，擅长视频处理、工程与技术分析。用简洁中文回答。",
+    "你是 GVFI AI 工作台助手，擅长视频处理失败诊断、参数修复与文本文件修改。用简洁中文回答。分析报错或修改文件时，必须在回复末尾附加一个 ```gvfi-fix JSON 代码块（不要省略），格式：{\"diagnosis\":\"简要诊断\",\"settings_patch\":{\"fps\":60,\"superResolution\":false} 或 null,\"file_edits\":[{\"path\":\"可选绝对路径\",\"name\":\"文件名\",\"content\":\"完整修改后文本\"}] 或 null}。settings_patch 仅填可安全调整的渲染字段；无法改参数则 settings_patch 为 null。对用户附加的文本文件给出完整修改后内容写入 file_edits；无文件修改则 file_edits 为 null。禁止声称已直接覆盖原文件。",
   "ai.errorLog.intro":
-    "请分析以下 GVFI 视频处理报错日志：定位问题、说明故障原因，并给出修复建议与优化方案。",
+    "请分析以下 GVFI 视频处理报错日志：定位问题、说明故障原因，并给出可执行的修复建议。若可调整渲染参数，请在 settings_patch 中给出建议值。",
   "ai.errorLog.keepRaw":
-    "请完整保留日志中的路径、退出码与堆栈信息，不要省略关键行。",
+    "请完整保留日志中的路径、退出码与堆栈信息，不要省略关键行。回复末尾必须包含 ```gvfi-fix 结构化块。",
   "ai.errorLog.begin": "----- 原始报错日志开始 -----",
   "ai.errorLog.end": "----- 原始报错日志结束 -----",
+
+  /* AI fix actions */
+  "ai.fix.diagnosisLabel": "诊断：",
+  "ai.fix.applyRetry": "应用修复设置并重试",
+  "ai.fix.saveCopies": "保存修改副本（{count}）",
+  "ai.fix.needInputPath": "缺少输入视频路径。请在视频页重新选择文件后再重试，或让模型在 settings_patch.inputPath 中填入路径。",
+  "ai.fix.retryStarted": "已提交修复重试任务 {id}…",
+  "ai.fix.retryOk": "重试任务已启动（{id}），可在视频/任务页查看进度",
+  "ai.fix.retryFail": "重试失败",
+  "ai.fix.saveOk": "已保存 {count} 个副本（{mode}）",
+  "ai.fix.saveFail": "保存副本失败",
+  "ai.fix.modeDesktop": "已写入磁盘",
+  "ai.fix.modeDownload": "已触发下载",
+  "ai.fix.reveal": "打开所在文件夹",
 
   /* LLM provider / task prompts */
   "llm.provider.openai": "OpenAI",

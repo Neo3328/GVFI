@@ -13,12 +13,20 @@ import { createBrowserPersistStorage } from "@/lib/persist-storage";
 
 export type AiMessageRole = "user" | "assistant" | "system";
 
+export interface AiMessageAttachment {
+  name: string;
+  path?: string;
+  /** Truncated preview only in persist; full text is in message content for the model. */
+  size?: number;
+}
+
 export interface AiChatMessage {
   id: string;
   role: AiMessageRole;
   content: string;
   createdAt: number;
   streaming?: boolean;
+  attachments?: AiMessageAttachment[];
 }
 
 export interface AiSession {
@@ -145,6 +153,7 @@ export const useAiSessionStore = create<AiSessionStore>()(
                   content: message.content,
                   createdAt,
                   streaming: message.streaming,
+                  attachments: message.attachments,
                 },
               ],
             };

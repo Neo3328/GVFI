@@ -9,6 +9,7 @@
 import { useEffect } from "react";
 import { ApiSettingsPanel } from "@/components/settings/api-settings-panel";
 import { ApiProfilesPanel } from "@/components/settings/api-profiles-panel";
+import { ApiQuickConnect } from "@/components/settings/api-quick-connect";
 import { useWorkspaceChrome } from "@/components/workspace/workspace-chrome-context";
 import { useT } from "@/hooks/use-t";
 
@@ -37,6 +38,7 @@ export function SettingsHubPage() {
           {t("settings.subtitle")}
         </p>
       </header>
+      <ApiQuickConnect />
       <ApiProfilesPanel />
       <ApiSettingsPanel />
     </div>

@@ -180,11 +180,16 @@ export const en: MessageDict = {
   "ai.chat.session": "Session",
   "ai.chat.emptyTitle": "Start chatting with the model",
   "ai.chat.emptyHint":
-    "Supports technical analysis, coding assistance, and video processing suggestions. For video visual analysis, use the right panel.",
+    "Paste error logs for diagnosis and fix retries, or attach a text file to generate a modified copy. For video visual analysis, use the right panel.",
   "ai.chat.placeholder":
     "Please enter a task… You can also paste full error logs for analysis",
   "ai.chat.attach": "Attachment",
-  "ai.chat.attachTitle": "P0 attachment placeholder",
+  "ai.chat.attachTitle": "Attach a text file (for a modified copy)",
+  "ai.chat.attachRemove": "Remove attachment",
+  "ai.chat.attachTooLarge": "Attachment exceeds 256KB — please shrink it and retry",
+  "ai.chat.attachUnsupported":
+    "Only text files are supported (json/txt/md/py/ts/js, etc.)",
+  "ai.chat.attachFail": "Failed to read attachment",
   "ai.chat.send": "Send",
   "ai.chat.stop": "Stop",
   "ai.chat.needKey": "Please configure an API Key in the right panel first",
@@ -430,6 +435,26 @@ export const en: MessageDict = {
   "settings.api.namePlaceholder": "Name",
   "settings.api.customName": "Custom API",
   "settings.api.addEnable": "Add and enable",
+
+  /* API quick connect */
+  "settings.api.quickConnect.title": "One-click local connection",
+  "settings.api.quickConnect.desc":
+    "First time here? Click the button to auto-detect and connect to the local render engine (127.0.0.1:8765) — no manual configuration needed.",
+  "settings.api.quickConnect.button": "Connect to local API",
+  "settings.api.quickConnect.checking": "Connecting…",
+  "settings.api.quickConnect.success": "Connected to local service — ready to go",
+  "settings.api.quickConnect.failed": "Local service not detected",
+  "settings.api.quickConnect.hint":
+    "Make sure the app has fully started (the desktop app launches the local engine automatically). If it still fails, check System → Logs, or run GVFI_API.cmd from the install folder and retry.",
+  "settings.api.quickConnect.notReady":
+    "Service responded, but the render engine is not ready",
+  "settings.api.quickConnect.logOk": "Quick connect succeeded: local API ready",
+  "settings.api.quickConnect.logFail": "Quick connect failed: local API unreachable",
+  "settings.api.quickConnect.restart": "Restart local engine",
+  "settings.api.quickConnect.restarting": "Restarting…",
+  "settings.api.quickConnect.restartFailed":
+    "Service still not ready after restart — check System → Logs",
+  "settings.api.quickConnect.logRestart": "Requested local engine restart",
 
   /* Settings layout */
   "settings.aboutLink": "About GVFI",
@@ -737,13 +762,29 @@ export const en: MessageDict = {
 
   /* AI system / error-log bridge */
   "ai.systemHint":
-    "You are the GVFI AI workspace assistant, skilled in video processing, engineering, and technical analysis. Reply concisely in English.",
+    "You are the GVFI AI workspace assistant for video failure diagnosis, render-parameter fixes, and text-file edits. Reply concisely in English. When analyzing errors or editing files, ALWAYS append a ```gvfi-fix JSON fence at the end: {\"diagnosis\":\"brief diagnosis\",\"settings_patch\":{\"fps\":60,\"superResolution\":false} or null,\"file_edits\":[{\"path\":\"optional abs path\",\"name\":\"filename\",\"content\":\"full revised text\"}] or null}. Put only safe render fields in settings_patch; use null if none. Put complete revised file bodies in file_edits; use null if none. Never claim you overwrote the original file.",
   "ai.errorLog.intro":
-    "Analyze the following GVFI video-processing error log: locate the issue, explain the failure, and propose fixes and optimizations.",
+    "Analyze the following GVFI video-processing error log: locate the issue, explain the failure, and propose actionable fixes. If render parameters can be adjusted, put suggestions in settings_patch.",
   "ai.errorLog.keepRaw":
-    "Preserve paths, exit codes, and stack traces from the log; do not omit critical lines.",
+    "Preserve paths, exit codes, and stack traces from the log; do not omit critical lines. End your reply with a ```gvfi-fix structured block.",
   "ai.errorLog.begin": "----- RAW ERROR LOG START -----",
   "ai.errorLog.end": "----- RAW ERROR LOG END -----",
+
+  /* AI fix actions */
+  "ai.fix.diagnosisLabel": "Diagnosis:",
+  "ai.fix.applyRetry": "Apply fix settings and retry",
+  "ai.fix.saveCopies": "Save modified copies ({count})",
+  "ai.fix.needInputPath":
+    "Missing input video path. Re-select the file on the Video page, or have the model set settings_patch.inputPath.",
+  "ai.fix.retryStarted": "Submitted retry job {id}…",
+  "ai.fix.retryOk":
+    "Retry started ({id}) — check progress on Video / Tasks",
+  "ai.fix.retryFail": "Retry failed",
+  "ai.fix.saveOk": "Saved {count} copies ({mode})",
+  "ai.fix.saveFail": "Failed to save copies",
+  "ai.fix.modeDesktop": "written to disk",
+  "ai.fix.modeDownload": "download started",
+  "ai.fix.reveal": "Show in folder",
 
   /* LLM provider / task prompts */
   "llm.provider.openai": "OpenAI",

@@ -7,12 +7,19 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Paperclip, Send, Sparkles, Square } from "lucide-react";
+import { Paperclip, Send, Sparkles, Square, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { AiFixActions } from "@/components/ai-workspace/ai-fix-actions";
 import { glassTextCaption } from "@/components/glass/glass-styles";
 import { aiPanelSurface } from "@/components/ai-workspace/ai-field";
 import { useT } from "@/hooks/use-t";
+import {
+  formatAttachmentsForPrompt,
+  readTextAttachment,
+  type AiTextAttachment,
+} from "@/lib/ai-text-attach";
+import { parseGvfiFixPayload } from "@/lib/ai-fix-protocol";
 import { cn } from "@/lib/utils";
 import { aiGateway } from "@/services/ai-gateway";
 import { useAiModelConfigStore } from "@/stores/ai-model-config-store";
@@ -26,8 +33,10 @@ export function ChatPane() {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [attachments, setAttachments] = useState<AiTextAttachment[]>([]);
   const [, startTransition] = useTransition();
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const model = useAiModelConfigStore((s) => s.model);
   const provider = useAiModelConfigStore((s) => s.provider);
@@ -43,7 +52,8 @@ export function ChatPane() {
   } = useAiSessionStore();
 
   const session = getActiveSession();
-  const canSend = Boolean(draft.trim()) && !sending;
+  const canSend =
+    (Boolean(draft.trim()) || attachments.length > 0) && !sending;
 
   useEffect(() => {
     const state = useAiSessionStore.getState();
@@ -62,20 +72,59 @@ export function ChatPane() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [session?.messages.length, session?.messages.at(-1)?.content]);
 
+  async function onPickFiles(files: FileList | null) {
+    if (!files?.length) return;
+    setError("");
+    const next: AiTextAttachment[] = [...attachments];
+    for (const file of Array.from(files)) {
+      try {
+        const item = await readTextAttachment(file);
+        if (next.some((a) => a.name === item.name && a.path === item.path)) {
+          continue;
+        }
+        next.push(item);
+      } catch (err) {
+        const code = err instanceof Error ? err.message : String(err);
+        if (code === "TOO_LARGE") {
+          setError(t("ai.chat.attachTooLarge"));
+        } else if (code === "UNSUPPORTED_TYPE") {
+          setError(t("ai.chat.attachUnsupported"));
+        } else {
+          setError(t("ai.chat.attachFail"));
+        }
+      }
+    }
+    setAttachments(next.slice(0, 6));
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
   async function handleSend() {
     const text = draft.trim();
-    if (!text || sending) return;
+    const attachBlock = formatAttachmentsForPrompt(attachments);
+    if ((!text && !attachBlock) || sending) return;
     if (!hasApiKey()) {
       setError(t("ai.chat.needKey"));
       return;
     }
     let sid = activeSessionId;
     if (!sid) sid = createSession();
+    const userContent = [text, attachBlock].filter(Boolean).join("\n\n");
+    const attachMeta = attachments.map((a) => ({
+      name: a.name,
+      path: a.path,
+      size: a.size,
+    }));
+
     setDraft("");
+    setAttachments([]);
     setError("");
     setSending(true);
 
-    appendMessage(sid, { role: "user", content: text });
+    appendMessage(sid, {
+      role: "user",
+      content: userContent,
+      attachments: attachMeta.length ? attachMeta : undefined,
+    });
     const assistantId = appendMessage(sid, {
       role: "assistant",
       content: "",
@@ -160,27 +209,56 @@ export function ChatPane() {
             </div>
           </div>
         ) : (
-          session.messages.map((m) => (
-            <article
-              key={m.id}
-              className={cn(
-                "max-w-[88%] rounded-[14px] px-3.5 py-2.5 text-[13px] leading-relaxed",
-                m.role === "user"
-                  ? "ml-auto bg-[color-mix(in_srgb,var(--accent)_24%,transparent)] text-[var(--text-strong)]"
-                  : "mr-auto border border-[var(--glass-border)] bg-[color-mix(in_srgb,var(--bg-0)_40%,transparent)] text-[var(--text-normal)]"
-              )}
-            >
-              {m.role === "assistant" ? (
-                <div className="prose prose-invert max-w-none prose-pre:bg-[var(--bg-0)] prose-code:text-[var(--accent-cyan)]">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {m.content || (m.streaming ? "…" : "")}
-                  </ReactMarkdown>
-                </div>
-              ) : (
-                <p className="whitespace-pre-wrap">{m.content}</p>
-              )}
-            </article>
-          ))
+          session.messages.map((m) => {
+            const parsed =
+              m.role === "assistant" && !m.streaming
+                ? parseGvfiFixPayload(m.content)
+                : null;
+            const display =
+              parsed?.prose && parsed.fix
+                ? parsed.prose || m.content
+                : m.content;
+            return (
+              <article
+                key={m.id}
+                className={cn(
+                  "max-w-[88%] rounded-[14px] px-3.5 py-2.5 text-[13px] leading-relaxed",
+                  m.role === "user"
+                    ? "ml-auto bg-[color-mix(in_srgb,var(--accent)_24%,transparent)] text-[var(--text-strong)]"
+                    : "mr-auto border border-[var(--glass-border)] bg-[color-mix(in_srgb,var(--bg-0)_40%,transparent)] text-[var(--text-normal)]"
+                )}
+              >
+                {m.role === "assistant" ? (
+                  <>
+                    <div className="prose prose-invert max-w-none prose-pre:bg-[var(--bg-0)] prose-code:text-[var(--accent-cyan)]">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {display || (m.streaming ? "…" : "")}
+                      </ReactMarkdown>
+                    </div>
+                    {!m.streaming && m.content ? (
+                      <AiFixActions content={m.content} />
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    {m.attachments?.length ? (
+                      <ul className="mb-2 flex flex-wrap gap-1.5">
+                        {m.attachments.map((a) => (
+                          <li
+                            key={`${a.name}-${a.path ?? ""}`}
+                            className="rounded-full border border-[var(--glass-border)] px-2 py-0.5 text-[11px] text-[var(--text-muted)]"
+                          >
+                            {a.name}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    <p className="whitespace-pre-wrap">{m.content}</p>
+                  </>
+                )}
+              </article>
+            );
+          })
         )}
         <div ref={bottomRef} />
       </div>
@@ -191,6 +269,32 @@ export function ChatPane() {
 
       <footer className="shrink-0 border-t border-[color-mix(in_srgb,var(--glass-border)_80%,transparent)] p-3">
         <div className="rounded-[16px] border border-[color-mix(in_srgb,var(--glass-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--bg-0)_50%,transparent)] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          {attachments.length > 0 ? (
+            <ul className="mb-2 flex flex-wrap gap-1.5 px-1">
+              {attachments.map((a) => (
+                <li
+                  key={`${a.name}-${a.path ?? a.size}`}
+                  className="inline-flex items-center gap-1 rounded-full border border-[var(--glass-border)] bg-[color-mix(in_srgb,var(--glass-fill)_30%,transparent)] px-2 py-0.5 text-[11px] text-[var(--text-muted)]"
+                >
+                  <span className="max-w-[10rem] truncate">{a.name}</span>
+                  <button
+                    type="button"
+                    className="text-[var(--text-muted)] hover:text-[var(--text-strong)]"
+                    aria-label={t("ai.chat.attachRemove")}
+                    onClick={() =>
+                      setAttachments((prev) =>
+                        prev.filter(
+                          (x) => !(x.name === a.name && x.path === a.path)
+                        )
+                      )
+                    }
+                  >
+                    <X className="size-3" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -205,12 +309,20 @@ export function ChatPane() {
             className="w-full resize-none bg-transparent px-2 py-1.5 text-[13px] leading-relaxed text-[var(--text-strong)] outline-none placeholder:text-[var(--text-muted)]"
           />
           <div className="mt-1.5 flex items-center gap-2 px-1">
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              multiple
+              accept=".json,.txt,.md,.py,.ts,.tsx,.js,.jsx,.mjs,.cjs,.cmd,.bat,.yml,.yaml,.toml,.ini,.log,.css,.html,.xml,.env,.example"
+              onChange={(e) => void onPickFiles(e.target.files)}
+            />
             <button
               type="button"
-              className="inline-flex size-8 shrink-0 items-center justify-center rounded-[10px] text-[var(--text-muted)] opacity-50"
+              className="inline-flex size-8 shrink-0 items-center justify-center rounded-[10px] text-[var(--text-muted)] transition-colors hover:bg-[color-mix(in_srgb,var(--glass-fill)_40%,transparent)] hover:text-[var(--text-strong)]"
               title={t("ai.chat.attachTitle")}
               aria-label={t("ai.chat.attach")}
-              disabled
+              onClick={() => fileInputRef.current?.click()}
             >
               <Paperclip className="size-4" />
             </button>
