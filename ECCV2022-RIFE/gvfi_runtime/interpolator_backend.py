@@ -14,10 +14,11 @@ import cv2
 import numpy as np
 
 from .frame_pipeline import Frame
+from .errors import BackendRuntimeError
 from .native_library import NativeLibraryError, NativeLibraryLoader, NativeResult
 
 
-class BackendError(RuntimeError):
+class BackendError(BackendRuntimeError):
     """Base error for interpolation backend lifecycle and capability failures."""
 
 

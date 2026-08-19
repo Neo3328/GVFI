@@ -16,7 +16,7 @@
 
 **当前最优先三个问题(解决前不新增 AI 模型 / 复杂 GUI):**
 1. Native 逐帧调用导致性能落后 2–3 倍 → **D3**
-2. Native fallback 与错误状态未产品化 → **D2**
+2. Native fallback 与错误状态未产品化 → **D2**（D1 统一错误契约已完成）
 3. 工作区大量未分类实验文件与未提交改动 → **D0**
 
 ---
@@ -33,6 +33,8 @@
 5. 每组测试固定:输入 SHA-256、参数、输出元数据、日志。
 
 ## 二、架构问题解决(D1–D2)
+
+> D1 状态：已完成。已引入不可变 `RuntimeConfig`、稳定错误码、任务 ID 与规范化配置日志；默认 CLI/disk 行为不变。
 
 1. **统一参数配置**:`backend_mode`、`pipeline_mode`、模型、GPU、编码器、超分、场景检测集中到一个不可变配置对象;禁止在 VideoWorker / GUI / CLI / Native 重复解释同一参数。
 2. **Backend 生命周期统一**:`initialize → load_model → process → release`,要求:

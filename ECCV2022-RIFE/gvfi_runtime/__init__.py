@@ -22,6 +22,8 @@ from .interpolator_backend import (
     create_interpolator_backend,
 )
 from .native_library import NativeLibraryError, NativeLibraryLoader, NativeResult
+from .runtime_config import ConfigurationError, RuntimeConfig
+from .errors import BackendRuntimeError, CancelledError, ConfigError, ErrorCode, GvfiError, InputError
 from .native_bridge import (
     NativeGate,
     NativeWorkLoop,
@@ -63,6 +65,14 @@ __all__ = [
     "NativeLibraryError",
     "NativeLibraryLoader",
     "NativeResult",
+    "RuntimeConfig",
+    "ConfigurationError",
+    "ErrorCode",
+    "GvfiError",
+    "ConfigError",
+    "InputError",
+    "BackendRuntimeError",
+    "CancelledError",
     "NativeGate",
     "NativeWorkLoop",
     "NativeZonePool",

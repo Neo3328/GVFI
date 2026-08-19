@@ -4,10 +4,12 @@ import time
 import shutil
 import subprocess
 import ctypes
+import json
 import re
 import tempfile
 import threading
 import traceback
+import uuid
 from pathlib import Path
 
 try:
@@ -50,6 +52,8 @@ from gvfi_runtime.interpolator_backend import (
     BackendNotImplementedError,
     create_interpolator_backend,
 )
+from gvfi_runtime.errors import CancelledError, ErrorCode, GvfiError
+from gvfi_runtime.runtime_config import RuntimeConfig
 from tool_resolver import (
     RIFE_MODEL_CANDIDATES,
     RIFE_NCNN_DIRNAME,
@@ -116,11 +120,11 @@ def glass_palette(theme, opacity_pct):
     }
 
 
-class TaskCancelled(RuntimeError):
+class TaskCancelled(CancelledError):
     """用户主动停止任务。"""
 
 
-class ProcessExecutionError(RuntimeError):
+class ProcessExecutionError(GvfiError):
     """外部视频工具执行失败，并保留可读的错误尾部。"""
 
     def __init__(self, stage, return_code, detail, command=None):
@@ -139,8 +143,12 @@ class ProcessExecutionError(RuntimeError):
             if len(cmd_txt) > 500:
                 cmd_txt = cmd_txt[:500] + "…"
             cmd_txt = f"\n命令: {cmd_txt}"
+        code = ErrorCode.ENCODE_ERROR if "编码" in str(stage) or "合成" in str(stage) else ErrorCode.DECODE_ERROR
         super().__init__(
-            f"{stage}失败，退出码 {return_code}：{self.detail[-2000:]}{cmd_txt}"
+            f"{stage}失败，退出码 {return_code}：{self.detail[-2000:]}{cmd_txt}",
+            code=code,
+            stage=str(stage),
+            details={"return_code": return_code, "command": cmd_txt.strip()},
         )
 
 
@@ -291,7 +299,9 @@ class VideoWorker(QThread):
     def __init__(self, file_list, params, out_path, same_as_src, clean_cache):
         super().__init__()
         self.file_list = list(file_list)
-        self.params = dict(params)
+        self.runtime_config = RuntimeConfig.from_mapping(params)
+        self.params = self.runtime_config.apply_to(params)
+        self.task_id = uuid.uuid4().hex
         self.out_path = out_path
         self.same_as_src = same_as_src
         self.clean_cache = clean_cache
@@ -321,7 +331,7 @@ class VideoWorker(QThread):
         self._rife_pipeline_stats = RifePipelineStats()
         self._rife_stats_lock = threading.Lock()
         # Native fallback state — task-level, reset for each task.
-        self._requested_backend = str(self.params.get("backend_mode", "cli")).lower().strip()
+        self._requested_backend = self.runtime_config.backend_mode
         self._active_backend = self._requested_backend  # updated on fallback
         self._fallback_occurred = False
         self._fallback_reason = ""
@@ -347,6 +357,9 @@ class VideoWorker(QThread):
             f"  异常类型: {type(exc).__name__}",
             f"  异常信息: {exc}",
         ]
+        if isinstance(exc, GvfiError):
+            lines.append(f"  错误码: {exc.code.value}")
+            lines.append(f"  错误阶段: {exc.stage}")
         if isinstance(exc, ProcessExecutionError):
             lines.append(f"  阶段: {exc.stage}")
             lines.append(f"  退出码: {exc.return_code}")
@@ -1153,6 +1166,11 @@ class VideoWorker(QThread):
         current_temp_dir = None
 
         try:
+            self.log_output.emit(f"TASK CONFIG:\ntask_id={self.task_id}")
+            self.log_output.emit(
+                "runtime_config="
+                + json.dumps(self.runtime_config.as_dict(), ensure_ascii=False, sort_keys=True)
+            )
             self._validate_environment()
             self._ensure_interpolator_backend()
             temp_root = self._prepare_temp_root()
