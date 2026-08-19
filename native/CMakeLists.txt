@@ -3,6 +3,11 @@ project(gvfi_native LANGUAGES CXX)
 
 option(ENABLE_NCNN_BACKEND "Build the experimental ncnn Vulkan backend" OFF)
 
+if(MSVC)
+  # Keep the native DLL independent of process-wide MSVC runtime load order.
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -62,8 +67,13 @@ if(ENABLE_NCNN_BACKEND)
 
   list(APPEND GVFI_NATIVE_SOURCES
     src/ncnn_vulkan_backend.cpp
+    src/batch_rife_worker.cpp
+    src/batch_profile.cpp
+    src/pipeline_rife_worker.cpp
+    src/pipeline_poc_capi.cpp
     ${RIFE_SOURCE_DIR}/rife.cpp
     ${RIFE_SOURCE_DIR}/warp.cpp
+    ${RIFE_SOURCE_DIR}/process_v4_batch.cpp
     ${RIFE_SHADER_HEADERS}
   )
 endif()

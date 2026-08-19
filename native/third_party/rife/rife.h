@@ -28,6 +28,16 @@ public:
 
     int process_v4_cpu(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float timestep, ncnn::Mat& outimage) const;
 
+    // Batch processing: multiple frame pairs in single GPU submission
+    // All frame pairs must have the same dimensions
+    // Returns 0 on success, non-zero on failure
+    int process_v4_batch(
+        const ncnn::Mat* in0images,     // Array of batch_size frame pairs (frame0)
+        const ncnn::Mat* in1images,    // Array of batch_size frame pairs (frame1)
+        const float* timesteps,         // Array of batch_size timestamps
+        ncnn::Mat* outimages,           // Array of batch_size outputs
+        int batch_size) const;
+
 private:
     ncnn::VulkanDevice* vkdev;
     ncnn::Net flownet;

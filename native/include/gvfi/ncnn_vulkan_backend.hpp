@@ -32,6 +32,15 @@ class NcnnVulkanBackend {
                   float timestamp,
                   unsigned char* output,
                   std::string& error);
+  // Batch entry: multiple BGR frame pairs in one RIFE GPU submission.
+  bool processBgrBatch(const unsigned char* const* frames0,
+                       const unsigned char* const* frames1,
+                       const float* timestamps,
+                       unsigned char* const* outputs,
+                       int batch_size,
+                       int width,
+                       int height,
+                       std::string& error);
   void release() noexcept;
   const NcnnBackendInfo& info() const noexcept;
 

@@ -48,6 +48,33 @@ class _NativeBackendInfo(ctypes.Structure):
     ]
 
 
+class _NativeBatchProfile(ctypes.Structure):
+    _fields_ = [
+        ("struct_size", ctypes.c_uint32),
+        ("abi_version", ctypes.c_uint32),
+        ("batch_size", ctypes.c_int32),
+        ("vk_submit_count", ctypes.c_int32),
+        ("total_ms", ctypes.c_double),
+        ("record_ms", ctypes.c_double),
+        ("submit_ms", ctypes.c_double),
+        ("postprocess_ms", ctypes.c_double),
+    ]
+
+
+class _NativePipelineProfile(ctypes.Structure):
+    _fields_ = [
+        ("struct_size", ctypes.c_uint32),
+        ("abi_version", ctypes.c_uint32),
+        ("depth", ctypes.c_int32),
+        ("frame_count", ctypes.c_int32),
+        ("submit_count", ctypes.c_int32),
+        ("wall_ms", ctypes.c_double),
+        ("sum_job_ms", ctypes.c_double),
+        ("avg_frame_ms", ctypes.c_double),
+        ("overlap_ratio", ctypes.c_double),
+    ]
+
+
 _PIXEL_FORMATS = {
     "rgb24": (1, 3),
     "bgr24": (2, 3),
@@ -129,6 +156,20 @@ class NativeLibraryLoader:
             ctypes.POINTER(_NativeFrame),
             ctypes.c_double,
             ctypes.POINTER(_NativeFrame),
+        ]
+        # Batch processing
+        dll.gvfi_process_batch.restype = ctypes.c_int
+        dll.gvfi_process_batch.argtypes = [
+            ctypes.c_void_p,
+            ctypes.POINTER(_NativeFrame),  # frames0 array
+            ctypes.POINTER(_NativeFrame),  # frames1 array
+            ctypes.POINTER(ctypes.c_double),  # timestamps array
+            ctypes.POINTER(_NativeFrame),  # outputs array
+            ctypes.c_int,  # batch_size
+        ]
+        dll.gvfi_get_last_batch_profile.restype = ctypes.c_int
+        dll.gvfi_get_last_batch_profile.argtypes = [
+            ctypes.POINTER(_NativeBatchProfile),
         ]
 
     def create(self) -> None:
@@ -225,6 +266,124 @@ class NativeLibraryLoader:
             float(output.timestamp),
         )
 
+    def process_batch(
+        self,
+        frames0: list[Frame],
+        frames1: list[Frame],
+        timestamps: list[float],
+    ) -> tuple[NativeResult, list[Optional[Frame]]]:
+        """C6.4/C6.5 experimental batch ABI — NOT used by VideoWorker production path.
+
+        Production NativeInterpolatorBackend uses ``process()`` / ``gvfi_process`` only.
+        Kept for C6.x regression/profile harnesses; do not wire into VideoWorker.
+        """
+        dll = self._require_dll()
+        self._require_handle()
+
+        batch_size = len(frames0)
+        if batch_size != len(frames1) or batch_size != len(timestamps):
+            raise NativeLibraryError("frames0, frames1, and timestamps must have same length")
+
+        if batch_size <= 0:
+            raise NativeLibraryError("batch_size must be positive")
+
+        # Validate all frames have same dimensions
+        width = frames0[0].width
+        height = frames0[0].height
+        format_name = str(frames0[0].pixel_format or "").lower()
+        format_info = _PIXEL_FORMATS.get(format_name)
+        if format_info is None or format_info[1] != 3:
+            raise NativeLibraryError("native RIFE output currently supports RGB24/BGR24")
+
+        # Prepare frame arrays and buffers
+        native0_list = []
+        native1_list = []
+        buffers0 = []
+        buffers1 = []
+        output_buffers = []
+        native_outputs = []
+
+        for i in range(batch_size):
+            if frames0[i].width != width or frames0[i].height != height:
+                raise NativeLibraryError(f"frame {i} dimensions don't match batch dimensions")
+            native0, buf0 = self._convert_frame(frames0[i])
+            native1, buf1 = self._convert_frame(frames1[i])
+            native0_list.append(native0)
+            native1_list.append(native1)
+            buffers0.append(buf0)
+            buffers1.append(buf1)
+
+            output_buf = ctypes.create_string_buffer(width * height * 3)
+            output_buffers.append(output_buf)
+            native_out = _NativeFrame(
+                ctypes.cast(output_buf, ctypes.c_void_p),
+                len(output_buf),
+                width,
+                height,
+                width * 3,
+                format_info[0],
+                int(frames0[i].frame_index),
+                float(timestamps[i]),
+            )
+            native_outputs.append(native_out)
+
+        # Convert to ctypes arrays
+        frames0_array = (_NativeFrame * batch_size)(*native0_list)
+        frames1_array = (_NativeFrame * batch_size)(*native1_list)
+        timestamps_array = (ctypes.c_double * batch_size)(*timestamps)
+        outputs_array = (_NativeFrame * batch_size)(*native_outputs)
+
+        result = NativeResult(
+            dll.gvfi_process_batch(
+                self.handle,
+                frames0_array,
+                frames1_array,
+                timestamps_array,
+                outputs_array,
+                batch_size,
+            )
+        )
+
+        _ = buffers0, buffers1
+        if result is not NativeResult.SUCCESS:
+            return result, [None] * batch_size
+
+        # Convert outputs back to Frame objects
+        frames_out = []
+        for i in range(batch_size):
+            data_size = width * height * 3
+            frames_out.append(Frame(
+                bytes(output_buffers[i].raw[:data_size]),
+                width,
+                height,
+                format_name,
+                int(native_outputs[i].frame_index),
+                float(native_outputs[i].timestamp),
+            ))
+
+        return result, frames_out
+
+    def get_last_batch_profile(self) -> dict:
+        """C6.5 profiling ABI — timings from last ``gvfi_process_batch`` only.
+
+        Not invoked by VideoWorker. Retained for steady-state profile tests.
+        """
+        dll = self._require_dll()
+        profile = _NativeBatchProfile()
+        profile.struct_size = ctypes.sizeof(profile)
+        status = NativeResult(dll.gvfi_get_last_batch_profile(ctypes.byref(profile)))
+        if status is not NativeResult.SUCCESS:
+            raise NativeLibraryError(f"gvfi_get_last_batch_profile failed: {status.name}")
+        return {
+            "abi_version": int(profile.abi_version),
+            "batch_size": int(profile.batch_size),
+            "vk_submit_count": int(profile.vk_submit_count),
+            "total_ms": float(profile.total_ms),
+            "record_ms": float(profile.record_ms),
+            "submit_ms": float(profile.submit_ms),
+            "postprocess_ms": float(profile.postprocess_ms),
+        }
+
     def release(self) -> None:
         if self.dll is None or not self.handle.value:
             return
@@ -281,3 +440,202 @@ class NativeLibraryLoader:
             float(frame.timestamp),
         )
         return native, buffer
+
+
+class PipelinePocLoader:
+    """C6.6-only pipeline overlap handle. Independent of production gvfi_handle_t."""
+
+    def __init__(self, library_path=None):
+        self.library_path = library_path
+        self.dll = None
+        self.handle = ctypes.c_void_p()
+
+    def load(self):
+        if self.dll is not None:
+            return
+        path = self.library_path or next(
+            (candidate for candidate in _candidate_paths() if os.path.isfile(candidate)),
+            "",
+        )
+        if not path or not os.path.isfile(path):
+            raise NativeLibraryError("gvfi_native.dll was not found")
+        dll = ctypes.CDLL(path)
+        self._bind(dll)
+        self.library_path = os.path.abspath(path)
+        self.dll = dll
+
+    @staticmethod
+    def _bind(dll):
+        dll.gvfi_pipeline_create.restype = ctypes.c_int
+        dll.gvfi_pipeline_create.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
+        dll.gvfi_pipeline_destroy.restype = ctypes.c_int
+        dll.gvfi_pipeline_destroy.argtypes = [ctypes.c_void_p]
+        dll.gvfi_pipeline_initialize.restype = ctypes.c_int
+        dll.gvfi_pipeline_initialize.argtypes = [ctypes.c_void_p]
+        dll.gvfi_pipeline_load_model.restype = ctypes.c_int
+        dll.gvfi_pipeline_load_model.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_char_p,
+            ctypes.c_char_p,
+        ]
+        dll.gvfi_pipeline_process_sequence.restype = ctypes.c_int
+        dll.gvfi_pipeline_process_sequence.argtypes = [
+            ctypes.c_void_p,
+            ctypes.POINTER(_NativeFrame),
+            ctypes.POINTER(_NativeFrame),
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.POINTER(_NativeFrame),
+            ctypes.c_int,
+            ctypes.c_int,
+        ]
+        dll.gvfi_pipeline_get_last_profile.restype = ctypes.c_int
+        dll.gvfi_pipeline_get_last_profile.argtypes = [
+            ctypes.c_void_p,
+            ctypes.POINTER(_NativePipelineProfile),
+        ]
+
+    def create(self):
+        dll = self._require_dll()
+        handle = ctypes.c_void_p()
+        status = NativeResult(dll.gvfi_pipeline_create(ctypes.byref(handle)))
+        if status is not NativeResult.SUCCESS or not handle.value:
+            raise NativeLibraryError(f"gvfi_pipeline_create failed: {status.name}")
+        self.handle = handle
+
+    def initialize(self):
+        self._require_success(
+            self._require_dll().gvfi_pipeline_initialize(self.handle),
+            "gvfi_pipeline_initialize",
+        )
+
+    def load_model(self, param_path, bin_path):
+        return NativeResult(
+            self._require_dll().gvfi_pipeline_load_model(
+                self.handle,
+                param_path.encode("utf-8"),
+                bin_path.encode("utf-8"),
+            )
+        )
+
+    def process_sequence(self, frames0, frames1, timestamps, depth):
+        dll = self._require_dll()
+        if not self.handle.value:
+            raise NativeLibraryError("pipeline handle is not created")
+        frame_count = len(frames0)
+        if frame_count != len(frames1) or frame_count != len(timestamps):
+            raise NativeLibraryError("pipeline sequence length mismatch")
+        width = int(frames0[0].width)
+        height = int(frames0[0].height)
+        format_name = str(frames0[0].pixel_format or "").lower()
+        format_info = _PIXEL_FORMATS.get(format_name)
+        if format_info is None or format_info[1] != 3:
+            raise NativeLibraryError("pipeline PoC supports RGB24/BGR24 only")
+
+        native0_list = []
+        native1_list = []
+        buffers0 = []
+        buffers1 = []
+        output_buffers = []
+        native_outputs = []
+        for i in range(frame_count):
+            native0, buf0 = NativeLibraryLoader._convert_frame(frames0[i])
+            native1, buf1 = NativeLibraryLoader._convert_frame(frames1[i])
+            native0_list.append(native0)
+            native1_list.append(native1)
+            buffers0.append(buf0)
+            buffers1.append(buf1)
+            output_buf = ctypes.create_string_buffer(width * height * 3)
+            output_buffers.append(output_buf)
+            native_outputs.append(
+                _NativeFrame(
+                    ctypes.cast(output_buf, ctypes.c_void_p),
+                    len(output_buf),
+                    width,
+                    height,
+                    width * 3,
+                    format_info[0],
+                    int(frames0[i].frame_index),
+                    float(timestamps[i]),
+                )
+            )
+
+        frames0_array = (_NativeFrame * frame_count)(*native0_list)
+        frames1_array = (_NativeFrame * frame_count)(*native1_list)
+        timestamps_array = (ctypes.c_double * frame_count)(*timestamps)
+        outputs_array = (_NativeFrame * frame_count)(*native_outputs)
+
+        result = NativeResult(
+            dll.gvfi_pipeline_process_sequence(
+                self.handle,
+                frames0_array,
+                frames1_array,
+                timestamps_array,
+                outputs_array,
+                frame_count,
+                int(depth),
+            )
+        )
+        _ = buffers0, buffers1
+        profile = self.get_last_profile() if result is NativeResult.SUCCESS else {}
+        if result is not NativeResult.SUCCESS:
+            return result, [None] * frame_count, profile
+
+        frames_out = []
+        data_size = width * height * 3
+        for i in range(frame_count):
+            frames_out.append(
+                Frame(
+                    bytes(output_buffers[i].raw[:data_size]),
+                    width,
+                    height,
+                    format_name,
+                    int(native_outputs[i].frame_index),
+                    float(native_outputs[i].timestamp),
+                )
+            )
+        return result, frames_out, profile
+
+    def get_last_profile(self):
+        profile = _NativePipelineProfile()
+        profile.struct_size = ctypes.sizeof(profile)
+        status = NativeResult(
+            self._require_dll().gvfi_pipeline_get_last_profile(
+                self.handle, ctypes.byref(profile)
+            )
+        )
+        if status is not NativeResult.SUCCESS:
+            raise NativeLibraryError(
+                f"gvfi_pipeline_get_last_profile failed: {status.name}"
+            )
+        return {
+            "abi_version": int(profile.abi_version),
+            "depth": int(profile.depth),
+            "frame_count": int(profile.frame_count),
+            "submit_count": int(profile.submit_count),
+            "wall_ms": float(profile.wall_ms),
+            "sum_job_ms": float(profile.sum_job_ms),
+            "avg_frame_ms": float(profile.avg_frame_ms),
+            "overlap_ratio": float(profile.overlap_ratio),
+            "cpu_wait_proxy_ms": float(profile.sum_job_ms),
+            "fence_wait_proxy_ms": float(profile.sum_job_ms),
+            "total_gpu_job_ms": float(profile.sum_job_ms),
+        }
+
+    def destroy(self):
+        if self.dll is None or not self.handle.value:
+            return
+        self._require_success(
+            self.dll.gvfi_pipeline_destroy(self.handle), "gvfi_pipeline_destroy"
+        )
+        self.handle = ctypes.c_void_p()
+
+    def _require_dll(self):
+        if self.dll is None:
+            raise NativeLibraryError("pipeline native library is not loaded")
+        return self.dll
+
+    @staticmethod
+    def _require_success(result, operation):
+        status = NativeResult(result)
+        if status is not NativeResult.SUCCESS:
+            raise NativeLibraryError(f"{operation} failed: {status.name}")

@@ -7,6 +7,7 @@
 
 #include <exception>
 #include <filesystem>
+#include <vector>
 
 namespace gvfi {
 
@@ -120,6 +121,61 @@ bool NcnnVulkanBackend::processBgr(const unsigned char* frame0,
       result.h != height || result.elempack != 3) {
     error = "RIFE Vulkan forward failed";
     return false;
+  }
+  return true;
+}
+
+bool NcnnVulkanBackend::processBgrBatch(const unsigned char* const* frames0,
+                                        const unsigned char* const* frames1,
+                                        const float* timestamps,
+                                        unsigned char* const* outputs,
+                                        int batch_size,
+                                        int width,
+                                        int height,
+                                        std::string& error) {
+  if (!impl_->info.model_loaded || !impl_->rife || !frames0 || !frames1 ||
+      !timestamps || !outputs || batch_size <= 0 || width <= 0 || height <= 0) {
+    error = "RIFE batch process arguments or lifecycle state are invalid";
+    return false;
+  }
+
+  std::vector<ncnn::Mat> input0_batch(static_cast<size_t>(batch_size));
+  std::vector<ncnn::Mat> input1_batch(static_cast<size_t>(batch_size));
+  std::vector<float> timestamp_batch(static_cast<size_t>(batch_size));
+  std::vector<ncnn::Mat> output_batch(static_cast<size_t>(batch_size));
+
+  for (int i = 0; i < batch_size; ++i) {
+    if (!frames0[i] || !frames1[i] || !outputs[i] || timestamps[i] < 0.f ||
+        timestamps[i] > 1.f) {
+      error = "RIFE batch frame pointer or timestamp is invalid";
+      return false;
+    }
+    input0_batch[static_cast<size_t>(i)] = ncnn::Mat(
+        width, height, const_cast<unsigned char*>(frames0[i]),
+        static_cast<size_t>(3), 3);
+    input1_batch[static_cast<size_t>(i)] = ncnn::Mat(
+        width, height, const_cast<unsigned char*>(frames1[i]),
+        static_cast<size_t>(3), 3);
+    timestamp_batch[static_cast<size_t>(i)] = timestamps[i];
+    output_batch[static_cast<size_t>(i)] = ncnn::Mat(
+        width, height, outputs[i], static_cast<size_t>(3), 3);
+  }
+
+  const int process_result = impl_->rife->process_v4_batch(
+      input0_batch.data(), input1_batch.data(), timestamp_batch.data(),
+      output_batch.data(), batch_size);
+  if (process_result != 0) {
+    error = "RIFE Vulkan batch forward failed";
+    return false;
+  }
+
+  for (int i = 0; i < batch_size; ++i) {
+    const ncnn::Mat& result = output_batch[static_cast<size_t>(i)];
+    if (result.empty() || result.w != width || result.h != height ||
+        result.elempack != 3) {
+      error = "RIFE Vulkan batch output is invalid";
+      return false;
+    }
   }
   return true;
 }

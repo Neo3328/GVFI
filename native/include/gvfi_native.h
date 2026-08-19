@@ -77,6 +77,70 @@ GVFI_NATIVE_API gvfi_result_t gvfi_process(gvfi_handle_t handle,
                                            double timestamp,
                                            gvfi_frame_t* output);
 
+// Experimental batch ABI (C6.4/C6.5). NOT on the VideoWorker production path
+// (production uses gvfi_process only). Retained for profile/regression harnesses.
+// All frame pairs must have the same dimensions.
+GVFI_NATIVE_API gvfi_result_t gvfi_process_batch(
+    gvfi_handle_t handle,
+    const gvfi_frame_t* frames0,      // Array of batch_size frames (frame0 of each pair)
+    const gvfi_frame_t* frames1,     // Array of batch_size frames (frame1 of each pair)
+    const double* timestamps,         // Array of batch_size timestamps
+    gvfi_frame_t* outputs,           // Array of batch_size output frames
+    int batch_size);
+
+// C6.5 PoC: last process_v4_batch phase timings (ms). Does not alter algorithm.
+// Test/profile only; VideoWorker does not call this.
+#define GVFI_BATCH_PROFILE_ABI_VERSION 1u
+typedef struct gvfi_batch_profile {
+  uint32_t struct_size;
+  uint32_t abi_version;
+  int32_t batch_size;
+  int32_t vk_submit_count;
+  double total_ms;
+  double record_ms;
+  double submit_ms;
+  double postprocess_ms;
+} gvfi_batch_profile_t;
+
+GVFI_NATIVE_API gvfi_result_t gvfi_get_last_batch_profile(
+    gvfi_batch_profile_t* out_profile);
+
+// ---------------------------------------------------------------------------
+// C6.6 PoC-only pipeline overlap ABI (independent handle; not production path)
+// ---------------------------------------------------------------------------
+typedef void* gvfi_pipeline_handle_t;
+
+#define GVFI_PIPELINE_PROFILE_ABI_VERSION 1u
+typedef struct gvfi_pipeline_profile {
+  uint32_t struct_size;
+  uint32_t abi_version;
+  int32_t depth;
+  int32_t frame_count;
+  int32_t submit_count;
+  double wall_ms;
+  double sum_job_ms;
+  double avg_frame_ms;
+  double overlap_ratio;
+} gvfi_pipeline_profile_t;
+
+GVFI_NATIVE_API gvfi_result_t gvfi_pipeline_create(gvfi_pipeline_handle_t* out_handle);
+GVFI_NATIVE_API gvfi_result_t gvfi_pipeline_destroy(gvfi_pipeline_handle_t handle);
+GVFI_NATIVE_API gvfi_result_t gvfi_pipeline_initialize(gvfi_pipeline_handle_t handle);
+GVFI_NATIVE_API gvfi_result_t gvfi_pipeline_load_model(gvfi_pipeline_handle_t handle,
+                                                       const char* param_path,
+                                                       const char* bin_path);
+GVFI_NATIVE_API gvfi_result_t gvfi_pipeline_process_sequence(
+    gvfi_pipeline_handle_t handle,
+    const gvfi_frame_t* frames0,
+    const gvfi_frame_t* frames1,
+    const double* timestamps,
+    gvfi_frame_t* outputs,
+    int frame_count,
+    int depth);
+GVFI_NATIVE_API gvfi_result_t gvfi_pipeline_get_last_profile(
+    gvfi_pipeline_handle_t handle,
+    gvfi_pipeline_profile_t* out_profile);
+
 #ifdef __cplusplus
 }
 #endif

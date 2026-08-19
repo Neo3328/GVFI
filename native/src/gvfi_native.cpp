@@ -8,6 +8,7 @@
 #include <vector>
 
 #ifdef GVFI_ENABLE_NCNN_BACKEND
+#include "gvfi/batch_profile.hpp"
 #include "gvfi/ncnn_vulkan_backend.hpp"
 #endif
 
@@ -228,6 +229,119 @@ gvfi_result_t gvfi_process(gvfi_handle_t handle,
   return GVFI_SUCCESS;
 #else
   return GVFI_NOT_IMPLEMENTED;
+#endif
+}
+
+gvfi_result_t gvfi_process_batch(gvfi_handle_t handle,
+                                  const gvfi_frame_t* frames0,
+                                  const gvfi_frame_t* frames1,
+                                  const double* timestamps,
+                                  gvfi_frame_t* outputs,
+                                  int batch_size) {
+#ifndef GVFI_ENABLE_NCNN_BACKEND
+  (void)handle;
+  (void)frames0;
+  (void)frames1;
+  (void)timestamps;
+  (void)outputs;
+  (void)batch_size;
+  return GVFI_NOT_IMPLEMENTED;
+#else
+  if (!handle || !frames0 || !frames1 || !timestamps || !outputs || batch_size <= 0) {
+    return GVFI_INVALID_ARGUMENT;
+  }
+
+  auto* instance = reinterpret_cast<NativeInstance*>(handle);
+  if (!instance->initialized) {
+    return GVFI_FAILED;
+  }
+
+  // Validate all frames have the same dimensions
+  uint32_t width = frames0[0].width;
+  uint32_t height = frames0[0].height;
+  for (int i = 0; i < batch_size; ++i) {
+    if (!valid_input_frame(&frames0[i]) || !valid_input_frame(&frames1[i]) ||
+        frames0[i].width != width || frames0[i].height != height ||
+        frames1[i].width != width || frames1[i].height != height ||
+        !valid_input_frame(&outputs[i]) ||
+        outputs[i].width != width || outputs[i].height != height) {
+      return GVFI_INVALID_ARGUMENT;
+    }
+  }
+
+  if (!instance->ncnn_backend || !instance->ncnn_backend->info().model_loaded) {
+    return GVFI_FAILED;
+  }
+
+  // Convert all frames and prepare batch pointers for processBgrBatch().
+  std::vector<std::vector<unsigned char>> input0_batch(
+      static_cast<size_t>(batch_size));
+  std::vector<std::vector<unsigned char>> input1_batch(
+      static_cast<size_t>(batch_size));
+  std::vector<std::vector<unsigned char>> result_batch(
+      static_cast<size_t>(batch_size));
+  std::vector<const unsigned char*> frames0_ptrs(
+      static_cast<size_t>(batch_size));
+  std::vector<const unsigned char*> frames1_ptrs(
+      static_cast<size_t>(batch_size));
+  std::vector<unsigned char*> output_ptrs(static_cast<size_t>(batch_size));
+  std::vector<float> timestamp_batch(static_cast<size_t>(batch_size));
+
+  for (int i = 0; i < batch_size; ++i) {
+    if (timestamps[i] < 0.0 || timestamps[i] > 1.0) {
+      return GVFI_INVALID_ARGUMENT;
+    }
+    copy_to_bgr(frames0[i], input0_batch[static_cast<size_t>(i)]);
+    copy_to_bgr(frames1[i], input1_batch[static_cast<size_t>(i)]);
+    result_batch[static_cast<size_t>(i)].resize(static_cast<size_t>(width) *
+                                                height * 3);
+    frames0_ptrs[static_cast<size_t>(i)] =
+        input0_batch[static_cast<size_t>(i)].data();
+    frames1_ptrs[static_cast<size_t>(i)] =
+        input1_batch[static_cast<size_t>(i)].data();
+    output_ptrs[static_cast<size_t>(i)] =
+        result_batch[static_cast<size_t>(i)].data();
+    timestamp_batch[static_cast<size_t>(i)] =
+        static_cast<float>(timestamps[i]);
+  }
+
+  // No sequential fallback: batch path must go through processBgrBatch().
+  if (!instance->ncnn_backend->processBgrBatch(
+          frames0_ptrs.data(), frames1_ptrs.data(), timestamp_batch.data(),
+          output_ptrs.data(), batch_size, static_cast<int>(width),
+          static_cast<int>(height), instance->last_error)) {
+    return GVFI_FAILED;
+  }
+
+  for (int i = 0; i < batch_size; ++i) {
+    copy_from_bgr(result_batch[static_cast<size_t>(i)], outputs[i]);
+    outputs[i].frame_index = frames0[i].frame_index;
+    outputs[i].timestamp = timestamps[i];
+  }
+
+  return GVFI_SUCCESS;
+#endif
+}
+
+gvfi_result_t gvfi_get_last_batch_profile(gvfi_batch_profile_t* out_profile) {
+  if (!out_profile || out_profile->struct_size < sizeof(gvfi_batch_profile_t)) {
+    return GVFI_INVALID_ARGUMENT;
+  }
+#ifndef GVFI_ENABLE_NCNN_BACKEND
+  return GVFI_NOT_IMPLEMENTED;
+#else
+  gvfi::BatchGpuProfile profile;
+  if (!gvfi::load_batch_gpu_profile(profile) || !profile.valid) {
+    return GVFI_FAILED;
+  }
+  out_profile->abi_version = GVFI_BATCH_PROFILE_ABI_VERSION;
+  out_profile->batch_size = profile.batch_size;
+  out_profile->vk_submit_count = profile.vk_submit_count;
+  out_profile->total_ms = profile.total_ms;
+  out_profile->record_ms = profile.record_ms;
+  out_profile->submit_ms = profile.submit_ms;
+  out_profile->postprocess_ms = profile.postprocess_ms;
+  return GVFI_SUCCESS;
 #endif
 }
 
