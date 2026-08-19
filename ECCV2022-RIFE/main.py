@@ -340,7 +340,7 @@ class VideoWorker(QThread):
     def _emit_failure_detail(self, context: str, exc: BaseException) -> None:
         """Emit a multi-line diagnostic block for the UI error log panel."""
         tb = "".join(
-            traceback.format_exception(type(exc), exc, exc.__traceback())
+            traceback.format_exception(type(exc), exc, getattr(exc, "__traceback__", None))
         ).strip()
         lines = [
             f"  ❌ 处理异常失败：{context}",
@@ -777,6 +777,14 @@ class VideoWorker(QThread):
             stats.inference_time += inference
             stats.gpu_sample_total += gpu_total
             stats.gpu_sample_count += gpu_count
+            # Phase D3: accumulate native batch call-boundary stats per scene.
+            if self._active_backend == "native":
+                backend_stats = getattr(self._interpolator_backend, "stats", None)
+                if callable(backend_stats):
+                    stats.accumulate_native_stats(backend_stats())
+                reset = getattr(self._interpolator_backend, "reset_stats", None)
+                if callable(reset):
+                    reset()
         if not self._has_png_frames(output_dir):
             raise RuntimeError("RIFE produced no PNG frames")
         output_frames = self._count_png_frames(output_dir)

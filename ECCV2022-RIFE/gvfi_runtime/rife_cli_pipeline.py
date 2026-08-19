@@ -21,6 +21,14 @@ class RifePipelineStats:
     io_time: float = 0.0
     gpu_sample_total: float = 0.0
     gpu_sample_count: int = 0
+    # Native batch call-boundary stats (Phase D3)
+    native_batch_count: int = 0
+    native_frame_count: int = 0
+    python_to_native_call_count: int = 0
+    png_read_count: int = 0
+    png_write_count: int = 0
+    native_inference_time: float = 0.0
+    native_total_time: float = 0.0
 
     @property
     def average_frames_per_process(self) -> float:
@@ -29,6 +37,16 @@ class RifePipelineStats:
     @property
     def gpu_usage(self) -> float:
         return self.gpu_sample_total / self.gpu_sample_count if self.gpu_sample_count else 0.0
+
+    def accumulate_native_stats(self, stats: dict) -> None:
+        """Merge one native backend stats snapshot (per scene) into totals."""
+        self.native_batch_count += int(stats.get("native_batch_count", 0))
+        self.native_frame_count += int(stats.get("native_frame_count", 0))
+        self.python_to_native_call_count += int(stats.get("python_to_native_call_count", 0))
+        self.png_read_count += int(stats.get("png_read_count", 0))
+        self.png_write_count += int(stats.get("png_write_count", 0))
+        self.native_inference_time += float(stats.get("native_inference_time", 0.0))
+        self.native_total_time += float(stats.get("total_time", 0.0))
 
     def format_log(self) -> str:
         return (
@@ -40,7 +58,14 @@ class RifePipelineStats:
             f"startup_time={self.startup_time:.3f}s\n"
             f"inference_time={self.inference_time:.3f}s\n"
             f"io_time={self.io_time:.3f}s\n"
-            f"gpu_usage={self.gpu_usage:.1f}%"
+            f"gpu_usage={self.gpu_usage:.1f}%\n"
+            f"native_batch_count={self.native_batch_count}\n"
+            f"native_frame_count={self.native_frame_count}\n"
+            f"python_to_native_call_count={self.python_to_native_call_count}\n"
+            f"png_read_count={self.png_read_count}\n"
+            f"png_write_count={self.png_write_count}\n"
+            f"native_inference_time={self.native_inference_time:.3f}s\n"
+            f"native_total_time={self.native_total_time:.3f}s"
         )
 
 
