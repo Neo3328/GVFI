@@ -61,6 +61,13 @@ from gvfi_runtime.errors import CancelledError, ErrorCode, GvfiError
 from gvfi_runtime.runtime_config import RuntimeConfig
 from gvfi_runtime.task_lifecycle import TaskLifecycle, TaskState
 from gvfi_runtime.media_contract import build_output_video_filter, probe_media_contract
+from gvfi_runtime.task_artifacts import (
+    estimate_disk_space,
+    require_disk_space,
+    reserve_output_path,
+    validate_output_video,
+    write_task_report,
+)
 from tool_resolver import (
     RIFE_MODEL_CANDIDATES,
     RIFE_NCNN_DIRNAME,
@@ -313,6 +320,10 @@ class VideoWorker(QThread):
         self.same_as_src = same_as_src
         self.clean_cache = clean_cache
         self.is_running = True
+        self.completed_outputs = []
+        self.output_validations = []
+        self.disk_estimates = []
+        self.report_path = ""
 
         tools = resolve_runtime_tools()
         self.base_dir = tools["base_dir"]
@@ -1017,13 +1028,23 @@ class VideoWorker(QThread):
             os.makedirs(target_dir, exist_ok=True)
 
             out_file_name = f"{name_no_ext}_enhanced{ext}"
-            out_file_path = os.path.join(target_dir, out_file_name)
+            out_file_path = reserve_output_path(target_dir, out_file_name)
+            if os.path.basename(out_file_path) != out_file_name:
+                self.log_output.emit(
+                    f"  ⚠️ 输出文件已存在，使用安全文件名：{os.path.basename(out_file_path)}"
+                )
             target_fps = float(self.params["fps"])
             scale_val = self.params["scale"]
             target_codec = self.params["codec"]
             keep_audio = bool(self.params.get("keep_audio", True))
             crf = int(self.params.get("crf", 18))
             encode_preset = self.params.get("encode_preset", "medium")
+            scale_factor = 1
+            if scale_val != "原始":
+                try:
+                    scale_factor = int(scale_val.lower().replace("x", "").strip())
+                except (TypeError, ValueError):
+                    scale_factor = 2
 
             source_fps = self._probe_fps(file_path)
             self._source_width, self._source_height = self._probe_video_size(file_path)
@@ -1034,6 +1055,25 @@ class VideoWorker(QThread):
             )
             for warning in media_contract.warnings:
                 self.log_output.emit(f"  ⚠️ FORMAT POLICY: {warning}")
+            if self.runtime_config.pipeline_mode == "disk":
+                estimated_source_frames = max(1, media_contract.frame_count)
+                estimated_target_count = compute_target_frame_count(
+                    estimated_source_frames, source_fps, target_fps
+                )
+                disk_estimate = estimate_disk_space(
+                    temp_root,
+                    self._source_width,
+                    self._source_height,
+                    estimated_source_frames,
+                    estimated_target_count,
+                    scale_factor=scale_factor,
+                )
+                self.disk_estimates.append(disk_estimate.as_dict())
+                self.log_output.emit(
+                    "DISK CAPACITY:\n"
+                    + json.dumps(disk_estimate.as_dict(), ensure_ascii=False, sort_keys=True)
+                )
+                require_disk_space(disk_estimate)
             self.params["rife_thread_config"] = self._effective_rife_thread_config()
             self.log_output.emit(f"▶ [{index + 1}/{len(self.file_list)}] 开始处理: {file_name}")
             self.log_output.emit(
@@ -1206,8 +1246,42 @@ class VideoWorker(QThread):
             ffmpeg_merge.append(out_file_path)
 
             self._run_command(ffmpeg_merge, "FFmpeg 视频合成")
-            if not os.path.isfile(out_file_path) or os.path.getsize(out_file_path) <= 0:
-                raise OSError("视频合成结束，但输出文件不存在或为空")
+            try:
+                validation = validate_output_video(self.FFPROBE, out_file_path)
+                expected_width = self._source_width * scale_factor
+                expected_height = self._source_height * scale_factor
+                expected_width += expected_width % 2
+                expected_height += expected_height % 2
+                expected_frames = self._count_png_frames(use_frame_dir)
+                if (validation.width, validation.height) != (expected_width, expected_height):
+                    raise RuntimeError(
+                        f"输出尺寸校验失败：{validation.width}x{validation.height}，"
+                        f"预期 {expected_width}x{expected_height}"
+                    )
+                if validation.frame_count != expected_frames:
+                    raise RuntimeError(
+                        f"输出帧数校验失败：{validation.frame_count}，预期 {expected_frames}"
+                    )
+                if abs(validation.fps - target_fps) > 0.01:
+                    raise RuntimeError(
+                        f"输出 FPS 校验失败：{validation.fps}，预期 {target_fps}"
+                    )
+                if has_audio and validation.audio_stream_count < 1:
+                    raise RuntimeError("输出音频校验失败：音轨丢失")
+            except Exception:
+                if os.path.isfile(out_file_path):
+                    invalid_path = reserve_output_path(
+                        target_dir, os.path.basename(out_file_path) + ".invalid"
+                    )
+                    os.replace(out_file_path, invalid_path)
+                    self.log_output.emit(f"  ⚠️ 无效输出已隔离：{invalid_path}")
+                raise
+            self.completed_outputs.append(out_file_path)
+            self.output_validations.append(validation.as_dict())
+            self.log_output.emit(
+                "OUTPUT VALIDATION:\n"
+                + json.dumps(validation.as_dict(), ensure_ascii=False, sort_keys=True)
+            )
 
             self._update_progress(index, 3)
             self.log_output.emit(f"  ✅ 渲染完成！输出路径：{out_file_path}\n")
@@ -1302,6 +1376,7 @@ class VideoWorker(QThread):
             )
 
         if early_result is not None:
+            self._write_task_report()
             self.task_finished.emit(*early_result)
             return
 
@@ -1309,11 +1384,13 @@ class VideoWorker(QThread):
             self.log_output.emit("\n🧹 [系统] 全部任务缓存清理完毕，磁盘空间已释放")
 
         if failed_count:
+            self._write_task_report()
             summary = f"处理结束：成功 {completed_count} 个，失败 {failed_count} 个"
             if self._last_failure_detail:
                 summary = f"{summary}\n{self._last_failure_detail.strip()}"
             self.task_finished.emit(False, summary)
         else:
+            self._write_task_report()
             if self.runtime_config.pipeline_mode == "memory":
                 self.task_finished.emit(
                     True,
@@ -1321,6 +1398,28 @@ class VideoWorker(QThread):
                 )
             else:
                 self.task_finished.emit(True, "✅ 所有任务处理完成！")
+
+    def _write_task_report(self):
+        target_dir = self.out_path
+        if self.same_as_src and self.file_list:
+            target_dir = os.path.dirname(self.file_list[0])
+        if not target_dir:
+            target_dir = os.path.join(self.base_dir, "user_data", "reports")
+        payload = {
+            "task_id": self.task_id,
+            "lifecycle": self.lifecycle.snapshot(),
+            "runtime_config": self.runtime_config.as_dict(),
+            "inputs": list(self.file_list),
+            "outputs": list(self.completed_outputs),
+            "output_validations": list(self.output_validations),
+            "disk_estimates": list(self.disk_estimates),
+            "failure_detail": self._last_failure_detail,
+        }
+        try:
+            self.report_path = write_task_report(target_dir, self.task_id, payload)
+            self.log_output.emit(f"TASK REPORT:\npath={self.report_path}")
+        except OSError as exc:
+            self.log_output.emit(f"TASK REPORT FAILED:\nreason={exc}")
 
     def stop(self):
         self.is_running = False

@@ -56,6 +56,8 @@ class MediaContract:
     height: int
     average_fps: float
     nominal_fps: float
+    frame_count: int
+    duration_seconds: float
     variable_frame_rate: bool
     pixel_format: str
     bit_depth: int
@@ -94,6 +96,16 @@ def parse_media_contract(payload: dict) -> MediaContract:
     hdr = transfer in {"smpte2084", "arib-std-b67"} or primaries.startswith("bt2020")
     depth = _bit_depth(video)
     rotation = _rotation(video)
+    try:
+        duration = float(video.get("duration") or (payload.get("format") or {}).get("duration") or 0.0)
+    except (TypeError, ValueError):
+        duration = 0.0
+    try:
+        frame_count = int(video.get("nb_frames") or 0)
+    except (TypeError, ValueError):
+        frame_count = 0
+    if frame_count <= 0 and duration > 0 and (average_fps or nominal_fps) > 0:
+        frame_count = max(1, int(round(duration * (average_fps or nominal_fps))))
     warnings = []
     if variable:
         warnings.append("VFR input is normalized to the configured constant output FPS")
@@ -115,6 +127,8 @@ def parse_media_contract(payload: dict) -> MediaContract:
         height=int(video.get("height") or 0),
         average_fps=average_fps or nominal_fps,
         nominal_fps=nominal_fps or average_fps,
+        frame_count=frame_count,
+        duration_seconds=duration,
         variable_frame_rate=variable,
         pixel_format=pixel_format,
         bit_depth=depth,
@@ -132,7 +146,7 @@ def parse_media_contract(payload: dict) -> MediaContract:
 
 def probe_media_contract(ffprobe: str, input_path: str) -> MediaContract:
     result = subprocess.run(
-        [ffprobe, "-v", "error", "-show_streams", "-of", "json", input_path],
+        [ffprobe, "-v", "error", "-show_streams", "-show_format", "-of", "json", input_path],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         stdin=subprocess.DEVNULL,

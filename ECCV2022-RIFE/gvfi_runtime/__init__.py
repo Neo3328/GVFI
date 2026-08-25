@@ -49,6 +49,16 @@ from .media_contract import (
     probe_media_contract,
 )
 from .resource_monitor import ResourceSnapshot, sample_resources, summarize_resources
+from .task_artifacts import (
+    DiskEstimate,
+    InsufficientDiskSpaceError,
+    OutputValidation,
+    estimate_disk_space,
+    require_disk_space,
+    reserve_output_path,
+    validate_output_video,
+    write_task_report,
+)
 from .native_bridge import (
     NativeGate,
     NativeWorkLoop,
@@ -114,6 +124,14 @@ __all__ = [
     "ResourceSnapshot",
     "sample_resources",
     "summarize_resources",
+    "DiskEstimate",
+    "InsufficientDiskSpaceError",
+    "OutputValidation",
+    "estimate_disk_space",
+    "require_disk_space",
+    "reserve_output_path",
+    "validate_output_video",
+    "write_task_report",
     "NativeGate",
     "NativeWorkLoop",
     "NativeZonePool",

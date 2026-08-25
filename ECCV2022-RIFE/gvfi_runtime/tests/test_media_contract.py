@@ -10,11 +10,14 @@ class MediaContractTests(unittest.TestCase):
         contract = parse_media_contract({"streams": [{
             "codec_type": "video", "codec_name": "h264", "width": 1920, "height": 1080,
             "avg_frame_rate": "24/1", "r_frame_rate": "24/1", "pix_fmt": "yuv420p",
+            "nb_frames": "48", "duration": "2.0",
             "color_space": "bt709", "color_range": "tv", "color_transfer": "bt709",
             "color_primaries": "bt709",
         }]})
         self.assertFalse(contract.variable_frame_rate)
         self.assertEqual(contract.bit_depth, 8)
+        self.assertEqual(contract.frame_count, 48)
+        self.assertEqual(contract.duration_seconds, 2.0)
         self.assertEqual(contract.warnings, ())
 
     def test_vfr_multiaudio_rotation_hdr_and_alpha_policy(self) -> None:

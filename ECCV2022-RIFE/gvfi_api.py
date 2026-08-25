@@ -594,10 +594,25 @@ def _start_worker(job_id: str, file_path: str, settings: dict) -> None:
 
     def on_finished(success: bool, message: str) -> None:
         if orch is not None:
+            fields = {"report_path": worker.report_path} if worker.report_path else {}
+            if success and worker.completed_outputs:
+                fields["output_path"] = worker.completed_outputs[-1]
+            if fields:
+                _update_task(job_id, **fields)
             orch.post_finished(job_id, success, message)
             return
         if success:
-            _update_task(job_id, output_path=_guess_output_path(file_path, out_path))
+            _update_task(
+                job_id,
+                output_path=(
+                    worker.completed_outputs[-1]
+                    if worker.completed_outputs
+                    else _guess_output_path(file_path, out_path)
+                ),
+                report_path=worker.report_path,
+            )
+        elif worker.report_path:
+            _update_task(job_id, report_path=worker.report_path)
         _finish_job(job_id, success, message)
 
     worker.progress_updated.connect(on_progress)
@@ -618,7 +633,7 @@ def _start_worker(job_id: str, file_path: str, settings: dict) -> None:
 def _finish_job_from_orch(
     job_id: str, success: bool, message: str, file_path: str, out_path: str
 ) -> None:
-    if success:
+    if success and not _task_snapshot(job_id).get("output_path"):
         _update_task(job_id, output_path=_guess_output_path(file_path, out_path))
     _finish_job(job_id, success, message)
 
@@ -644,6 +659,7 @@ def _create_job(input_path: str, settings: dict) -> dict:
         "id": job_id,
         "input_path": input_path,
         "output_path": "",
+        "report_path": "",
         "status": "pending",
         "progress": 0.0,
         "stage": "queued",
