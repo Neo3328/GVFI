@@ -66,6 +66,12 @@ class TestRifeCliPipeline(unittest.TestCase):
         self.assertIn("average_frames_per_process=24.00", text)
         self.assertIn("gpu_usage=90.0%", text)
 
+    def test_native_model_count_is_not_derived_from_process_count(self) -> None:
+        stats = RifePipelineStats(process_count=4, model_load_count=1)
+        text = stats.format_log()
+        self.assertIn("process_count=4", text)
+        self.assertIn("model_load_count=1", text)
+
 
 if __name__ == "__main__":
     unittest.main()

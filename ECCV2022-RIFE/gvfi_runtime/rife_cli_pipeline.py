@@ -15,6 +15,7 @@ from typing import List, Sequence, Tuple
 @dataclass
 class RifePipelineStats:
     process_count: int = 0
+    model_load_count: int | None = None
     total_frames: int = 0
     startup_time: float = 0.0
     inference_time: float = 0.0
@@ -49,10 +50,11 @@ class RifePipelineStats:
         self.native_total_time += float(stats.get("total_time", 0.0))
 
     def format_log(self) -> str:
+        model_load_count = self.process_count if self.model_load_count is None else self.model_load_count
         return (
             "RIFE PIPELINE:\n"
             f"process_count={self.process_count}\n"
-            f"model_load_count={self.process_count}\n"
+            f"model_load_count={model_load_count}\n"
             f"total_frames={self.total_frames}\n"
             f"average_frames_per_process={self.average_frames_per_process:.2f}\n"
             f"startup_time={self.startup_time:.3f}s\n"

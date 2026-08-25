@@ -17,6 +17,8 @@ if ENGINE_ROOT not in sys.path:
 
 from gvfi_runtime.rife_scene_scheduler import (  # noqa: E402
     RifeWorkerManager,
+    SceneContractError,
+    SceneProcessResult,
     SceneTask,
     SceneTaskQueue,
 )
@@ -55,6 +57,56 @@ class TestSceneTaskQueue(unittest.TestCase):
 
 
 class TestRifeWorkerManager(unittest.TestCase):
+    def test_rejects_noncontiguous_output_ranges_before_staging(self) -> None:
+        with tempfile.TemporaryDirectory() as root:
+            first = make_task(root, 1)
+            second = make_task(root, 2)
+            second = SceneTask(**{
+                **second.__dict__,
+                "output_start_index": 3,
+            })
+            staged = []
+            with self.assertRaisesRegex(SceneContractError, "not contiguous"):
+                RifeWorkerManager().run(
+                    [first, second],
+                    stage=lambda task: staged.append(task.scene_index),
+                    process=lambda _task: None,
+                    collect=lambda _task: None,
+                )
+            self.assertEqual(staged, [])
+
+    def test_persistent_backend_does_not_report_scene_model_reloads(self) -> None:
+        with tempfile.TemporaryDirectory() as root:
+            tasks = [make_task(root, index) for index in (1, 2, 3)]
+            stats = RifeWorkerManager().run(
+                tasks,
+                stage=lambda _task: None,
+                process=lambda _task: SceneProcessResult(model_loaded=False),
+                collect=lambda _task: None,
+            )
+            self.assertEqual(stats.scene_process_count, 3)
+            self.assertEqual(stats.model_reload_count, 0)
+
+    def test_processing_failure_cancels_all_unfinished_tasks(self) -> None:
+        with tempfile.TemporaryDirectory() as root:
+            tasks = [make_task(root, index) for index in (1, 2, 3)]
+            manager = RifeWorkerManager(queue_size=2)
+
+            def process(task: SceneTask) -> None:
+                if task.scene_index == 1:
+                    raise RuntimeError("inference failed")
+
+            with self.assertRaisesRegex(RuntimeError, "inference failed"):
+                manager.run(
+                    tasks,
+                    stage=lambda _task: None,
+                    process=process,
+                    collect=lambda _task: None,
+                )
+            states = manager.state_snapshot()
+            self.assertEqual(states[1], "failed")
+            self.assertTrue(all(states[index] == "cancelled" for index in (2, 3)))
+
     def test_compatible_tasks_are_ordered_and_staging_overlaps_processing(self) -> None:
         with tempfile.TemporaryDirectory() as root:
             tasks = [make_task(root, index) for index in (1, 2, 3)]
@@ -127,6 +179,37 @@ class TestRifeWorkerManager(unittest.TestCase):
                 for index in (1, 2, 3)
             ]
             self.assertEqual(output, expected)
+
+    def test_scene_collection_ranges_do_not_mix_boundary_payloads(self) -> None:
+        with tempfile.TemporaryDirectory() as root:
+            tasks = [make_task(root, 1), make_task(root, 2)]
+            tasks = [
+                SceneTask(**{**tasks[0].__dict__, "target_frames": 3, "output_start_index": 1}),
+                SceneTask(**{**tasks[1].__dict__, "target_frames": 3, "output_start_index": 4}),
+            ]
+            final_payloads = {}
+
+            def process(task: SceneTask) -> None:
+                os.makedirs(task.output_path)
+                marker = f"scene-{task.scene_index}".encode("ascii")
+                for offset in range(task.target_frames):
+                    with open(os.path.join(task.output_path, f"{offset + 1:08d}.png"), "wb") as handle:
+                        handle.write(marker)
+
+            def collect(task: SceneTask) -> None:
+                for offset, name in enumerate(sorted(os.listdir(task.output_path))):
+                    with open(os.path.join(task.output_path, name), "rb") as handle:
+                        final_payloads[task.output_start_index + offset] = handle.read()
+
+            RifeWorkerManager().run(
+                tasks,
+                stage=lambda _task: None,
+                process=process,
+                collect=collect,
+            )
+            self.assertEqual(sorted(final_payloads), [1, 2, 3, 4, 5, 6])
+            self.assertEqual([final_payloads[i] for i in (1, 2, 3)], [b"scene-1"] * 3)
+            self.assertEqual([final_payloads[i] for i in (4, 5, 6)], [b"scene-2"] * 3)
 
     def test_staging_failure_closes_queue_and_records_state(self) -> None:
         with tempfile.TemporaryDirectory() as root:

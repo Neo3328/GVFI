@@ -46,7 +46,12 @@ from gvfi_runtime.rife_cli_pipeline import (
     collect_frames,
     stage_frame_range,
 )
-from gvfi_runtime.rife_scene_scheduler import RifeWorkerManager, RifeWorkerStats, SceneTask
+from gvfi_runtime.rife_scene_scheduler import (
+    RifeWorkerManager,
+    RifeWorkerStats,
+    SceneProcessResult,
+    SceneTask,
+)
 from gvfi_runtime.interpolator_backend import (
     BackendError,
     BackendNotImplementedError,
@@ -55,6 +60,7 @@ from gvfi_runtime.interpolator_backend import (
 from gvfi_runtime.errors import CancelledError, ErrorCode, GvfiError
 from gvfi_runtime.runtime_config import RuntimeConfig
 from gvfi_runtime.task_lifecycle import TaskLifecycle, TaskState
+from gvfi_runtime.media_contract import build_output_video_filter, probe_media_contract
 from tool_resolver import (
     RIFE_MODEL_CANDIDATES,
     RIFE_NCNN_DIRNAME,
@@ -330,6 +336,7 @@ class VideoWorker(QThread):
         self._source_width = 0
         self._source_height = 0
         self._rife_pipeline_stats = RifePipelineStats()
+        self._pending_native_model_loads = 0
         self._rife_stats_lock = threading.Lock()
         # Native fallback state — task-level, reset for each task.
         self._requested_backend = self.runtime_config.backend_mode
@@ -522,6 +529,7 @@ class VideoWorker(QThread):
             model_path = self.RIFE_MODEL or ""
             if self._interpolator_backend.model_path != model_path:
                 self._interpolator_backend.load_model(model_path)
+                self._pending_native_model_loads += 1
         except (BackendError, NativeFallback, BackendNotImplementedError) as exc:
             self._switch_to_cli(exc, "backend_initialize")
 
@@ -806,6 +814,10 @@ class VideoWorker(QThread):
             startup, inference, gpu_total, gpu_count = monitor.stop()
             stats = self._rife_pipeline_stats
             stats.process_count += 1
+            if stats.model_load_count is None:
+                stats.model_load_count = 0
+            if self._active_backend == "cli":
+                stats.model_load_count += 1
             stats.startup_time += startup
             stats.inference_time += inference
             stats.gpu_sample_total += gpu_total
@@ -837,6 +849,8 @@ class VideoWorker(QThread):
         3) otherwise single-pass RIFE to target frame count
         """
         self._rife_pipeline_stats = RifePipelineStats()
+        self._rife_pipeline_stats.model_load_count = self._pending_native_model_loads
+        self._pending_native_model_loads = 0
         enable_dedup = bool(self.params.get("enable_dedup", True))
         enable_scdet = bool(self.params.get("enable_scdet", True))
         dedup_threshold = float(self.params.get("dedup_threshold", 1.5))
@@ -894,7 +908,7 @@ class VideoWorker(QThread):
                 RifeWorkerStats(
                     worker_start=1,
                     scene_count=1,
-                    model_reload_count=1,
+                    model_reload_count=1 if self._active_backend == "cli" else 0,
                     scene_process_count=1,
                 ).format_log()
             )
@@ -936,6 +950,11 @@ class VideoWorker(QThread):
                     task.input_frames, task.input_path, 0, len(task.input_frames)
                 )
                 self._add_rife_io_time(stage_time)
+                if copied != len(task.input_frames):
+                    raise RuntimeError(
+                        f"scene {task.scene_index} staged {copied} frames; "
+                        f"expected {len(task.input_frames)}"
+                    )
                 self.log_output.emit(
                     f"    · 场景 {task.scene_index}/{len(scene_tasks)}: "
                     f"{copied} -> {task.target_frames} frames "
@@ -944,6 +963,7 @@ class VideoWorker(QThread):
 
             def process_scene(task):
                 self._run_rife(task.input_path, task.output_path, task.target_frames)
+                return SceneProcessResult(model_loaded=self._active_backend == "cli")
 
             def collect_scene(task):
                 source = task.output_path if task.requires_inference else task.input_path
@@ -1007,6 +1027,13 @@ class VideoWorker(QThread):
 
             source_fps = self._probe_fps(file_path)
             self._source_width, self._source_height = self._probe_video_size(file_path)
+            media_contract = probe_media_contract(self.FFPROBE, file_path)
+            self.log_output.emit(
+                "MEDIA CONTRACT:\n"
+                + json.dumps(media_contract.as_dict(), ensure_ascii=False, sort_keys=True)
+            )
+            for warning in media_contract.warnings:
+                self.log_output.emit(f"  ⚠️ FORMAT POLICY: {warning}")
             self.params["rife_thread_config"] = self._effective_rife_thread_config()
             self.log_output.emit(f"▶ [{index + 1}/{len(self.file_list)}] 开始处理: {file_name}")
             self.log_output.emit(
@@ -1158,9 +1185,9 @@ class VideoWorker(QThread):
                 ffmpeg_merge.extend(["-i", audio_path])
             # PNG frames are full-range RGB; convert to limited-range BT.709 YUV
             # and tag the stream so players do not guess colorspace.
+            ffmpeg_merge.extend(["-vf", build_output_video_filter(use_sdr_bt709)])
             if use_sdr_bt709:
                 ffmpeg_merge.extend([
-                    "-vf", "scale=in_range=full:out_color_matrix=bt709:out_range=tv",
                     "-colorspace", "bt709",
                     "-color_primaries", "bt709",
                     "-color_trc", "bt709",

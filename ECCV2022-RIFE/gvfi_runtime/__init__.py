@@ -20,7 +20,15 @@ from .frame_pipeline import (
     decode_and_consume,
 )
 from .rife_cli_pipeline import RifePipelineStats
-from .rife_scene_scheduler import RifeWorkerManager, RifeWorkerStats, SceneTask, SceneTaskQueue
+from .rife_scene_scheduler import (
+    RifeWorkerManager,
+    RifeWorkerStats,
+    SceneContractError,
+    SceneProcessResult,
+    SceneTask,
+    SceneTaskQueue,
+    validate_scene_tasks,
+)
 from .interpolator_backend import (
     BackendCapabilityError,
     BackendError,
@@ -34,6 +42,12 @@ from .native_library import NativeLibraryError, NativeLibraryLoader, NativeResul
 from .runtime_config import ConfigurationError, RuntimeConfig
 from .errors import BackendRuntimeError, CancelledError, ConfigError, ErrorCode, GvfiError, InputError
 from .task_lifecycle import FailureRecord, TaskLifecycle, TaskState
+from .media_contract import (
+    MediaContract,
+    build_output_video_filter,
+    parse_media_contract,
+    probe_media_contract,
+)
 from .native_bridge import (
     NativeGate,
     NativeWorkLoop,
@@ -66,6 +80,9 @@ __all__ = [
     "RifePipelineStats",
     "SceneTask",
     "SceneTaskQueue",
+    "SceneContractError",
+    "SceneProcessResult",
+    "validate_scene_tasks",
     "RifeWorkerManager",
     "RifeWorkerStats",
     "BackendError",
@@ -89,6 +106,10 @@ __all__ = [
     "FailureRecord",
     "TaskLifecycle",
     "TaskState",
+    "MediaContract",
+    "build_output_video_filter",
+    "parse_media_contract",
+    "probe_media_contract",
     "NativeGate",
     "NativeWorkLoop",
     "NativeZonePool",

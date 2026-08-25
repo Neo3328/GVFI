@@ -9,6 +9,10 @@ from dataclasses import dataclass
 from typing import Callable, Optional, Sequence, Tuple
 
 
+class SceneContractError(ValueError):
+    """Raised before scheduling when scene ranges or ordering are unsafe."""
+
+
 @dataclass(frozen=True)
 class SceneTask:
     scene_index: int
@@ -26,6 +30,51 @@ class SceneTask:
     @property
     def compatibility_key(self) -> Tuple[str, int, Tuple[int, int]]:
         return self.model, self.gpu, self.resolution
+
+    @property
+    def expected_output_frames(self) -> int:
+        return self.target_frames if self.requires_inference else len(self.input_frames)
+
+    @property
+    def output_end_index(self) -> int:
+        return self.output_start_index + self.expected_output_frames
+
+
+@dataclass(frozen=True)
+class SceneProcessResult:
+    """Optional process callback result for actual model-load accounting."""
+
+    model_loaded: bool = True
+
+
+def validate_scene_tasks(tasks: Sequence[SceneTask]) -> None:
+    seen_indices = set()
+    previous_scene_index = None
+    next_output_by_path = {}
+    for task in tasks:
+        if task.scene_index in seen_indices:
+            raise SceneContractError(f"duplicate scene_index: {task.scene_index}")
+        if previous_scene_index is not None and task.scene_index <= previous_scene_index:
+            raise SceneContractError("scene tasks must be strictly ordered")
+        if not task.input_frames:
+            raise SceneContractError(f"scene {task.scene_index} has no input frames")
+        if task.target_frames <= 0 or task.expected_output_frames <= 0:
+            raise SceneContractError(f"scene {task.scene_index} has invalid output count")
+        if task.output_start_index <= 0:
+            raise SceneContractError(f"scene {task.scene_index} has invalid output start")
+        if any(int(value) <= 0 for value in task.resolution):
+            raise SceneContractError(f"scene {task.scene_index} has invalid resolution")
+        if task.input_path == task.output_path:
+            raise SceneContractError(f"scene {task.scene_index} reuses input as output")
+        expected_start = next_output_by_path.get(task.final_output_path)
+        if expected_start is not None and task.output_start_index != expected_start:
+            raise SceneContractError(
+                f"scene {task.scene_index} output range is not contiguous: "
+                f"expected {expected_start}, got {task.output_start_index}"
+            )
+        next_output_by_path[task.final_output_path] = task.output_end_index
+        seen_indices.add(task.scene_index)
+        previous_scene_index = task.scene_index
 
 
 class SceneTaskQueue:
@@ -85,7 +134,7 @@ class RifeWorkerStats:
 
 
 StageFn = Callable[[SceneTask], None]
-ProcessFn = Callable[[SceneTask], None]
+ProcessFn = Callable[[SceneTask], Optional[SceneProcessResult]]
 CollectFn = Callable[[SceneTask], None]
 StopFn = Optional[Callable[[], None]]
 
@@ -116,6 +165,7 @@ class RifeWorkerManager:
         ensure_running: StopFn = None,
     ) -> RifeWorkerStats:
         stats = RifeWorkerStats(scene_count=len(tasks))
+        validate_scene_tasks(tasks)
         with self._states_lock:
             self._states = {task.scene_index: "queued" for task in tasks}
         if not tasks:
@@ -125,6 +175,12 @@ class RifeWorkerManager:
         task_queue = SceneTaskQueue(self.queue_size)
         cancel = threading.Event()
         producer_errors = []
+
+        def cancel_unfinished() -> None:
+            with self._states_lock:
+                for scene_index, state in self._states.items():
+                    if state not in {"completed", "failed"}:
+                        self._states[scene_index] = "cancelled"
 
         def producer() -> None:
             try:
@@ -137,7 +193,10 @@ class RifeWorkerManager:
                         self._set_state(task.scene_index, "staged")
                         task_queue.put(task, cancel)
                     except BaseException:
-                        self._set_state(task.scene_index, "failed")
+                        self._set_state(
+                            task.scene_index,
+                            "cancelled" if cancel.is_set() else "failed",
+                        )
                         raise
             except BaseException as exc:
                 producer_errors.append(exc)
@@ -153,6 +212,7 @@ class RifeWorkerManager:
         staging_thread.start()
 
         active_key = None
+        consumer_error = None
         try:
             while True:
                 if ensure_running is not None:
@@ -170,25 +230,30 @@ class RifeWorkerManager:
                 self._set_state(task.scene_index, "processing")
                 try:
                     if task.requires_inference:
-                        process(task)
-                        # Current CLI backend reloads the model for every process.
-                        stats.model_reload_count += 1
+                        process_result = process(task)
+                        if not isinstance(process_result, SceneProcessResult) or process_result.model_loaded:
+                            stats.model_reload_count += 1
                     collect(task)
                     stats.scene_process_count += 1
                     self._set_state(task.scene_index, "completed")
                 except BaseException:
                     self._set_state(task.scene_index, "failed")
                     raise
-        except BaseException:
+        except BaseException as exc:
+            consumer_error = exc
             cancel.set()
             task_queue.close()
-            raise
+            cancel_unfinished()
         finally:
             staging_thread.join(timeout=5.0)
             stats.scheduling_time = time.perf_counter() - started_at
 
         if staging_thread.is_alive():
-            raise RuntimeError("scene staging thread did not stop")
+            raise RuntimeError("scene staging thread did not stop") from consumer_error
+        if consumer_error is not None:
+            cancel_unfinished()
+            raise consumer_error
         if producer_errors:
+            cancel_unfinished()
             raise RuntimeError(f"scene staging failed: {producer_errors[0]}") from producer_errors[0]
         return stats
