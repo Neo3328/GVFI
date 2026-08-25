@@ -56,6 +56,8 @@
 
 ## 四、内存/磁盘管线遗留问题(D4)
 
+> D4 状态：已完成基础治理。FrameQueue 已具备哨兵关闭、异常传播、超时退出和完整统计；memory 模式仍为明确的 decode/queue/consume 验证路径，尚未接 RIFE 或编码器。
+
 1. disk 模式保留为稳定 fallback;memory 模式先只在 Native Backend 使用。
 2. FrameQueue 增加:有界容量、超时、sentinel、shutdown、producer/consumer 异常传播;禁止消费者异常后生产者永久阻塞。
 3. 处理:空视频、单帧视频、损坏 PNG、解码中断、编码失败、磁盘空间不足。

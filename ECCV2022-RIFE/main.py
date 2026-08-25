@@ -1015,6 +1015,7 @@ class VideoWorker(QThread):
             )
 
             if self.params.get("pipeline_mode", "disk") == "memory":
+                memory_result = []
                 consumed = decode_and_consume(
                     self.FFMPEG,
                     file_path,
@@ -1024,8 +1025,15 @@ class VideoWorker(QThread):
                     worker_count=self.params.get("worker_count", 1),
                     fps=source_fps,
                     stop_event=self._stop_event,
+                    stats_callback=memory_result.append,
                 )
+                self._ensure_running()
                 self.log_output.emit(f"  memory frame pipeline consumed {consumed} frames (RIFE not connected)")
+                if memory_result:
+                    self.log_output.emit(
+                        "FRAME PIPELINE RESULT:\n"
+                        + json.dumps(memory_result[0].__dict__, ensure_ascii=False, sort_keys=True)
+                    )
                 return out_file_path
             self.log_output.emit(
                 f"  ↳ 参数: {target_fps:g}fps | {scale_val}超分 | {target_codec} | CRF {crf} | "
@@ -1195,7 +1203,12 @@ class VideoWorker(QThread):
             )
             self._validate_environment()
             self.lifecycle.transition(TaskState.INITIALIZING)
-            self._ensure_interpolator_backend()
+            if self.runtime_config.pipeline_mode == "disk":
+                self._ensure_interpolator_backend()
+            else:
+                self.log_output.emit(
+                    "BACKEND INIT:\nstatus=skipped\nreason=memory_pipeline_validation_only"
+                )
             temp_root = self._prepare_temp_root()
             self.lifecycle.transition(TaskState.RUNNING)
             self.log_output.emit("🚀 [环境自检] FFmpeg: 就绪 | RIFE Vulkan: 就绪 | Real-ESRGAN: 就绪")
@@ -1274,7 +1287,13 @@ class VideoWorker(QThread):
                 summary = f"{summary}\n{self._last_failure_detail.strip()}"
             self.task_finished.emit(False, summary)
         else:
-            self.task_finished.emit(True, "✅ 所有任务处理完成！")
+            if self.runtime_config.pipeline_mode == "memory":
+                self.task_finished.emit(
+                    True,
+                    "✅ Memory Frame Pipeline 验证完成（实验模式，未生成输出视频）",
+                )
+            else:
+                self.task_finished.emit(True, "✅ 所有任务处理完成！")
 
     def stop(self):
         self.is_running = False
