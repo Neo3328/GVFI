@@ -12,12 +12,12 @@
 |----------|-------------|------|
 | Phase B1–B3 | 已完结(历史) | FrameQueue 基础、CLI Pipeline 优化、Scene Scheduler |
 | Phase C0–C5.2 | 已完结(历史) | Native Backend 从 PoC 到 VideoWorker A/B 验证通过 |
-| **Phase C6(进行中)** | **= D3** | Native 批量调用边界优化(已改 `interpolator_backend.py`,未提交) |
+| **Phase C6(已完成)** | **= D3** | Native 批量调用边界优化(已提交 `363ee76`,A/B 与稳定性测试通过) |
 
 **当前最优先三个问题(解决前不新增 AI 模型 / 复杂 GUI):**
-1. Native 逐帧调用导致性能落后 2–3 倍 → **D3**
-2. Native fallback 与错误状态未产品化 → **D2**（D1 统一错误契约已完成）
-3. 工作区大量未分类实验文件与未提交改动 → **D0**
+1. ~~Native 逐帧调用导致性能落后 2–3 倍 → D3~~ ✅ 已解决（批量接口,调用 23→1/场景,Native≈CLI）
+2. ~~Native fallback 与错误状态未产品化 → D2~~ ✅ 已完成
+3. ~~工作区大量未分类实验文件与未提交改动 → D0~~ ✅ 已完成
 
 ---
 
@@ -47,12 +47,14 @@
 
 > D2 状态：已完成。VideoWorker 已接入线程安全生命周期状态、协作式取消、受保护的 Backend 释放、结构化 fallback 记录和最终 `TASK RESULT` 日志；完整 fallback 集成测试 10/10 通过。
 
-## 三、Native Backend 优化(D3 — 原 Phase C6)
+## 三、Native Backend 优化(D3 — 原 Phase C6) ✅ 已完成
 
-1. 减少 Python↔DLL 逐帧调用,增加批量 Frame 接口。
-2. 一个场景内模型常驻;禁止跨场景传递输入帧;保留 CLI fallback。
-3. 统计:`batch_count` / `frame_count` / `native_call_count` / `model_load_count`(真实值,不再假设=process_count)/ Vulkan init time / inference time / PNG IO time。
-4. 优化前后对比:输出帧数、帧顺序、MAE、PSNR、内存、稳定性。
+> 状态：已完成。批量接口已接入生产路径，A/B 性能对比 Native≈CLI(0.95–1.00x)，10/10 稳定性通过，像素级一致性验证通过。详见 `docs/native/native-batch-boundary.md`。
+
+1. 减少 Python↔DLL 逐帧调用,增加批量 Frame 接口。 ✅
+2. 一个场景内模型常驻;禁止跨场景传递输入帧;保留 CLI fallback。 ✅
+3. 统计:`batch_count` / `frame_count` / `native_call_count` / `model_load_count`(真实值,不再假设=process_count)/ Vulkan init time / inference time / PNG IO time。 ✅
+4. 优化前后对比:输出帧数、帧顺序、MAE、PSNR、内存、稳定性。 ✅
 
 ## 四、内存/磁盘管线遗留问题(D4)
 
@@ -91,7 +93,7 @@
 
 ## 九、测试体系升级(D6)
 
-> D6 状态：短时基线已完成。单实例 Native 1080p forward 100/100、完整 Native VideoWorker 10/10，0 fallback/崩溃/NaN/Inf；资源采样已建立。多小时 soak 尚未执行，因此内存泄漏风险未正式关闭。
+> D6 状态：短时基线已完成（二次验证 2026-08-25：100/100 forward、10/10 worker、0 fallback、pass=True；forward avg 45.9ms/p95 49.2ms，worker 6.3–9.6s/任务）。单实例 Native 1080p forward 100/100、完整 Native VideoWorker 10/10，0 fallback/崩溃/NaN/Inf；资源采样已建立。多小时 soak 尚未执行，因此内存泄漏风险未正式关闭。
 
 四层测试:
 1. 单元:Frame、FrameQueue、参数校验、时间戳、错误码;
@@ -114,13 +116,13 @@
 ## 推荐执行顺序
 
 ```
-D0 工作区与依赖清理
-D1 参数与错误模型统一
-D2 VideoWorker 生命周期与取消机制
-D3 Native 批量调用边界(原 C6,进行中)
-D4 FrameQueue memory pipeline
-D5 格式兼容性与场景调度
-D6 长稳与压力测试
-D7 功能应用完善
-D8 发布候选版本
+✅ D0 工作区与依赖清理
+✅ D1 参数与错误模型统一
+✅ D2 VideoWorker 生命周期与取消机制
+✅ D3 Native 批量调用边界(原 C6)
+✅ D4 FrameQueue memory pipeline
+✅ D5 格式兼容性与场景调度
+✅ D6 短时稳定性基线(多小时 soak 待执行)
+✅ D7 功能应用完善
+⬜ D8 发布候选版本
 ```
