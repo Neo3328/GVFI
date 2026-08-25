@@ -54,6 +54,7 @@ from gvfi_runtime.interpolator_backend import (
 )
 from gvfi_runtime.errors import CancelledError, ErrorCode, GvfiError
 from gvfi_runtime.runtime_config import RuntimeConfig
+from gvfi_runtime.task_lifecycle import TaskLifecycle, TaskState
 from tool_resolver import (
     RIFE_MODEL_CANDIDATES,
     RIFE_NCNN_DIRNAME,
@@ -333,6 +334,7 @@ class VideoWorker(QThread):
         # Native fallback state — task-level, reset for each task.
         self._requested_backend = self.runtime_config.backend_mode
         self._active_backend = self._requested_backend  # updated on fallback
+        self.lifecycle = TaskLifecycle(self.task_id, self._requested_backend)
         self._fallback_occurred = False
         self._fallback_reason = ""
         self._interpolator_backend = create_interpolator_backend(
@@ -521,20 +523,38 @@ class VideoWorker(QThread):
             if self._interpolator_backend.model_path != model_path:
                 self._interpolator_backend.load_model(model_path)
         except (BackendError, NativeFallback, BackendNotImplementedError) as exc:
-            self._switch_to_cli(str(exc))
+            self._switch_to_cli(exc, "backend_initialize")
 
-    def _switch_to_cli(self, reason: str) -> None:
+    def _release_backend(self) -> None:
+        """Release the active backend without masking the task's primary result."""
+        backend = self._interpolator_backend
+        backend_name = getattr(backend, "name", self._active_backend)
+        try:
+            backend.release()
+        except Exception as exc:
+            self.lifecycle.record_release_failure(exc, backend_name)
+            self.log_output.emit(
+                f"BACKEND RELEASE FAILED:\nbackend={backend_name}\nreason={exc}"
+            )
+        else:
+            self.lifecycle.mark_released(backend_name)
+
+    def _switch_to_cli(self, reason: str | BaseException, stage: str = "native_backend") -> None:
         """Switch from Native to CLI backend within the current task."""
         if self._active_backend == "cli":
             return  # Already on CLI, nothing to do.
+        exc = reason if isinstance(reason, BaseException) else BackendError(str(reason), stage=stage)
+        failure = self.lifecycle.record_fallback(exc, stage)
         self.log_output.emit(
-            f"  ⚠️ NATIVE BACKEND FAILED — FALLING BACK TO CLI\n"
-            f"    reason: {reason}\n"
-            f"    Native backend will not be used for this task."
+            "NATIVE BACKEND FAILED\n"
+            "FALLBACK TO CLI\n"
+            f"failure_stage={failure.stage}\n"
+            f"error_code={failure.code}\n"
+            f"reason={failure.message}"
         )
-        self._interpolator_backend.release()
+        self._release_backend()
         self._fallback_occurred = True
-        self._fallback_reason = reason[:200]  # truncate long paths
+        self._fallback_reason = failure.message[:200]
         self._active_backend = "cli"
         # Build a fresh CLI backend — it shares the same command runner.
         self._interpolator_backend = create_interpolator_backend(
@@ -765,7 +785,7 @@ class VideoWorker(QThread):
             # Only attempt fallback once per task.
             if self._active_backend == "native":
                 monitor.stop()
-                self._switch_to_cli(str(exc))
+                self._switch_to_cli(exc, "backend_process")
                 # Re-initialize CLI backend now that we've switched.
                 if not self._interpolator_backend.initialized:
                     self._interpolator_backend.initialize()
@@ -1164,16 +1184,20 @@ class VideoWorker(QThread):
         failed_count = 0
         completed_count = 0
         current_temp_dir = None
+        early_result = None
 
         try:
+            self.lifecycle.transition(TaskState.VALIDATING)
             self.log_output.emit(f"TASK CONFIG:\ntask_id={self.task_id}")
             self.log_output.emit(
                 "runtime_config="
                 + json.dumps(self.runtime_config.as_dict(), ensure_ascii=False, sort_keys=True)
             )
             self._validate_environment()
+            self.lifecycle.transition(TaskState.INITIALIZING)
             self._ensure_interpolator_backend()
             temp_root = self._prepare_temp_root()
+            self.lifecycle.transition(TaskState.RUNNING)
             self.log_output.emit("🚀 [环境自检] FFmpeg: 就绪 | RIFE Vulkan: 就绪 | Real-ESRGAN: 就绪")
             if self.file_list:
                 self._source_width, self._source_height = self._probe_video_size(
@@ -1197,6 +1221,7 @@ class VideoWorker(QThread):
                     raise
                 except Exception as exc:
                     failed_count += 1
+                    self.lifecycle.record_failure(exc, "video_process")
                     self._emit_failure_detail(
                         f"文件 [{index + 1}/{len(self.file_list)}] {file_path}",
                         exc,
@@ -1213,19 +1238,32 @@ class VideoWorker(QThread):
             self._ensure_running()
             if failed_count == 0:
                 self.progress_updated.emit(100)
-        except TaskCancelled:
-            self.task_finished.emit(False, "⏹ 任务已被用户取消，后台子进程已终止")
-            return
+                self.lifecycle.transition(TaskState.SUCCEEDED)
+            else:
+                self.lifecycle.transition(TaskState.FAILED)
+        except TaskCancelled as exc:
+            self.lifecycle.record_failure(exc, "cancel")
+            self.lifecycle.transition(TaskState.CANCELLED)
+            early_result = (False, "⏹ 任务已被用户取消，后台子进程已终止")
         except Exception as exc:
+            self.lifecycle.record_failure(exc, "task_initialize")
+            self.lifecycle.transition(TaskState.FAILED)
             self._emit_failure_detail("任务初始化 / 环境自检", exc)
             summary = f"任务启动失败：{type(exc).__name__}: {exc}"
-            self.task_finished.emit(False, summary)
-            return
+            early_result = (False, summary)
         finally:
-            self._interpolator_backend.release()
+            self._release_backend()
             with self._process_lock:
                 process = self._active_process
             self._terminate_process_tree(process)
+            self.log_output.emit(
+                "TASK RESULT:\n"
+                + json.dumps(self.lifecycle.snapshot(), ensure_ascii=False, sort_keys=True)
+            )
+
+        if early_result is not None:
+            self.task_finished.emit(*early_result)
+            return
 
         if self.clean_cache:
             self.log_output.emit("\n🧹 [系统] 全部任务缓存清理完毕，磁盘空间已释放")
@@ -1240,6 +1278,7 @@ class VideoWorker(QThread):
 
     def stop(self):
         self.is_running = False
+        self.lifecycle.transition(TaskState.CANCELLING)
         self._stop_event.set()
         self.requestInterruption()
         with self._process_lock:

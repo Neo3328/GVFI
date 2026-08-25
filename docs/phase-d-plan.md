@@ -45,6 +45,8 @@
    - 记录失败阶段、错误码、原始异常、fallback 是否成功、最终任务状态;
    - 禁止"任务成功"但实际走了未知后端。
 
+> D2 状态：已完成。VideoWorker 已接入线程安全生命周期状态、协作式取消、受保护的 Backend 释放、结构化 fallback 记录和最终 `TASK RESULT` 日志；完整 fallback 集成测试 10/10 通过。
+
 ## 三、Native Backend 优化(D3 — 原 Phase C6)
 
 1. 减少 Python↔DLL 逐帧调用,增加批量 Frame 接口。

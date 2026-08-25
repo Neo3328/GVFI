@@ -24,6 +24,7 @@ from .interpolator_backend import (
 from .native_library import NativeLibraryError, NativeLibraryLoader, NativeResult
 from .runtime_config import ConfigurationError, RuntimeConfig
 from .errors import BackendRuntimeError, CancelledError, ConfigError, ErrorCode, GvfiError, InputError
+from .task_lifecycle import FailureRecord, TaskLifecycle, TaskState
 from .native_bridge import (
     NativeGate,
     NativeWorkLoop,
@@ -73,6 +74,9 @@ __all__ = [
     "InputError",
     "BackendRuntimeError",
     "CancelledError",
+    "FailureRecord",
+    "TaskLifecycle",
+    "TaskState",
     "NativeGate",
     "NativeWorkLoop",
     "NativeZonePool",
