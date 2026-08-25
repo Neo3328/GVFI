@@ -48,6 +48,7 @@ from .media_contract import (
     parse_media_contract,
     probe_media_contract,
 )
+from .resource_monitor import ResourceSnapshot, sample_resources, summarize_resources
 from .native_bridge import (
     NativeGate,
     NativeWorkLoop,
@@ -110,6 +111,9 @@ __all__ = [
     "build_output_video_filter",
     "parse_media_contract",
     "probe_media_contract",
+    "ResourceSnapshot",
+    "sample_resources",
+    "summarize_resources",
     "NativeGate",
     "NativeWorkLoop",
     "NativeZonePool",

@@ -89,6 +89,8 @@
 
 ## 九、测试体系升级(D6)
 
+> D6 状态：短时基线已完成。单实例 Native 1080p forward 100/100、完整 Native VideoWorker 10/10，0 fallback/崩溃/NaN/Inf；资源采样已建立。多小时 soak 尚未执行，因此内存泄漏风险未正式关闭。
+
 四层测试:
 1. 单元:Frame、FrameQueue、参数校验、时间戳、错误码;
 2. Backend:CLI、Native、fallback、release、model hash;
