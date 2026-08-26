@@ -2,15 +2,70 @@
 
 All notable changes to GVFI are documented in this file.
 
-## [Unreleased] — Repository hygiene
+## [1.1.0] — 2026-08-26 · Native backend · Phase D engineering hardening
+
+> Phase D: from "feature-complete" to "maintainable, verifiable, releasable". Native RIFE backend promoted to production-ready with CLI fallback; no GUI/IA changes.
+
+### Native RIFE backend (production)
+
+- **In-process ncnn/Vulkan backend**: `gvfi_native.dll` + `NativeInterpolatorBackend` replaces per-scene `rife-ncnn-vulkan.exe` subprocess. Model stays resident across frames; Vulkan compute pipeline reused.
+- **Batch call boundary** (D3): Python→DLL calls reduced from 23/scene to **1/scene** (−96%); PNG reads 48→24 (−50%); GPU submit 23→1. A/B benchmark: Native ≈ CLI (0.95–1.00×) at 1080p; batch vs per-frame pixel-identical.
+- **Backend interface abstraction**: `InterpolatorBackend`统一 CLI/Native 生命周期 (`initialize → load_model → process → release`); release is idempotent and thread-safe.
+- **Structured CLI fallback**: Native init/model/forward failure logs `NATIVE BACKEND FAILED — FALLBACK TO CLI` with stage, error code, and reason; no silent fallback; `backend_mode=cli` behavior unchanged.
+
+### Runtime configuration & error contract (D1)
+
+- Immutable `RuntimeConfig` centralizes `backend_mode`, `pipeline_mode`, model, GPU, codec, SR, scene detection — no duplicated parameter interpretation across Worker/API/CLI/Native.
+- Stable error codes: `CONFIG_ERROR` / `INPUT_ERROR` / `DECODE_ERROR` / `MODEL_ERROR` / `VULKAN_ERROR` / `BACKEND_ERROR` / `ENCODE_ERROR` / `CANCELLED` / `UNKNOWN_ERROR`.
+- Per-task `task_id` with parameter snapshot, backend, model hash, GPU, stage timings, output path, error info, fallback status.
+
+### VideoWorker lifecycle (D2)
+
+- Thread-safe lifecycle state machine with cooperative cancellation; protected backend release; structured fallback records; final `TASK RESULT` log.
+- Full fallback integration test: 10/10 pass.
+
+### Memory frame pipeline (D4)
+
+- `FrameQueue` with bounded capacity, timeout, sentinel shutdown, producer/consumer exception propagation; consumer failure never deadlocks producer.
+- Memory decode path (ffmpeg stdout → Frame queue) validated: single-frame, corrupt input, pre-cancelled, processor failure all exit cleanly.
+- Queue stats: current/peak length, wait time, discard count, close reason.
+
+### Scene & media format contracts (D5)
+
+- Scene scheduler validates output ranges before execution; failed scenes do not contaminate subsequent scenes; Native/CLI model-load counts tracked separately (no more `process_count == model_load_count` assumption).
+- Media contract covers H.264/H.265/AV1, audio tracks, VFR/CFR, rotation metadata, HDR, 10-bit, alpha, odd-dimension padding policy; color matrix (BT.601/709) and range (limited/full) explicit.
+
+### Task output safety (D7)
+
+- Output path conflict protection (never overwrites existing file).
+- Disk-space pre-check with explicit `INSUFFICIENT_DISK_SPACE` error.
+- Post-encode output integrity validation (ffprobe metadata contract: resolution/fps/frames/colorspace/audio).
+- Failed outputs quarantined; per-task JSON report (`task_report.json`) with success/failure, parameters, timings, output path.
+- API returns real output path.
+
+### Stability baseline (D6)
+
+- 100× Native forward (1080p, persistent backend): 100/100 pass, 0 NaN/Inf, avg 45.9ms/frame (p95 49.2ms, p99 51.0ms) on RTX 5060 Laptop.
+- 10× complete VideoWorker tasks (24→48fps, 1080p): 10/10 pass, 0 fallback, 0 Vulkan error, output contract 100% correct (bt709/AAC/48frames).
+- Resource sampling: RSS/GPU-memory deltas recorded; GPU memory released after backend teardown.
+- Test suite: 55 unit + 11 integration tests, all green.
+
+### Repository hygiene
 
 - `.gitignore`: exclude `web-ui/_asar-extract/`, coverage/test report folders, Playwright output, `scripts/release-artifacts/`, stray uploads, signing keys/certs (`.pfx`/`.p12`/`.key`/`.jks`), `.asar` build artifacts, and final Release attachments (`GVFI-Setup-*.exe`, `GVFI-Portable-*.zip`, `SHA256SUMS.txt`) so installers stay GitHub Release–only.
 - `web-ui/.gitignore`: keep the secret-free `.env.example` trackable (`!.env.example`).
 - Docs: add `SECURITY.md`; README now notes the proprietary `LICENSE` and legal hub route.
-- Release naming: standardize on `GVFI-Setup-<version>-x64.exe` and `GVFI-Portable-<version>-x64.exe` (electron-builder `portable` target produces a single-file EXE regardless of extension), plus a generated `SHA256SUMS.txt` (`scripts/release-checksums.ps1`).
-- Packaging hardening: disable Next.js production browser source maps and exclude `*.map` / `.env*` from `extraResources` so installers do not ship development files.
-- Git index: stop tracking `web-ui/_asar-extract/**` (extracted Electron artifacts); files remain on disk, ignored going forward.
-- CI: add `.github/workflows/release.yml` — tag-triggered Windows build, locked `npm ci`, lint/type/test gates, artifact verification, SHA256SUMS generation, and GitHub Release upload. Signing secrets are read exclusively from GitHub Actions Secrets (`CSC_LINK`, `CSC_KEY_PASSWORD`).
+- Release naming: standardize on `GVFI-Setup-<version>-x64.exe` and `GVFI-Portable-<version>-x64.exe`, plus generated `SHA256SUMS.txt` (`scripts/release-checksums.ps1`).
+- Packaging hardening: disable Next.js production browser source maps and exclude `*.map` / `.env*` from `extraResources`.
+- CI: `.github/workflows/release.yml` — tag-triggered Windows build, locked `npm ci`, lint/type/test gates, artifact verification, SHA256SUMS generation, GitHub Release upload.
+
+### Known limitations (not in 1.1.0)
+
+- Multi-hour soak test not yet executed; memory-leak closure is evidence-based but not formally proven.
+- PSNR/SSIM quality threshold not formally defined (CLI vs Native mapping difference = 24.52 dB; batch vs per-frame pixel-identical).
+- Native backend remains opt-in (`backend_mode=native`); CLI is still default.
+- Memory pipeline (`pipeline_mode=memory`) is validation-only, not yet wired to RIFE/encoder.
+- Breakpoint resume, batch file queue deferred.
 
 ## [1.0.0] — 2026-08-09 · First public Windows release
 
