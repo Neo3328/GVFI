@@ -11,6 +11,7 @@ import Link from "next/link";
 import { AppearancePanel } from "@/components/appearance-panel";
 import { FontDisplayPanel } from "@/components/settings/font-display-panel";
 import { DeveloperSettingsPanel } from "@/components/settings/developer-settings-panel";
+import { ConfigBackupPanel } from "@/components/settings/config-backup-panel";
 import { LogsPanel } from "@/components/logs-panel";
 import { CopyrightFooter } from "@/components/brand/copyright-footer";
 import { APP_NAME } from "@/lib/brand";
@@ -19,7 +20,7 @@ import { useWorkspaceChrome } from "@/components/workspace/workspace-chrome-cont
 import { useT } from "@/hooks/use-t";
 import { cn } from "@/lib/utils";
 
-type SystemTab = "appearance" | "display" | "developer" | "logs" | "about";
+type SystemTab = "appearance" | "display" | "backup" | "developer" | "logs" | "about";
 
 export function SystemSettingsPage() {
   const t = useT();
@@ -41,6 +42,7 @@ export function SystemSettingsPage() {
   const tabs: { id: SystemTab; label: string }[] = [
     { id: "appearance", label: t("system.tab.appearance") },
     { id: "display", label: t("system.tab.display") },
+    { id: "backup", label: t("system.tab.backup") },
     { id: "developer", label: t("system.tab.developer") },
     { id: "logs", label: t("system.tab.logs") },
     { id: "about", label: t("system.tab.about") },
@@ -85,6 +87,8 @@ export function SystemSettingsPage() {
       ) : null}
 
       {tab === "display" ? <FontDisplayPanel /> : null}
+
+      {tab === "backup" ? <ConfigBackupPanel /> : null}
 
       {tab === "developer" ? <DeveloperSettingsPanel /> : null}
 

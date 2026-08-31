@@ -490,6 +490,16 @@ export const en: MessageDict = {
   "settings.developer.modelPlugins": "Model plugins:{count}",
   "settings.developer.panels": "Panels:{count}",
   "settings.developer.noExtensions": "(No extension points)",
+  "system.tab.backup": "Backup",
+  "system.backup.title": "Configuration backup",
+  "system.backup.desc": "Export or import local settings for migration and recovery.",
+  "system.backup.security": "API keys and tokens are excluded by default. Importing a redacted file preserves the secrets already on this device. Only transfer backups between trusted devices.",
+  "system.backup.includeSecrets": "Include API keys and tokens (caution)",
+  "system.backup.export": "Export configuration",
+  "system.backup.import": "Import configuration",
+  "system.backup.exported": "Configuration exported",
+  "system.backup.imported": "Configuration imported and applied",
+  "system.backup.invalid": "Invalid or incompatible backup file",
 
   /* About page (UI labels only — brand/copyright values stay in @/lib/brand) */
   "about.chromeTitle": "About",

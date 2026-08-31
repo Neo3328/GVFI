@@ -469,6 +469,16 @@ export const zhCN = {
   "settings.developer.modelPlugins": "模型插件:{count}",
   "settings.developer.panels": "面板:{count}",
   "settings.developer.noExtensions": "（无扩展点）",
+  "system.tab.backup": "备份",
+  "system.backup.title": "配置备份",
+  "system.backup.desc": "导出或导入本机设置，便于迁移与恢复。",
+  "system.backup.security": "默认不导出 API 密钥和 Token；导入脱敏文件时会保留当前密钥。请仅在可信设备间传输备份文件。",
+  "system.backup.includeSecrets": "包含 API 密钥和 Token（谨慎）",
+  "system.backup.export": "导出配置",
+  "system.backup.import": "导入配置",
+  "system.backup.exported": "配置已导出",
+  "system.backup.imported": "配置已导入并生效",
+  "system.backup.invalid": "文件无效或版本不兼容",
 
   /* About page (UI labels only — brand/copyright values stay in @/lib/brand) */
   "about.chromeTitle": "关于",
