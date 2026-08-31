@@ -1,6 +1,7 @@
 "use client";
 
 import type { JobStatus } from "@/lib/gvfi-types";
+import type { ReactNode } from "react";
 import { GlassButton } from "@/components/glass/glass-button";
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/glass/glass-card";
 import { GlassProgress } from "@/components/glass/glass-progress";
@@ -19,7 +20,7 @@ const STAGE_KEYS: Record<string, MessageKey> = {
 };
 
 export type GlassTaskCardProps = {
-  title: string;
+  title: ReactNode;
   status: JobStatus | "idle";
   stage?: string;
   progress?: number;

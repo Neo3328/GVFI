@@ -1034,6 +1034,7 @@ class VideoWorker(QThread):
                     f"  ⚠️ 输出文件已存在，使用安全文件名：{os.path.basename(out_file_path)}"
                 )
             target_fps = float(self.params["fps"])
+            task_type = str(self.params.get("task_type") or "both")
             scale_val = self.params["scale"]
             target_codec = self.params["codec"]
             keep_audio = bool(self.params.get("keep_audio", True))
@@ -1047,6 +1048,9 @@ class VideoWorker(QThread):
                     scale_factor = 2
 
             source_fps = self._probe_fps(file_path)
+            if task_type == "sr":
+                target_fps = source_fps
+                self.params["fps"] = str(source_fps)
             self._source_width, self._source_height = self._probe_video_size(file_path)
             media_contract = probe_media_contract(self.FFPROBE, file_path)
             self.log_output.emit(
@@ -1148,13 +1152,20 @@ class VideoWorker(QThread):
             # 2/4：SVFI 风格去重 + 场景分段 + RIFE
             self.log_output.emit("  [2/4] RIFE 插帧处理中…")
             self._update_progress(index, 1, step_percent=8)
-            self._interpolate_with_svfi_opts(
-                frame_raw, frame_rife, source_fps, target_fps, original_count
-            )
+            if task_type == "sr":
+                shutil.copytree(frame_raw, frame_rife, dirs_exist_ok=True)
+                self.log_output.emit("  [2/4] 仅超分任务，跳过 RIFE 补帧")
+            else:
+                self._interpolate_with_svfi_opts(
+                    frame_raw, frame_rife, source_fps, target_fps, original_count
+                )
             self._update_progress(index, 1)
 
             # 3/4：按原参数选择是否运行 Real-ESRGAN Vulkan。
-            if scale_val != "原始":
+            if task_type == "interp":
+                self.log_output.emit("  [3/4] 仅补帧任务，跳过 Real-ESRGAN 超分")
+                use_frame_dir = frame_rife
+            elif scale_val != "原始":
                 scale_num = scale_val.lower().replace("x", "").strip()
                 if scale_num not in ("2", "3", "4"):
                     scale_num = "2"

@@ -136,10 +136,26 @@ export function VideoWorkspacePage() {
               variant="primary"
               disabled={!ctx.hasInput || ctx.serviceReady === false || ctx.isRendering}
               onClick={() => {
-                void ctx.handleStartLocal();
+                void ctx.handleStartTask("interp");
               }}
             >
-              {t("video.start")}
+              一键补帧
+            </GlassButton>
+            <GlassButton
+              type="button"
+              variant="primary"
+              disabled={!ctx.hasInput || ctx.serviceReady === false || ctx.isRendering}
+              onClick={() => void ctx.handleStartTask("sr")}
+            >
+              一键超分
+            </GlassButton>
+            <GlassButton
+              type="button"
+              variant="ghost"
+              disabled={!ctx.hasInput || ctx.serviceReady === false || ctx.isRendering}
+              onClick={() => void ctx.handleStartTask("both")}
+            >
+              补帧 + 超分（组合任务）
             </GlassButton>
             <GlassButton
               type="button"

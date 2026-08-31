@@ -345,8 +345,14 @@ def _quality_to_crf(quality) -> int:
 def _settings_to_worker_params(settings: dict, tools: dict) -> dict:
     """Map frontend JobSettings (camelCase) into VideoWorker params. No alternate aliases."""
     fps = int(settings.get("fps") or 120)
-    super_sr = bool(settings.get("superResolution", True))
+    task_type = str(settings.get("task_type") or "both").lower()
+    if task_type not in ("interp", "sr", "both"):
+        task_type = "both"
+    super_sr = bool(settings.get("superResolution", True)) and task_type in ("sr", "both")
     resolution = settings.get("resolution") or "source"
+    if task_type == "interp":
+        super_sr = False
+        resolution = "source"
     quality = settings.get("quality", 0.8)
     sr_model = settings.get("srModel") or "realesrgan"
     precision = settings.get("precision") or "fp16"
@@ -388,6 +394,7 @@ def _settings_to_worker_params(settings: dict, tools: dict) -> dict:
     return {
         # Canonical contract fields (same names as web-ui JobSettings)
         "model": model,
+        "task_type": task_type,
         "fps": str(fps),
         "superResolution": super_sr,
         "srModel": sr_model,
@@ -668,6 +675,7 @@ def _create_job(input_path: str, settings: dict) -> dict:
         "created_at": now,
         "updated_at": now,
         "engine": engine,
+        "task_type": str(settings.get("task_type") or "both"),
     }
     with _jobs_lock:
         _jobs[job_id] = {

@@ -119,6 +119,7 @@ export interface ProcessWorkspaceContextValue {
   handleSavePreset: () => void;
   handleDeletePreset: () => void;
   handleStartLocal: () => Promise<void>;
+  handleStartTask: (taskType: "interp" | "sr" | "both") => Promise<void>;
   handleStartLlm: () => Promise<void>;
   handleStop: () => Promise<void>;
 }
@@ -347,7 +348,7 @@ export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) 
     appendTaskLog(tr("process.preset.deleted", { name: current.name }));
   };
 
-  const handleStartLocal = async () => {
+  const handleStartTask = async (taskType: "interp" | "sr" | "both") => {
     if (!file && !inputPath.trim()) {
       appendErrorLog(tr("process.err.needInput"));
       return;
@@ -373,9 +374,10 @@ export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) 
 
     try {
       const settings = {
+        task_type: taskType,
         model,
         fps: Number(fps),
-        superResolution,
+        superResolution: taskType !== "interp" && superResolution,
         srModel,
         resolution,
         gpu,
@@ -399,6 +401,8 @@ export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) 
       appendErrorLog(error instanceof Error ? error.message : String(error));
     }
   };
+
+  const handleStartLocal = () => handleStartTask("both");
 
   const handleStartLlm = async () => {
     if (!file && !inputPath.trim()) {
@@ -538,6 +542,7 @@ export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) 
       handleSavePreset,
       handleDeletePreset,
       handleStartLocal,
+      handleStartTask,
       handleStartLlm,
       handleStop,
     }),

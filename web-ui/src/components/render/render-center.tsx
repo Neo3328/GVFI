@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { GlassPanel } from "@/components/glass/glass-card";
 import { GlassLogViewer } from "@/components/glass/glass-log-viewer";
 import { GlassTaskCard } from "@/components/glass/glass-task-card";
+import { Badge } from "@/components/ui/badge";
 import { VideoComparisonViewer } from "@/components/workspace/video-comparison-viewer";
 import { useWorkspaceChrome } from "@/components/workspace/workspace-chrome-context";
 import { useRenderService } from "@/hooks/use-render-service";
@@ -30,6 +31,12 @@ function basename(path: string, untitled: string): string {
 
 function taskTitle(task: JobTask, untitled: string): string {
   return basename(task.input_path || task.id, untitled);
+}
+
+function taskTypeLabel(task: JobTask): string {
+  if (task.task_type === "interp") return "补帧";
+  if (task.task_type === "sr") return "超分";
+  return "组合任务";
 }
 
 export function RenderCenter() {
@@ -152,7 +159,14 @@ export function RenderCenter() {
               {tasks.map((task) => (
                 <li key={task.id}>
                   <GlassTaskCard
-                    title={taskTitle(task, untitled)}
+                    title={
+                      <span className="flex items-center gap-2">
+                        {taskTitle(task, untitled)}
+                        <Badge variant="outline" className="text-[10px]">
+                          {taskTypeLabel(task)}
+                        </Badge>
+                      </span>
+                    }
                     status={task.status}
                     stage={task.stage}
                     progress={Math.round(task.progress * 100)}

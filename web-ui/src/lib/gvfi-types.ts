@@ -74,9 +74,13 @@ export interface JobTask {
   error: string;
   created_at: string;
   updated_at: string;
+  task_type?: TaskType;
 }
 
+export type TaskType = "interp" | "sr" | "both";
+
 export interface JobSettings {
+  task_type?: TaskType;
   model: string;
   fps: number;
   superResolution: boolean;
