@@ -6,15 +6,15 @@
  * Copyright © 2026 Mr. Gong. All Rights Reserved.
  */
 
-import type { ComponentProps } from "react";
+import type { ComponentProps } from"react";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+ Select,
+ SelectContent,
+ SelectItem,
+ SelectTrigger,
+ SelectValue,
+} from"@/components/ui/select";
+import { cn } from"@/lib/utils";
 
 type GlassSelectProps = ComponentProps<typeof Select>;
 
@@ -23,40 +23,40 @@ type GlassSelectProps = ComponentProps<typeof Select>;
  * localized labels instead of raw option values when the popup is closed.
  */
 export function GlassSelect({ ...props }: GlassSelectProps) {
-  return <Select {...props} />;
+ return <Select {...props} />;
 }
 
 export function GlassSelectTrigger({
-  className,
-  ...props
+ className,
+ ...props
 }: ComponentProps<typeof SelectTrigger>) {
-  return (
-    <SelectTrigger
-      className={cn(
-        "glass-select h-9 w-full text-[13px] font-medium text-[var(--text-strong)] shadow-none",
-        className
-      )}
-      {...props}
-    />
-  );
+ return (
+ <SelectTrigger
+ className={cn(
+"glass-select h-9 w-full text-[13px] font-medium text-[var(--text-strong)] shadow-none",
+ className
+ )}
+ {...props}
+ />
+ );
 }
 
 export function GlassSelectContent({
-  className,
-  ...props
+ className,
+ ...props
 }: ComponentProps<typeof SelectContent>) {
-  return (
-    <SelectContent className={cn("glass-option-menu p-1", className)} {...props} />
-  );
+ return (
+ <SelectContent className={cn("glass-option-menu p-1", className)} {...props} />
+ );
 }
 
 export function GlassSelectItem({
-  className,
-  ...props
+ className,
+ ...props
 }: ComponentProps<typeof SelectItem>) {
-  return (
-    <SelectItem className={cn("glass-option-item text-[13px]", className)} {...props} />
-  );
+ return (
+ <SelectItem className={cn("glass-option-item text-[13px]", className)} {...props} />
+ );
 }
 
 export { SelectValue as GlassSelectValue };

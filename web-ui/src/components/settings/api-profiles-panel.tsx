@@ -43,6 +43,8 @@ export function ApiProfilesPanel() {
   const [draftBase, setDraftBase] = useState("http://127.0.0.1:8765");
   const [draftKind, setDraftKind] = useState<ApiProfileKind>("local");
 
+  const cloudLabel = `${t("settings.api.cloud")}（${t("settings.api.cloudStub")}）`;
+
   return (
     <GlassPanel
       title={t("settings.api.title")}
@@ -168,7 +170,7 @@ export function ApiProfilesPanel() {
                     value={profile.kind}
                     items={{
                       local: t("settings.api.local"),
-                      cloud: t("settings.api.cloud"),
+                      cloud: cloudLabel,
                     }}
                     onValueChange={(value) => {
                       if (value === "local" || value === "cloud") {
@@ -180,8 +182,12 @@ export function ApiProfilesPanel() {
                       <GlassSelectValue />
                     </GlassSelectTrigger>
                     <GlassSelectContent>
-                      <GlassSelectItem value="local">{t("settings.api.local")}</GlassSelectItem>
-                      <GlassSelectItem value="cloud">{t("settings.api.cloud")}</GlassSelectItem>
+                      <GlassSelectItem value="local">
+                        {t("settings.api.local")}
+                      </GlassSelectItem>
+                      <GlassSelectItem value="cloud">
+                        {cloudLabel}
+                      </GlassSelectItem>
                     </GlassSelectContent>
                   </GlassSelect>
                 </label>
@@ -231,18 +237,22 @@ export function ApiProfilesPanel() {
             value={draftKind}
             items={{
               local: t("settings.api.local"),
-              cloud: t("settings.api.cloud"),
+              cloud: cloudLabel,
             }}
             onValueChange={(value) => {
               if (value === "local" || value === "cloud") setDraftKind(value);
             }}
           >
-            <GlassSelectTrigger className="glass-select w-[140px]">
+            <GlassSelectTrigger className="glass-select w-[200px]">
               <GlassSelectValue />
             </GlassSelectTrigger>
             <GlassSelectContent>
-              <GlassSelectItem value="local">{t("settings.api.local")}</GlassSelectItem>
-              <GlassSelectItem value="cloud">{t("settings.api.cloud")}</GlassSelectItem>
+              <GlassSelectItem value="local">
+                {t("settings.api.local")}
+              </GlassSelectItem>
+              <GlassSelectItem value="cloud">
+                {cloudLabel}
+              </GlassSelectItem>
             </GlassSelectContent>
           </GlassSelect>
           <GlassButton
@@ -269,6 +279,9 @@ export function ApiProfilesPanel() {
             {t("settings.api.addEnable")}
           </GlassButton>
         </div>
+        <p className="mt-1 text-[11px] text-[var(--text-muted)]">
+          {t("settings.api.cloudStubNote")}
+        </p>
       </div>
     </GlassPanel>
   );

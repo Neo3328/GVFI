@@ -4,6 +4,7 @@ web-ui/out/
 web-ui/dist-gvfi/
 web-ui/dist-gvfi-build/
 web-ui/dist-gvfi-fresh/
+web-ui/dist-release*/
 web-ui/dist-desktop/
 web-ui/_asar-repack/
 web-ui/_asar-extract/

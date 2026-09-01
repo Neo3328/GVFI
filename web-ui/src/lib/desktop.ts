@@ -4,6 +4,18 @@
  * Copyright © 2026 Mr. Gong. All Rights Reserved.
  */
 
+export interface WriteTextCopyPayload {
+  sourcePath?: string;
+  suggestedName: string;
+  content: string;
+}
+
+export interface WriteTextCopyResult {
+  ok: boolean;
+  path?: string;
+  error?: string;
+}
+
 export interface GvfiDesktopBridge {
   isDesktop: boolean;
   platform: string;
@@ -13,6 +25,12 @@ export interface GvfiDesktopBridge {
   windowIsMaximized: () => Promise<boolean>;
   setLocale?: (locale: string) => Promise<string>;
   getLocale?: () => Promise<string>;
+  restartApi?: () => Promise<boolean>;
+  writeTextCopy?: (payload: WriteTextCopyPayload) => Promise<WriteTextCopyResult>;
+  revealInFolder?: (targetPath: string) => Promise<boolean>;
+  selectDirectory?: () => Promise<string | null>;
+  selectVideoFile?: () => Promise<string | null>;
+  openPath?: (targetPath: string) => Promise<boolean>;
   onMaximizedChange: (callback: (maximized: boolean) => void) => () => void;
 }
 

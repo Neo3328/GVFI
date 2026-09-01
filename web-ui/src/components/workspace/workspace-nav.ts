@@ -83,9 +83,6 @@ export function pageTitleForPath(pathname: string, t?: TranslateFn): string {
   if (item) return item.label;
 
   if (pathname.startsWith("/app/settings/")) return tr("nav.settings");
-  if (pathname.startsWith("/app/process")) return tr("nav.video");
-  if (pathname.startsWith("/app/render")) return tr("nav.tasks");
-  if (pathname.startsWith("/app/models")) return tr("nav.settings");
 
   return tr("common.app");
 }
@@ -102,16 +99,10 @@ export type PageSurface =
 
 export function pageSurfaceForPath(pathname: string): PageSurface {
   if (pathname.startsWith("/app/dashboard")) return "dashboard";
-  if (pathname.startsWith("/app/tasks") || pathname.startsWith("/app/render"))
-    return "tasks";
-  if (pathname.startsWith("/app/video") || pathname.startsWith("/app/process"))
-    return "video";
+  if (pathname.startsWith("/app/tasks")) return "tasks";
+  if (pathname.startsWith("/app/video")) return "video";
   if (pathname.startsWith("/app/ai")) return "ai";
-  if (
-    pathname.startsWith("/app/settings") ||
-    pathname.startsWith("/app/models")
-  )
-    return "settings";
+  if (pathname.startsWith("/app/settings")) return "settings";
   if (pathname.startsWith("/app/system")) return "system";
   return "default";
 }

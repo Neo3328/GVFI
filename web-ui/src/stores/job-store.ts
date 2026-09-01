@@ -7,8 +7,9 @@
 "use client";
 
 import { create } from "zustand";
-import type { GvfiGpu, GvfiModel, JobTask } from "@/lib/gvfi-types";
+import type { GvfiGpu, GvfiModel, JobSettings, JobTask } from "@/lib/gvfi-types";
 import { tr } from "@/lib/i18n/runtime";
+import { SVFI_PROGRESS_PREFIX } from "@/lib/svfi-progress-line";
 
 export interface JobStoreState {
   taskId: string | null;
@@ -17,6 +18,8 @@ export interface JobStoreState {
   stageLabel: string;
   isRendering: boolean;
   lastOutputPath: string;
+  /** Last local render settings — used by AI fix retry. */
+  lastRenderSettings: JobSettings | null;
   taskLogs: string[];
   errorLogs: string[];
   serviceReady: boolean | null;
@@ -31,7 +34,10 @@ export interface JobStoreState {
   setStageLabel: (label: string) => void;
   setIsRendering: (value: boolean) => void;
   setLastOutputPath: (path: string) => void;
+  setLastRenderSettings: (settings: JobSettings | null) => void;
   appendTaskLog: (message: string) => void;
+  /** Replace last SVFI progress line in-place (terminal \\r style). */
+  upsertProgressLog: (line: string) => void;
   appendErrorLog: (message: string) => void;
   setServiceReady: (ready: boolean | null) => void;
   setQueueCount: (count: number) => void;
@@ -52,6 +58,7 @@ export const useJobStore = create<JobStoreState>((set) => ({
   }),
   isRendering: false,
   lastOutputPath: "",
+  lastRenderSettings: null,
   taskLogs: [],
   errorLogs: [],
   serviceReady: null,
@@ -66,8 +73,18 @@ export const useJobStore = create<JobStoreState>((set) => ({
   setStageLabel: (stageLabel) => set({ stageLabel }),
   setIsRendering: (isRendering) => set({ isRendering }),
   setLastOutputPath: (lastOutputPath) => set({ lastOutputPath }),
+  setLastRenderSettings: (lastRenderSettings) => set({ lastRenderSettings }),
   appendTaskLog: (message) =>
     set((state) => ({ taskLogs: [...state.taskLogs, message] })),
+  upsertProgressLog: (line) =>
+    set((state) => {
+      const logs = state.taskLogs;
+      const last = logs[logs.length - 1];
+      if (last?.startsWith(SVFI_PROGRESS_PREFIX)) {
+        return { taskLogs: [...logs.slice(0, -1), line] };
+      }
+      return { taskLogs: [...logs, line] };
+    }),
   appendErrorLog: (message) =>
     set((state) => ({ errorLogs: [...state.errorLogs, message] })),
   setServiceReady: (serviceReady) => set({ serviceReady }),

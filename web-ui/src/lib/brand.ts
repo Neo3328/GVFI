@@ -10,7 +10,7 @@ export const APP_TAGLINE = "AI Video Workstation";
 export const DEVELOPER_NAME = "Mr. Gong";
 export const COPYRIGHT_LINE = "Copyright © 2026 Mr. Gong. All Rights Reserved.";
 export const DEVELOPER_LINE = `Developed by ${DEVELOPER_NAME}`;
-export const APP_VERSION = "1.0.0";
+export const APP_VERSION = "1.1.0";
 
 /**
  * Public feedback channels — set real values before distributing builds.

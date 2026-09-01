@@ -26,6 +26,7 @@ export interface GvfiApiAdapterOptions {
 
 /** API 请求体 — 与 gvfi_api.py POST /jobs 对齐 */
 export interface GvfiJobPayload {
+  task_type?: "interp" | "sr" | "both";
   model: string;
   fps: number;
   superResolution: boolean;
@@ -39,6 +40,7 @@ export interface GvfiJobPayload {
 
 export function toApiJobPayload(settings: JobSettings): GvfiJobPayload {
   return {
+    task_type: settings.task_type,
     model: settings.model,
     fps: settings.fps,
     superResolution: settings.superResolution,
@@ -53,6 +55,7 @@ export function toApiJobPayload(settings: JobSettings): GvfiJobPayload {
 
 export function toJobSettings(payload: GvfiJobPayload): JobSettings {
   return {
+    task_type: payload.task_type,
     model: payload.model,
     fps: payload.fps as JobSettings["fps"],
     superResolution: payload.superResolution,

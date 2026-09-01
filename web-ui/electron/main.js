@@ -4,7 +4,7 @@
  * Copyright © 2026 Mr. Gong. All Rights Reserved.
  */
 
-const { app, BrowserWindow, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
 const { spawn } = require("child_process");
 const fs = require("fs");
 const http = require("http");
@@ -170,6 +170,31 @@ function startGvfiApi() {
   return proc;
 }
 
+async function restartGvfiApi() {
+  if (shuttingDown) return false;
+  apiRestarting = true;
+  killProcessTree(gvfiApiProcess);
+  gvfiApiProcess = null;
+  await new Promise((resolve) => setTimeout(resolve, 800));
+  gvfiApiProcess = startGvfiApi();
+  pipeProcessLogs(gvfiApiProcess, "api");
+  if (gvfiApiProcess) {
+    gvfiApiProcess.on("error", (err) => {
+      log(`[GVFI] API spawn error: ${err.message}`);
+    });
+  }
+  apiRestarting = false;
+  if (!gvfiApiProcess) return false;
+  try {
+    await waitForUrl("http://127.0.0.1:8765/health", 30000);
+    log("[GVFI] API restart OK");
+    return true;
+  } catch (error) {
+    log(`[GVFI] API restart failed: ${error.message}`);
+    return false;
+  }
+}
+
 function startNextServer() {
   const env = {
     ...process.env,
@@ -313,6 +338,105 @@ function registerWindowIpc() {
     return desktopI18n.setLocale(locale);
   });
   ipcMain.handle("gvfi:get-locale", () => desktopI18n.getLocale());
+  ipcMain.handle("gvfi:restart-api", () => restartGvfiApi());
+
+  ipcMain.handle("gvfi:write-text-copy", (_event, payload) => {
+    try {
+      const content = String(payload?.content ?? "");
+      const suggestedName = String(payload?.suggestedName || "untitled.txt");
+      const sourcePath =
+        typeof payload?.sourcePath === "string" && payload.sourcePath.trim()
+          ? path.resolve(payload.sourcePath.trim())
+          : "";
+
+      let outPath;
+      if (sourcePath && fs.existsSync(sourcePath) && fs.statSync(sourcePath).isFile()) {
+        const dir = path.dirname(sourcePath);
+        const base = path.basename(sourcePath);
+        const ext = path.extname(base);
+        const stem = path.basename(base, ext);
+        outPath = path.join(dir, `${stem}.gvfi-fixed${ext || ".txt"}`);
+      } else {
+        const dir = path.join(app.getPath("userData"), "ai-fixes");
+        fs.mkdirSync(dir, { recursive: true });
+        const base = path.basename(suggestedName);
+        const ext = path.extname(base);
+        const stem = path.basename(base, ext) || "untitled";
+        outPath = path.join(dir, `${stem}.gvfi-fixed${ext || ".txt"}`);
+      }
+
+      const resolved = path.resolve(outPath);
+      const userDataRoot = path.resolve(app.getPath("userData"));
+      const sourceDir = sourcePath ? path.dirname(sourcePath) : "";
+      const allowed =
+        resolved.startsWith(userDataRoot + path.sep) ||
+        (sourceDir && resolved.startsWith(sourceDir + path.sep));
+      if (!allowed) {
+        return { ok: false, error: "PATH_NOT_ALLOWED" };
+      }
+      if (resolved.includes(".." + path.sep) || resolved.includes(path.sep + "..")) {
+        return { ok: false, error: "PATH_TRAVERSAL" };
+      }
+
+      fs.writeFileSync(resolved, content, "utf8");
+      log(`[GVFI] AI text copy written: ${resolved}`);
+      return { ok: true, path: resolved };
+    } catch (error) {
+      log(`[GVFI] write-text-copy failed: ${error.message}`);
+      return { ok: false, error: error.message || "WRITE_FAILED" };
+    }
+  });
+
+  ipcMain.handle("gvfi:reveal-in-folder", (_event, targetPath) => {
+    try {
+      const resolved = path.resolve(String(targetPath || ""));
+      if (!resolved || !fs.existsSync(resolved)) return false;
+      shell.showItemInFolder(resolved);
+      return true;
+    } catch (error) {
+      log(`[GVFI] reveal-in-folder failed: ${error.message}`);
+      return false;
+    }
+  });
+
+  ipcMain.handle("gvfi:select-directory", async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: "选择输出目录",
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (result.canceled || !result.filePaths.length) return null;
+    return result.filePaths[0];
+  });
+
+  ipcMain.handle("gvfi:select-video-file", async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: "选择输入视频",
+      properties: ["openFile"],
+      filters: [
+        {
+          name: "视频文件",
+          extensions: ["mp4", "mkv", "mov", "avi", "webm", "flv", "wmv", "m4v"],
+        },
+        { name: "所有文件", extensions: ["*"] },
+      ],
+    });
+    if (result.canceled || !result.filePaths.length) return null;
+    return result.filePaths[0];
+  });
+
+  ipcMain.handle("gvfi:open-path", async (_event, targetPath) => {
+    try {
+      const resolved = path.resolve(String(targetPath || ""));
+      if (!resolved || !fs.existsSync(resolved)) return false;
+      const errorMessage = await shell.openPath(resolved);
+      return !errorMessage;
+    } catch (error) {
+      log(`[GVFI] open-path failed: ${error.message}`);
+      return false;
+    }
+  });
 }
 
 function createWindow() {

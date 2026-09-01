@@ -98,7 +98,7 @@ class TestMemoryPressure(unittest.TestCase):
 class TestNativeBridge(unittest.TestCase):
     def test_native_dll_hot_path(self) -> None:
         self.assertTrue(native_available(), "gvfi_native.dll missing under native_bin/")
-        self.assertEqual(native_version(), "gvfi_native/0.1.0")
+        self.assertEqual(native_version(), "gvfi_native/0.4.0")
         snap = native_memory_sample(70, 95)
         self.assertIsNotNone(snap)
         assert snap is not None

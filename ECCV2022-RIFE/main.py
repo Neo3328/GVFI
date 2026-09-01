@@ -4,10 +4,12 @@ import time
 import shutil
 import subprocess
 import ctypes
+import json
 import re
 import tempfile
 import threading
 import traceback
+import uuid
 from pathlib import Path
 
 try:
@@ -31,21 +33,52 @@ from PyQt5.QtGui import (QDragEnterEvent, QDropEvent, QFont, QColor, QPainter,
 
 from svfi_pipeline import (
     allocate_output_counts,
-    append_frames,
     build_segments,
     compute_target_frame_count,
-    copy_frame_range,
     detect_scene_cuts,
+    frame_paths,
     remove_duplicate_frames,
 )
+from gvfi_runtime.frame_pipeline import decode_and_consume
+from gvfi_runtime.rife_cli_pipeline import (
+    RifePipelineStats,
+    RifeProcessMonitor,
+    collect_frames,
+    stage_frame_range,
+)
+from gvfi_runtime.rife_scene_scheduler import (
+    RifeWorkerManager,
+    RifeWorkerStats,
+    SceneProcessResult,
+    SceneTask,
+)
+from gvfi_runtime.interpolator_backend import (
+    BackendError,
+    BackendNotImplementedError,
+    create_interpolator_backend,
+)
+from gvfi_runtime.errors import CancelledError, ErrorCode, GvfiError
+from gvfi_runtime.runtime_config import RuntimeConfig
+from gvfi_runtime.task_lifecycle import TaskLifecycle, TaskState
+from gvfi_runtime.media_contract import build_output_video_filter, probe_media_contract
+from gvfi_runtime.task_artifacts import (
+    estimate_disk_space,
+    require_disk_space,
+    reserve_output_path,
+    validate_output_video,
+    write_task_report,
+)
 from tool_resolver import (
-    ESRGAN_MODEL_DEFAULT,
     RIFE_MODEL_CANDIDATES,
     RIFE_NCNN_DIRNAME,
     find_dir,
     find_file,
     get_app_base_dir,
+    hevc_encoder_quality_args,
+    resolve_rife_thread_config,
     resolve_runtime_tools,
+    resolve_sr_model_name,
+    select_hevc_encoder,
 )
 from ui_prefs import (
     BUILTIN_PRESETS,
@@ -58,6 +91,10 @@ from ui_prefs import (
     save_settings,
     save_user_presets,
 )
+
+# Sentinel error raised when Native backend fails and CLI fallback is needed.
+class NativeFallback(RuntimeError):
+    """Raised when the requested native RIFE backend fails and CLI fallback is required."""
 
 
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -97,16 +134,36 @@ def glass_palette(theme, opacity_pct):
     }
 
 
-class TaskCancelled(RuntimeError):
+class TaskCancelled(CancelledError):
     """用户主动停止任务。"""
 
 
-class ProcessExecutionError(RuntimeError):
+class ProcessExecutionError(GvfiError):
     """外部视频工具执行失败，并保留可读的错误尾部。"""
 
-    def __init__(self, stage, return_code, detail):
+    def __init__(self, stage, return_code, detail, command=None):
         detail = (detail or "外部程序未返回错误详情").strip()
-        super().__init__(f"{stage}失败，退出码 {return_code}：{detail[-1200:]}")
+        # Keep a long stderr tail for diagnosis (UI error panel / API error_logs).
+        self.stage = stage
+        self.return_code = return_code
+        self.detail = detail[-8000:]
+        self.command = command
+        cmd_txt = ""
+        if command:
+            try:
+                cmd_txt = " ".join(str(x) for x in command)
+            except TypeError:
+                cmd_txt = str(command)
+            if len(cmd_txt) > 500:
+                cmd_txt = cmd_txt[:500] + "…"
+            cmd_txt = f"\n命令: {cmd_txt}"
+        code = ErrorCode.ENCODE_ERROR if "编码" in str(stage) or "合成" in str(stage) else ErrorCode.DECODE_ERROR
+        super().__init__(
+            f"{stage}失败，退出码 {return_code}：{self.detail[-2000:]}{cmd_txt}",
+            code=code,
+            stage=str(stage),
+            details={"return_code": return_code, "command": cmd_txt.strip()},
+        )
 
 
 class AnimatedButton(QPushButton):
@@ -256,11 +313,17 @@ class VideoWorker(QThread):
     def __init__(self, file_list, params, out_path, same_as_src, clean_cache):
         super().__init__()
         self.file_list = list(file_list)
-        self.params = dict(params)
+        self.runtime_config = RuntimeConfig.from_mapping(params)
+        self.params = self.runtime_config.apply_to(params)
+        self.task_id = uuid.uuid4().hex
         self.out_path = out_path
         self.same_as_src = same_as_src
         self.clean_cache = clean_cache
         self.is_running = True
+        self.completed_outputs = []
+        self.output_validations = []
+        self.disk_estimates = []
+        self.report_path = ""
 
         tools = resolve_runtime_tools()
         self.base_dir = tools["base_dir"]
@@ -280,6 +343,59 @@ class VideoWorker(QThread):
         self._process_lock = threading.RLock()
         self._active_process = None
         self._current_temp_dir = None
+        self._last_failure_detail = ""
+        self._source_width = 0
+        self._source_height = 0
+        self._rife_pipeline_stats = RifePipelineStats()
+        self._pending_native_model_loads = 0
+        self._rife_stats_lock = threading.Lock()
+        # Native fallback state — task-level, reset for each task.
+        self._requested_backend = self.runtime_config.backend_mode
+        self._active_backend = self._requested_backend  # updated on fallback
+        self.lifecycle = TaskLifecycle(self.task_id, self._requested_backend)
+        self._fallback_occurred = False
+        self._fallback_reason = ""
+        self._interpolator_backend = create_interpolator_backend(
+            self._requested_backend,
+            executable=self.RIFE_EXE or "",
+            working_directory=self.RIFE_DIR or self.base_dir,
+            command_runner=self._run_backend_command,
+            log_callback=self.log_output.emit,
+        )
+        # Effective -j; refined per-file after probing resolution.
+        self.params["rife_thread_config"] = resolve_rife_thread_config(
+            self.params.get("rife_thread_config")
+        )
+
+    def _emit_failure_detail(self, context: str, exc: BaseException) -> None:
+        """Emit a multi-line diagnostic block for the UI error log panel."""
+        tb = "".join(
+            traceback.format_exception(type(exc), exc, getattr(exc, "__traceback__", None))
+        ).strip()
+        lines = [
+            f"  ❌ 处理异常失败：{context}",
+            f"  异常类型: {type(exc).__name__}",
+            f"  异常信息: {exc}",
+        ]
+        if isinstance(exc, GvfiError):
+            lines.append(f"  错误码: {exc.code.value}")
+            lines.append(f"  错误阶段: {exc.stage}")
+        if isinstance(exc, ProcessExecutionError):
+            lines.append(f"  阶段: {exc.stage}")
+            lines.append(f"  退出码: {exc.return_code}")
+            if exc.detail:
+                lines.append("  --- 工具 stderr（尾部）---")
+                for row in exc.detail.splitlines()[-80:]:
+                    lines.append(f"  {row}")
+                lines.append("  --- stderr 结束 ---")
+        if tb:
+            lines.append("  --- Python traceback ---")
+            for row in tb.splitlines()[-60:]:
+                lines.append(f"  {row}")
+            lines.append("  --- traceback 结束 ---")
+        block = "\n".join(lines) + "\n"
+        self._last_failure_detail = block
+        self.log_output.emit(block)
 
     def _ensure_running(self):
         if self._stop_event.is_set() or self.isInterruptionRequested():
@@ -287,15 +403,15 @@ class VideoWorker(QThread):
 
     def _validate_environment(self):
         missing = []
-        required = [
-            ("FFmpeg", self.FFMPEG),
-            ("ffprobe", self.FFPROBE),
-            ("RIFE Vulkan", self.RIFE_EXE),
-            ("RIFE 模型目录", self.RIFE_MODEL),
-        ]
+        required = [("FFmpeg", self.FFMPEG), ("ffprobe", self.FFPROBE)]
+        if self.params.get("backend_mode", "cli") == "cli":
+            required.append(("RIFE Vulkan", self.RIFE_EXE))
+        required.append(("RIFE 模型目录", self.RIFE_MODEL))
         if self.params.get("scale") != "原始":
             required.append(("Real-ESRGAN Vulkan", self.ESGAN_EXE))
             required.append(("Real-ESRGAN models", self.MODELS_DIR))
+        if self.params.get("pipeline_mode", "disk") == "memory":
+            required = required[:2]
 
         for tool_name, tool_path in required:
             if not tool_path or not os.path.exists(tool_path):
@@ -387,9 +503,97 @@ class VideoWorker(QThread):
         self._ensure_running()
 
         if process.returncode != 0 and not allow_failure:
-            raise ProcessExecutionError(stage, process.returncode, stderr_text)
+            raise ProcessExecutionError(
+                stage, process.returncode, stderr_text, command=command
+            )
 
         return process.returncode, stderr_text
+
+    def _run_backend_command(self, command, stage, working_directory=None):
+        old_cwd = self.base_dir
+        self.base_dir = working_directory or self.base_dir
+        try:
+            self._run_command(command, stage)
+        finally:
+            self.base_dir = old_cwd
+
+    def _ensure_interpolator_backend(self):
+        """Initialize (or fall back) the interpolator backend once per task.
+
+        If backend_mode=native and initialization/model-load fails, falls back
+        to CLI within the same task. The fallback is one-time only; if CLI
+        also fails the error propagates normally.
+        """
+        # Already on CLI after a previous fallback — just ensure it is ready.
+        if self._active_backend == "cli":
+            if not self._interpolator_backend.initialized:
+                self._interpolator_backend.initialize()
+            model_path = self.RIFE_MODEL or ""
+            if self._interpolator_backend.model_path != model_path:
+                self._interpolator_backend.load_model(model_path)
+            return
+
+        # Try Native.
+        try:
+            if not self._interpolator_backend.initialized:
+                self._interpolator_backend.initialize()
+            model_path = self.RIFE_MODEL or ""
+            if self._interpolator_backend.model_path != model_path:
+                self._interpolator_backend.load_model(model_path)
+                self._pending_native_model_loads += 1
+        except (BackendError, NativeFallback, BackendNotImplementedError) as exc:
+            self._switch_to_cli(exc, "backend_initialize")
+
+    def _release_backend(self) -> None:
+        """Release the active backend without masking the task's primary result."""
+        backend = self._interpolator_backend
+        backend_name = getattr(backend, "name", self._active_backend)
+        try:
+            backend.release()
+        except Exception as exc:
+            self.lifecycle.record_release_failure(exc, backend_name)
+            self.log_output.emit(
+                f"BACKEND RELEASE FAILED:\nbackend={backend_name}\nreason={exc}"
+            )
+        else:
+            self.lifecycle.mark_released(backend_name)
+
+    def _switch_to_cli(self, reason: str | BaseException, stage: str = "native_backend") -> None:
+        """Switch from Native to CLI backend within the current task."""
+        if self._active_backend == "cli":
+            return  # Already on CLI, nothing to do.
+        exc = reason if isinstance(reason, BaseException) else BackendError(str(reason), stage=stage)
+        failure = self.lifecycle.record_fallback(exc, stage)
+        self.log_output.emit(
+            "NATIVE BACKEND FAILED\n"
+            "FALLBACK TO CLI\n"
+            f"failure_stage={failure.stage}\n"
+            f"error_code={failure.code}\n"
+            f"reason={failure.message}"
+        )
+        self._release_backend()
+        self._fallback_occurred = True
+        self._fallback_reason = failure.message[:200]
+        self._active_backend = "cli"
+        # Build a fresh CLI backend — it shares the same command runner.
+        self._interpolator_backend = create_interpolator_backend(
+            "cli",
+            executable=self.RIFE_EXE or "",
+            working_directory=self.RIFE_DIR or self.base_dir,
+            command_runner=self._run_backend_command,
+            log_callback=self.log_output.emit,
+        )
+        # Mark backend as needing init so _ensure_interpolator_backend will set it up.
+        self._interpolator_backend.initialized = False
+        self._interpolator_backend.model_path = ""
+        self.log_output.emit(
+            "BACKEND CONFIG:\n"
+            f"mode=cli\n"
+            f"requested_backend={self._requested_backend}\n"
+            f"active_backend=cli\n"
+            f"fallback=native_to_cli\n"
+            f"reason={self._fallback_reason}"
+        )
 
     @staticmethod
     def _has_png_frames(directory):
@@ -445,6 +649,48 @@ class VideoWorker(QThread):
             pass
         return 30.0
 
+    def _probe_video_size(self, video_path):
+        """Return (width, height) via ffprobe; (0, 0) on failure."""
+        if not self.FFPROBE:
+            return 0, 0
+        try:
+            process = subprocess.run(
+                [
+                    self.FFPROBE, "-v", "error",
+                    "-select_streams", "v:0",
+                    "-show_entries", "stream=width,height",
+                    "-of", "csv=p=0:s=x",
+                    video_path,
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                stdin=subprocess.DEVNULL,
+                creationflags=CREATE_NO_WINDOW if os.name == "nt" else 0,
+                cwd=self.base_dir,
+                check=False,
+            )
+            text = (process.stdout or b"").decode("utf-8", "replace").strip()
+            if "x" in text:
+                w_s, h_s = text.split("x", 1)
+                return int(w_s), int(h_s)
+        except (OSError, ValueError, subprocess.SubprocessError):
+            pass
+        return 0, 0
+
+    def _effective_rife_thread_config(self):
+        """Resolution-aware -j; auto-lower for 2160p+."""
+        cfg = resolve_rife_thread_config(
+            self.params.get("rife_thread_config"),
+            width=self._source_width,
+            height=self._source_height,
+        )
+        self.params["rife_thread_config"] = cfg
+        return cfg
+
+    def _add_rife_io_time(self, elapsed: float) -> None:
+        with self._rife_stats_lock:
+            self._rife_pipeline_stats.io_time += float(elapsed)
+
     def _safe_cleanup(self, temp_dir):
         if not temp_dir or not os.path.exists(temp_dir):
             return
@@ -470,25 +716,141 @@ class VideoWorker(QThread):
         )
         self.progress_updated.emit(max(0, min(int(progress), 100)))
 
+    def _log_effective_config(self):
+        """Emit final params so UI settings can be verified against execution."""
+        p = self.params
+        model_label = (
+            p.get("selected_model")
+            or os.path.basename(str(self.RIFE_MODEL or "").rstrip("\\/"))
+            or str(p.get("model") or "unknown")
+        )
+        reason = p.get("model_select_reason") or (
+            "user_selected" if (p.get("rife_model") or p.get("model")) else "default_general_model"
+        )
+        self.log_output.emit(
+            "MODEL CONFIG:\n"
+            f"input_type={p.get('input_type', 'unknown')}\n"
+            f"selected_model={model_label}\n"
+            f"reason={reason}"
+        )
+        thread_cfg = self._effective_rife_thread_config()
+        self.log_output.emit(
+            "RIFE CONFIG:\n"
+            f"model={model_label}\n"
+            f"gpu={p.get('gpu', 'auto')}\n"
+            f"thread_config={thread_cfg}"
+        )
+        self.log_output.emit(
+            "PIPELINE CONFIG:\n"
+            f"mode={p.get('pipeline_mode', 'disk')}\n"
+            f"queue_size={p.get('queue_size', 32)}\n"
+            f"worker_count={p.get('worker_count', 1)}"
+        )
+        self.log_output.emit(
+            "BACKEND CONFIG:\n"
+            f"mode={self._interpolator_backend.name}\n"
+            f"requested_backend={self._requested_backend}\n"
+            f"active_backend={self._active_backend}\n"
+            f"fallback={'native_to_cli' if self._fallback_occurred else 'none'}\n"
+            f"reason={self._fallback_reason or 'initial'}"
+        )
+        codec_text = str(p.get("codec") or "")
+        if "H.265" in codec_text or "HEVC" in codec_text:
+            encoder, enc_reason = select_hevc_encoder(
+                self.FFMPEG, p.get("encoder_mode", "auto")
+            )
+            self.log_output.emit(
+                "ENCODER CONFIG:\n"
+                f"hardware_encoder={encoder}\n"
+                f"reason={enc_reason}"
+            )
+        sr = p.get("srModel") or "none"
+        if not p.get("superResolution", True) or p.get("scale") == "原始":
+            sr = "none"
+        self.log_output.emit(
+            "任务开始：\n"
+            f"model={model_label}\n"
+            f"gpu={p.get('gpu', 'auto')}\n"
+            f"precision={p.get('precision', 'fp16')}\n"
+            f"quality={p.get('quality', '')}\n"
+            f"srModel={sr}\n"
+            f"resolution={p.get('resolution', p.get('scale', ''))}\n"
+            f"fps={p.get('fps', '')}\n"
+            f"codec={p.get('codec', '')}\n"
+            f"crf={p.get('crf', '')}"
+        )
+
     def _run_rife(self, input_dir, output_dir, target_frames):
-        """Run rife-ncnn-vulkan on a PNG folder."""
+        """Run RIFE on a PNG folder, with automatic CLI fallback on Native failure."""
+        self._ensure_interpolator_backend()
         os.makedirs(output_dir, exist_ok=True)
-        rife_cmd = [
-            self.RIFE_EXE,
-            "-i", input_dir,
-            "-o", output_dir,
-            "-n", str(int(target_frames)),
-            "-m", self.RIFE_MODEL,
-            "-f", "%08d.png",
-        ]
-        old_cwd = self.base_dir
-        self.base_dir = self.RIFE_DIR or self.base_dir
+        input_frames = self._count_png_frames(input_dir)
+        thread_cfg = self._effective_rife_thread_config()
+        self.log_output.emit(
+            f"  ↳ RIFE -j {thread_cfg} | -g {self.params.get('gpu', 'auto')} | "
+            f"{self._source_width}x{self._source_height}"
+        )
+        monitor = RifeProcessMonitor(output_dir, self.params.get("gpu", 0))
+        monitor.start()
         try:
-            self._run_command(rife_cmd, "RIFE Vulkan")
+            self._interpolator_backend.process_directory(
+                input_dir,
+                output_dir,
+                target_frames=int(target_frames),
+                gpu=self.params.get("gpu"),
+                thread_config=thread_cfg,
+            )
+        except (BackendError, BackendNotImplementedError) as exc:
+            # Only attempt fallback once per task.
+            if self._active_backend == "native":
+                monitor.stop()
+                self._switch_to_cli(exc, "backend_process")
+                # Re-initialize CLI backend now that we've switched.
+                if not self._interpolator_backend.initialized:
+                    self._interpolator_backend.initialize()
+                self._interpolator_backend.load_model(self.RIFE_MODEL or "")
+                # Restart monitor for CLI run.
+                monitor = RifeProcessMonitor(output_dir, self.params.get("gpu", 0))
+                monitor.start()
+                self._interpolator_backend.process_directory(
+                    input_dir,
+                    output_dir,
+                    target_frames=int(target_frames),
+                    gpu=self.params.get("gpu"),
+                    thread_config=thread_cfg,
+                )
+            else:
+                raise
         finally:
-            self.base_dir = old_cwd
+            startup, inference, gpu_total, gpu_count = monitor.stop()
+            stats = self._rife_pipeline_stats
+            stats.process_count += 1
+            if stats.model_load_count is None:
+                stats.model_load_count = 0
+            if self._active_backend == "cli":
+                stats.model_load_count += 1
+            stats.startup_time += startup
+            stats.inference_time += inference
+            stats.gpu_sample_total += gpu_total
+            stats.gpu_sample_count += gpu_count
+            # Phase D3: accumulate native batch call-boundary stats per scene.
+            if self._active_backend == "native":
+                backend_stats = getattr(self._interpolator_backend, "stats", None)
+                if callable(backend_stats):
+                    stats.accumulate_native_stats(backend_stats())
+                reset = getattr(self._interpolator_backend, "reset_stats", None)
+                if callable(reset):
+                    reset()
         if not self._has_png_frames(output_dir):
             raise RuntimeError("RIFE produced no PNG frames")
+        output_frames = self._count_png_frames(output_dir)
+        self._rife_pipeline_stats.total_frames += output_frames
+        self.log_output.emit(
+            f"  ↳ RIFE process {self._rife_pipeline_stats.process_count}: "
+            f"input_frames={input_frames} | target_frames={int(target_frames)} | "
+            f"output_frames={output_frames} | startup_time={startup:.3f}s | "
+            f"inference_time={inference:.3f}s"
+        )
 
     def _interpolate_with_svfi_opts(self, work_frames, frame_rife, source_fps, target_fps, original_count):
         """
@@ -497,6 +859,9 @@ class VideoWorker(QThread):
         2) optional scene-cut aware segmented interpolation
         3) otherwise single-pass RIFE to target frame count
         """
+        self._rife_pipeline_stats = RifePipelineStats()
+        self._rife_pipeline_stats.model_load_count = self._pending_native_model_loads
+        self._pending_native_model_loads = 0
         enable_dedup = bool(self.params.get("enable_dedup", True))
         enable_scdet = bool(self.params.get("enable_scdet", True))
         dedup_threshold = float(self.params.get("dedup_threshold", 1.5))
@@ -504,6 +869,7 @@ class VideoWorker(QThread):
 
         active_frames = work_frames
         if enable_dedup:
+            dedup_started_at = time.perf_counter()
             dedup_dir = os.path.join(os.path.dirname(work_frames), "dedup_frames")
             os.makedirs(dedup_dir, exist_ok=True)
             kept, _ = remove_duplicate_frames(
@@ -514,6 +880,7 @@ class VideoWorker(QThread):
             )
             if kept <= 0:
                 raise RuntimeError("去重后没有剩余帧")
+            self._add_rife_io_time(time.perf_counter() - dedup_started_at)
             active_frames = dedup_dir
         else:
             self.log_output.emit("  ↳ 去重帧: 已关闭")
@@ -548,32 +915,92 @@ class VideoWorker(QThread):
 
         if len(segments) == 1:
             self._run_rife(active_frames, frame_rife, out_counts[0])
+            self.log_output.emit(
+                RifeWorkerStats(
+                    worker_start=1,
+                    scene_count=1,
+                    model_reload_count=1 if self._active_backend == "cli" else 0,
+                    scene_process_count=1,
+                ).format_log()
+            )
         else:
             scene_root = os.path.join(os.path.dirname(work_frames), "scenes")
             os.makedirs(scene_root, exist_ok=True)
+            active_paths = frame_paths(active_frames)
             next_index = 1
+            scene_tasks = []
             for scene_i, ((start, end), out_n) in enumerate(zip(segments, out_counts), start=1):
-                self._ensure_running()
                 scene_in = os.path.join(scene_root, f"in_{scene_i:03d}")
                 scene_out = os.path.join(scene_root, f"out_{scene_i:03d}")
                 if os.path.isdir(scene_in):
                     shutil.rmtree(scene_in, ignore_errors=True)
                 if os.path.isdir(scene_out):
                     shutil.rmtree(scene_out, ignore_errors=True)
-                copied = copy_frame_range(active_frames, scene_in, start, end)
-                self.log_output.emit(
-                    f"    · 场景 {scene_i}/{len(segments)}: {copied} -> {out_n} frames"
+                input_paths = tuple(active_paths[start:end])
+                try:
+                    scene_gpu = int(self.params.get("gpu", 0))
+                except (TypeError, ValueError):
+                    scene_gpu = 0
+                scene_tasks.append(SceneTask(
+                    scene_index=scene_i,
+                    input_frames=input_paths,
+                    input_path=scene_in,
+                    output_path=scene_out,
+                    final_output_path=frame_rife,
+                    output_start_index=next_index,
+                    target_frames=out_n,
+                    model=self.RIFE_MODEL or "",
+                    gpu=scene_gpu,
+                    resolution=(self._source_width, self._source_height),
+                    requires_inference=len(input_paths) > 1 and out_n > len(input_paths),
+                ))
+                next_index += out_n if len(input_paths) > 1 and out_n > len(input_paths) else len(input_paths)
+
+            def stage_scene(task):
+                copied, stage_time, copy_fallbacks = stage_frame_range(
+                    task.input_frames, task.input_path, 0, len(task.input_frames)
                 )
-                if copied <= 1 or out_n <= copied:
-                    # Hard cut / single frame: copy through without interpolating.
-                    written = append_frames(scene_in, frame_rife, start_index=next_index)
-                else:
-                    self._run_rife(scene_in, scene_out, out_n)
-                    written = append_frames(scene_out, frame_rife, start_index=next_index)
-                next_index += written
+                self._add_rife_io_time(stage_time)
+                if copied != len(task.input_frames):
+                    raise RuntimeError(
+                        f"scene {task.scene_index} staged {copied} frames; "
+                        f"expected {len(task.input_frames)}"
+                    )
+                self.log_output.emit(
+                    f"    · 场景 {task.scene_index}/{len(scene_tasks)}: "
+                    f"{copied} -> {task.target_frames} frames "
+                    f"(staging_copy_fallbacks={copy_fallbacks})"
+                )
+
+            def process_scene(task):
+                self._run_rife(task.input_path, task.output_path, task.target_frames)
+                return SceneProcessResult(model_loaded=self._active_backend == "cli")
+
+            def collect_scene(task):
+                source = task.output_path if task.requires_inference else task.input_path
+                written, collect_time, _ = collect_frames(
+                    source, task.final_output_path, start_index=task.output_start_index
+                )
+                self._add_rife_io_time(collect_time)
+                expected = task.target_frames if task.requires_inference else len(task.input_frames)
+                if written != expected:
+                    raise RuntimeError(
+                        f"scene {task.scene_index} produced {written} frames; expected {expected}"
+                    )
+
+            manager = RifeWorkerManager(queue_size=2)
+            worker_stats = manager.run(
+                scene_tasks,
+                stage=stage_scene,
+                process=process_scene,
+                collect=collect_scene,
+                ensure_running=self._ensure_running,
+            )
+            self.log_output.emit(worker_stats.format_log())
 
         produced = self._count_png_frames(frame_rife)
         self.log_output.emit(f"  rife output frames: {produced}")
+        self.log_output.emit(self._rife_pipeline_stats.format_log())
         return produced
 
     def _process_file(self, index, file_path, temp_root):
@@ -601,16 +1028,84 @@ class VideoWorker(QThread):
             os.makedirs(target_dir, exist_ok=True)
 
             out_file_name = f"{name_no_ext}_enhanced{ext}"
-            out_file_path = os.path.join(target_dir, out_file_name)
+            out_file_path = reserve_output_path(target_dir, out_file_name)
+            if os.path.basename(out_file_path) != out_file_name:
+                self.log_output.emit(
+                    f"  ⚠️ 输出文件已存在，使用安全文件名：{os.path.basename(out_file_path)}"
+                )
             target_fps = float(self.params["fps"])
+            task_type = str(self.params.get("task_type") or "both")
             scale_val = self.params["scale"]
             target_codec = self.params["codec"]
             keep_audio = bool(self.params.get("keep_audio", True))
             crf = int(self.params.get("crf", 18))
             encode_preset = self.params.get("encode_preset", "medium")
+            scale_factor = 1
+            if scale_val != "原始":
+                try:
+                    scale_factor = int(scale_val.lower().replace("x", "").strip())
+                except (TypeError, ValueError):
+                    scale_factor = 2
 
             source_fps = self._probe_fps(file_path)
+            if task_type == "sr":
+                target_fps = source_fps
+                self.params["fps"] = str(source_fps)
+            self._source_width, self._source_height = self._probe_video_size(file_path)
+            media_contract = probe_media_contract(self.FFPROBE, file_path)
+            self.log_output.emit(
+                "MEDIA CONTRACT:\n"
+                + json.dumps(media_contract.as_dict(), ensure_ascii=False, sort_keys=True)
+            )
+            for warning in media_contract.warnings:
+                self.log_output.emit(f"  ⚠️ FORMAT POLICY: {warning}")
+            if self.runtime_config.pipeline_mode == "disk":
+                estimated_source_frames = max(1, media_contract.frame_count)
+                estimated_target_count = compute_target_frame_count(
+                    estimated_source_frames, source_fps, target_fps
+                )
+                disk_estimate = estimate_disk_space(
+                    temp_root,
+                    self._source_width,
+                    self._source_height,
+                    estimated_source_frames,
+                    estimated_target_count,
+                    scale_factor=scale_factor,
+                )
+                self.disk_estimates.append(disk_estimate.as_dict())
+                self.log_output.emit(
+                    "DISK CAPACITY:\n"
+                    + json.dumps(disk_estimate.as_dict(), ensure_ascii=False, sort_keys=True)
+                )
+                require_disk_space(disk_estimate)
+            self.params["rife_thread_config"] = self._effective_rife_thread_config()
             self.log_output.emit(f"▶ [{index + 1}/{len(self.file_list)}] 开始处理: {file_name}")
+            self.log_output.emit(
+                f"  ↳ 源分辨率: {self._source_width}x{self._source_height} | "
+                f"RIFE -j {self.params.get('rife_thread_config')}"
+            )
+
+            if self.params.get("pipeline_mode", "disk") == "memory":
+                memory_result = []
+                consumed = decode_and_consume(
+                    self.FFMPEG,
+                    file_path,
+                    self._source_width,
+                    self._source_height,
+                    queue_size=self.params.get("queue_size", 32),
+                    worker_count=self.params.get("worker_count", 1),
+                    fps=source_fps,
+                    stop_event=self._stop_event,
+                    stats_callback=memory_result.append,
+                )
+                self._ensure_running()
+                self.log_output.emit(f"  memory frame pipeline consumed {consumed} frames (RIFE not connected)")
+                if memory_result:
+                    self.log_output.emit(
+                        "FRAME PIPELINE RESULT:\n"
+                        + json.dumps(memory_result[0].__dict__, ensure_ascii=False, sort_keys=True)
+                    )
+                return out_file_path
             self.log_output.emit(
                 f"  ↳ 参数: {target_fps:g}fps | {scale_val}超分 | {target_codec} | CRF {crf} | "
                 f"去重={'开' if self.params.get('enable_dedup', True) else '关'} | "
@@ -619,6 +1114,8 @@ class VideoWorker(QThread):
 
             # 1/4：音频提取失败不阻止无声视频继续处理。
             self.log_output.emit("  [1/4] FFmpeg 提取音频、拆分视频原始帧")
+            # Early tick so UI is not stuck at 0% during long FFmpeg extract
+            self._update_progress(index, 0, step_percent=8)
             has_audio = False
             if keep_audio:
                 audio_return_code, _ = self._run_command(
@@ -653,27 +1150,42 @@ class VideoWorker(QThread):
             self._update_progress(index, 0)
 
             # 2/4：SVFI 风格去重 + 场景分段 + RIFE
-            self._interpolate_with_svfi_opts(
-                frame_raw, frame_rife, source_fps, target_fps, original_count
-            )
+            self.log_output.emit("  [2/4] RIFE 插帧处理中…")
+            self._update_progress(index, 1, step_percent=8)
+            if task_type == "sr":
+                shutil.copytree(frame_raw, frame_rife, dirs_exist_ok=True)
+                self.log_output.emit("  [2/4] 仅超分任务，跳过 RIFE 补帧")
+            else:
+                self._interpolate_with_svfi_opts(
+                    frame_raw, frame_rife, source_fps, target_fps, original_count
+                )
             self._update_progress(index, 1)
 
             # 3/4：按原参数选择是否运行 Real-ESRGAN Vulkan。
-            if scale_val != "原始":
+            if task_type == "interp":
+                self.log_output.emit("  [3/4] 仅补帧任务，跳过 Real-ESRGAN 超分")
+                use_frame_dir = frame_rife
+            elif scale_val != "原始":
                 scale_num = scale_val.lower().replace("x", "").strip()
                 if scale_num not in ("2", "3", "4"):
                     scale_num = "2"
-                self.log_output.emit(f"  [3/4] Real-ESRGAN {scale_num}x")
+                sr_ui = self.params.get("srModel") or "realesrgan"
+                sr_name = resolve_sr_model_name(sr_ui)
+                self.log_output.emit(
+                    f"  [3/4] Real-ESRGAN {scale_num}x (srModel={sr_ui} → {sr_name})"
+                )
                 esgan_cmd = [
                     self.ESGAN_EXE,
                     "-i", frame_rife,
                     "-o", frame_sr,
                     "-s", scale_num,
-                    "-n", ESRGAN_MODEL_DEFAULT,
+                    "-n", str(sr_name),
                     "-f", "png",
                 ]
                 if self.MODELS_DIR:
                     esgan_cmd.extend(["-m", self.MODELS_DIR])
+                if "gpu" in self.params and self.params.get("gpu") is not None:
+                    esgan_cmd.extend(["-g", str(int(self.params["gpu"]))])
                 self._run_command(esgan_cmd, "Real-ESRGAN Vulkan")
                 if not self._has_png_frames(frame_sr):
                     raise RuntimeError("图片超分完成后未生成任何 PNG 帧")
@@ -685,17 +1197,24 @@ class VideoWorker(QThread):
 
             # 4/4：帧序列与可用音轨合成最终视频。
             self.log_output.emit("  [4/4] FFmpeg 封装合成最终视频文件")
+            # 10-bit HEVC may carry HDR; do not force BT.709 tags on that path.
+            is_hevc_10bit = (
+                ("H.265" in target_codec or "HEVC" in target_codec)
+                and ("10bit" in target_codec or "10-bit" in target_codec)
+            )
+            use_sdr_bt709 = "ProRes" not in target_codec and not is_hevc_10bit
             if "H.265" in target_codec or "HEVC" in target_codec:
-                codec_arg = [
-                    "-c:v", "libx265",
-                    "-crf", str(crf),
-                    "-preset", encode_preset,
-                    "-x265-params", "log-level=error",
-                ]
-                if "10bit" in target_codec or "10-bit" in target_codec:
-                    codec_arg.extend(["-pix_fmt", "yuv420p10le"])
-                else:
-                    codec_arg.extend(["-pix_fmt", "yuv420p"])
+                encoder, enc_reason = select_hevc_encoder(
+                    self.FFMPEG, self.params.get("encoder_mode", "auto")
+                )
+                self.log_output.emit(
+                    "ENCODER CONFIG:\n"
+                    f"hardware_encoder={encoder}\n"
+                    f"reason={enc_reason}"
+                )
+                codec_arg = hevc_encoder_quality_args(
+                    encoder, crf, encode_preset, ten_bit=is_hevc_10bit
+                )
             elif "AV1" in target_codec:
                 codec_arg = [
                     "-c:v", "libsvtav1",
@@ -715,6 +1234,16 @@ class VideoWorker(QThread):
             ]
             if has_audio:
                 ffmpeg_merge.extend(["-i", audio_path])
+            # PNG frames are full-range RGB; convert to limited-range BT.709 YUV
+            # and tag the stream so players do not guess colorspace.
+            ffmpeg_merge.extend(["-vf", build_output_video_filter(use_sdr_bt709)])
+            if use_sdr_bt709:
+                ffmpeg_merge.extend([
+                    "-colorspace", "bt709",
+                    "-color_primaries", "bt709",
+                    "-color_trc", "bt709",
+                    "-color_range", "tv",
+                ])
             ffmpeg_merge.extend(codec_arg)
             if "ProRes" not in target_codec and "-pix_fmt" not in codec_arg:
                 ffmpeg_merge.extend(["-pix_fmt", "yuv420p"])
@@ -728,8 +1257,42 @@ class VideoWorker(QThread):
             ffmpeg_merge.append(out_file_path)
 
             self._run_command(ffmpeg_merge, "FFmpeg 视频合成")
-            if not os.path.isfile(out_file_path) or os.path.getsize(out_file_path) <= 0:
-                raise OSError("视频合成结束，但输出文件不存在或为空")
+            try:
+                validation = validate_output_video(self.FFPROBE, out_file_path)
+                expected_width = self._source_width * scale_factor
+                expected_height = self._source_height * scale_factor
+                expected_width += expected_width % 2
+                expected_height += expected_height % 2
+                expected_frames = self._count_png_frames(use_frame_dir)
+                if (validation.width, validation.height) != (expected_width, expected_height):
+                    raise RuntimeError(
+                        f"输出尺寸校验失败：{validation.width}x{validation.height}，"
+                        f"预期 {expected_width}x{expected_height}"
+                    )
+                if validation.frame_count != expected_frames:
+                    raise RuntimeError(
+                        f"输出帧数校验失败：{validation.frame_count}，预期 {expected_frames}"
+                    )
+                if abs(validation.fps - target_fps) > 0.01:
+                    raise RuntimeError(
+                        f"输出 FPS 校验失败：{validation.fps}，预期 {target_fps}"
+                    )
+                if has_audio and validation.audio_stream_count < 1:
+                    raise RuntimeError("输出音频校验失败：音轨丢失")
+            except Exception:
+                if os.path.isfile(out_file_path):
+                    invalid_path = reserve_output_path(
+                        target_dir, os.path.basename(out_file_path) + ".invalid"
+                    )
+                    os.replace(out_file_path, invalid_path)
+                    self.log_output.emit(f"  ⚠️ 无效输出已隔离：{invalid_path}")
+                raise
+            self.completed_outputs.append(out_file_path)
+            self.output_validations.append(validation.as_dict())
+            self.log_output.emit(
+                "OUTPUT VALIDATION:\n"
+                + json.dumps(validation.as_dict(), ensure_ascii=False, sort_keys=True)
+            )
 
             self._update_progress(index, 3)
             self.log_output.emit(f"  ✅ 渲染完成！输出路径：{out_file_path}\n")
@@ -741,11 +1304,31 @@ class VideoWorker(QThread):
         failed_count = 0
         completed_count = 0
         current_temp_dir = None
+        early_result = None
 
         try:
+            self.lifecycle.transition(TaskState.VALIDATING)
+            self.log_output.emit(f"TASK CONFIG:\ntask_id={self.task_id}")
+            self.log_output.emit(
+                "runtime_config="
+                + json.dumps(self.runtime_config.as_dict(), ensure_ascii=False, sort_keys=True)
+            )
             self._validate_environment()
+            self.lifecycle.transition(TaskState.INITIALIZING)
+            if self.runtime_config.pipeline_mode == "disk":
+                self._ensure_interpolator_backend()
+            else:
+                self.log_output.emit(
+                    "BACKEND INIT:\nstatus=skipped\nreason=memory_pipeline_validation_only"
+                )
             temp_root = self._prepare_temp_root()
+            self.lifecycle.transition(TaskState.RUNNING)
             self.log_output.emit("🚀 [环境自检] FFmpeg: 就绪 | RIFE Vulkan: 就绪 | Real-ESRGAN: 就绪")
+            if self.file_list:
+                self._source_width, self._source_height = self._probe_video_size(
+                    self.file_list[0]
+                )
+            self._log_effective_config()
             self.log_output.emit(
                 f"📂 [输出配置] 目标路径: {'源文件目录' if self.same_as_src else self.out_path}"
             )
@@ -763,7 +1346,11 @@ class VideoWorker(QThread):
                     raise
                 except Exception as exc:
                     failed_count += 1
-                    self.log_output.emit(f"  ❌ 处理异常失败：{exc}\n")
+                    self.lifecycle.record_failure(exc, "video_process")
+                    self._emit_failure_detail(
+                        f"文件 [{index + 1}/{len(self.file_list)}] {file_path}",
+                        exc,
+                    )
                 finally:
                     current_temp_dir = self._current_temp_dir
                     if current_temp_dir:
@@ -776,31 +1363,78 @@ class VideoWorker(QThread):
             self._ensure_running()
             if failed_count == 0:
                 self.progress_updated.emit(100)
-        except TaskCancelled:
-            self.task_finished.emit(False, "⏹ 任务已被用户取消，后台子进程已终止")
-            return
+                self.lifecycle.transition(TaskState.SUCCEEDED)
+            else:
+                self.lifecycle.transition(TaskState.FAILED)
+        except TaskCancelled as exc:
+            self.lifecycle.record_failure(exc, "cancel")
+            self.lifecycle.transition(TaskState.CANCELLED)
+            early_result = (False, "⏹ 任务已被用户取消，后台子进程已终止")
         except Exception as exc:
-            self.log_output.emit(f"❌ [系统] 初始化或文件读写失败：{exc}")
-            self.task_finished.emit(False, f"任务启动失败：{exc}")
-            return
+            self.lifecycle.record_failure(exc, "task_initialize")
+            self.lifecycle.transition(TaskState.FAILED)
+            self._emit_failure_detail("任务初始化 / 环境自检", exc)
+            summary = f"任务启动失败：{type(exc).__name__}: {exc}"
+            early_result = (False, summary)
         finally:
+            self._release_backend()
             with self._process_lock:
                 process = self._active_process
             self._terminate_process_tree(process)
+            self.log_output.emit(
+                "TASK RESULT:\n"
+                + json.dumps(self.lifecycle.snapshot(), ensure_ascii=False, sort_keys=True)
+            )
+
+        if early_result is not None:
+            self._write_task_report()
+            self.task_finished.emit(*early_result)
+            return
 
         if self.clean_cache:
             self.log_output.emit("\n🧹 [系统] 全部任务缓存清理完毕，磁盘空间已释放")
 
         if failed_count:
-            self.task_finished.emit(
-                False,
-                f"处理结束：成功 {completed_count} 个，失败 {failed_count} 个"
-            )
+            self._write_task_report()
+            summary = f"处理结束：成功 {completed_count} 个，失败 {failed_count} 个"
+            if self._last_failure_detail:
+                summary = f"{summary}\n{self._last_failure_detail.strip()}"
+            self.task_finished.emit(False, summary)
         else:
-            self.task_finished.emit(True, "✅ 所有任务处理完成！")
+            self._write_task_report()
+            if self.runtime_config.pipeline_mode == "memory":
+                self.task_finished.emit(
+                    True,
+                    "✅ Memory Frame Pipeline 验证完成（实验模式，未生成输出视频）",
+                )
+            else:
+                self.task_finished.emit(True, "✅ 所有任务处理完成！")
+
+    def _write_task_report(self):
+        target_dir = self.out_path
+        if self.same_as_src and self.file_list:
+            target_dir = os.path.dirname(self.file_list[0])
+        if not target_dir:
+            target_dir = os.path.join(self.base_dir, "user_data", "reports")
+        payload = {
+            "task_id": self.task_id,
+            "lifecycle": self.lifecycle.snapshot(),
+            "runtime_config": self.runtime_config.as_dict(),
+            "inputs": list(self.file_list),
+            "outputs": list(self.completed_outputs),
+            "output_validations": list(self.output_validations),
+            "disk_estimates": list(self.disk_estimates),
+            "failure_detail": self._last_failure_detail,
+        }
+        try:
+            self.report_path = write_task_report(target_dir, self.task_id, payload)
+            self.log_output.emit(f"TASK REPORT:\npath={self.report_path}")
+        except OSError as exc:
+            self.log_output.emit(f"TASK REPORT FAILED:\nreason={exc}")
 
     def stop(self):
         self.is_running = False
+        self.lifecycle.transition(TaskState.CANCELLING)
         self._stop_event.set()
         self.requestInterruption()
         with self._process_lock:
@@ -1901,6 +2535,14 @@ class MainWindow(QMainWindow):
             "crf": self._parse_crf(),
             "encode_preset": "slow" if self._parse_crf() <= 16 else "medium",
             "rife_model": self._selected_rife_model_path(),
+            "selected_model": self.model_combo["combo"].currentText(),
+            "model_select_reason": "user_selected",
+            "input_type": "unknown",
+            "rife_thread_config": resolve_rife_thread_config(
+                # Prefer any future UI/settings override; default 2:4:4
+                None
+            ),
+            "encoder_mode": "auto",
             "enable_dedup": self.chk_dedup.isChecked(),
             "enable_scdet": self.chk_scdet.isChecked(),
             "dedup_threshold": float(self.dedup_spin.value()),

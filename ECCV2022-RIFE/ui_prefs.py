@@ -30,7 +30,8 @@ DEFAULT_SETTINGS = {
     "font_size": 13,
     "theme": "liquid",
     "background_path": "",
-    "last_preset": "SVFI风格",
+    # General-purpose default preset (rife-v4.6). Anime presets remain explicit options.
+    "last_preset": "电影ProRes",
     # 玻璃面板不透明度 10~90，数值越大底板越实
     "glass_opacity": 32,
 }

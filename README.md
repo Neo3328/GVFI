@@ -17,8 +17,8 @@ Copyright © 2026 Mr. Gong. All Rights Reserved.
 
 | 文件 | 适合人群 |
 |------|----------|
-| **`GVFI-Setup-1.0.0-x64.exe`** | 推荐：安装到系统、自动创建桌面快捷方式 |
-| **`GVFI-Portable-1.0.0-x64.exe`** | 免安装、解压即用 |
+| **`GVFI-Setup-1.1.0-x64.exe`** | 推荐：安装到系统、自动创建桌面快捷方式 |
+| **`GVFI-Portable-1.1.0-x64.exe`** | 免安装、解压即用 |
 
 **注意：**
 - 请下载 **Assets** 里的 `.exe`，**不要**点绿色「Code → Download ZIP」（那是源码）。
@@ -40,9 +40,9 @@ GitHub 附件托管于海外 CDN，国内访问可能偏慢或不稳定。建议
 
 | 产物 | 链接 | 提取码 |
 |------|------|--------|
-| GVFI 1.0.0（Setup + Portable） | [百度网盘](https://pan.baidu.com/s/1hH8P9oHXKdHiNZsNBiM2ZA?pwd=x9n6) | `x9n6` |
+| GVFI 1.1.0（Setup + Portable） | 请从 [Releases](https://github.com/Neo3328/GVFI/releases/latest) 下载 | — |
 
-> ⚠️ 镜像为**本地构建版本**，SHA-256 与 GitHub Release **不同**（见 `releases/1.0.0/DOWNLOADS.md` 中的「本地构建」哈希）。功能一致，可正常使用。
+> ⚠️ 安装包不包含任何预置 API Key；首次使用大模型功能时，请在 AI 工作台填写你自己的服务地址、模型和密钥。
 
 ---
 
@@ -52,7 +52,7 @@ GitHub 附件托管于海外 CDN，国内访问可能偏慢或不稳定。建议
 |------|------|------|
 | **首页** | `/app/dashboard` | KPI 与快捷入口 |
 | **任务** | `/app/tasks` | 任务队列与输出 |
-| **视频** | `/app/video` | 导入、预览、本地补帧/超分 |
+| **视频** | `/app/video` | 导入、预览、独立补帧 / 独立超分 / 组合任务 |
 | **AI** | `/app/ai` | 大模型视觉分析与报告 |
 | **连接** | `/app/settings` | API Profile、大模型 URL/密钥 |
 | **系统** | `/app/system` | 外观 / 开发者 / 日志 / 关于 |
@@ -185,14 +185,14 @@ scripts\sync-desktop-ui.cmd
 
 ---
 
-## 对外发布（Windows 1.0.0）
+## 对外发布（Windows 1.1.0）
 
 正式给他人使用前请阅读 [`docs/RELEASE.md`](docs/RELEASE.md)。摘要：
 
 1. **代码签名**：设置 `CSC_LINK` / `CSC_KEY_PASSWORD` 后打包，降低 SmartScreen「未知发布者」提示  
-2. **版本**：`1.0.0`（`web-ui/package.json` + `APP_VERSION`）  
-3. **产物**：`cd web-ui && npm run dist:win:release` → `GVFI-Setup-1.0.0-x64.exe` + `GVFI-Portable-1.0.0-x64.exe`  
-4. **哈希**：`scripts\release-checksums.ps1 -Version 1.0.0` → 生成 `SHA256SUMS.txt`，连同两个安装包作为 **GitHub Release 附件**上传（勿提交到仓库）  
+2. **版本**：`1.1.0`（`web-ui/package.json` + `APP_VERSION`）  
+3. **产物**：`cd web-ui && npm run dist:win:release` → `GVFI-Setup-1.1.0-x64.exe` + `GVFI-Portable-1.1.0-x64.exe`  
+4. **哈希**：`scripts\release-checksums.ps1 -Version 1.1.0` → 生成 `SHA256SUMS.txt`，连同两个安装包作为 **GitHub Release 附件**上传（勿提交到仓库）  
 5. **反馈**：配置 `FEEDBACK_EMAIL` / `FEEDBACK_URL`（`web-ui/src/lib/brand.ts`）  
 6. **升级**：本版手动安装；回滚保留上一版安装包与 SHA-256  
 

@@ -10,6 +10,7 @@ import { useEffect, useRef } from "react";
 import { isTerminalStatus, stageLabelOf } from "@/lib/gvfi-api";
 import { t } from "@/lib/i18n/t";
 import type { JobTask } from "@/lib/gvfi-types";
+import { formatSvfiProgressLine } from "@/lib/svfi-progress-line";
 import type { IRenderService } from "@/services/render-service";
 import { useJobStore } from "@/stores/job-store";
 import { useLocaleStore } from "@/stores/locale-store";
@@ -23,11 +24,30 @@ export interface UseJobPollingOptions {
   intervalMs?: number;
 }
 
+interface ProgressRateState {
+  jobId: string | null;
+  startedAt: number;
+  lastProgressPct: number;
+  lastAt: number;
+}
+
+function looksLikeErrorLine(line: string): boolean {
+  return /❌|处理异常失败|任务启动失败|Traceback|退出码|stderr|Error|Exception/i.test(
+    line
+  );
+}
+
 export function useJobPolling({
   renderService,
   intervalMs = 1000,
 }: UseJobPollingOptions) {
   const pollRef = useRef<number | null>(null);
+  const rateRef = useRef<ProgressRateState>({
+    jobId: null,
+    startedAt: 0,
+    lastProgressPct: 0,
+    lastAt: 0,
+  });
 
   const stopPolling = () => {
     if (pollRef.current !== null) {
@@ -36,7 +56,36 @@ export function useJobPolling({
     }
   };
 
-  const applyTask = (task: JobTask, warnings?: string[]) => {
+  const pullFailureLogs = async (task: JobTask) => {
+    const { appendErrorLog } = useJobStore.getState();
+    const locale = useLocaleStore.getState().locale;
+    const fallback =
+      task.error ||
+      task.message ||
+      t(locale, "jobs.taskStatus", { status: task.status });
+
+    try {
+      const payload = await renderService.getJobLogs(task.id);
+      const fromApi = (payload.error_logs ?? []).filter((l) => l.trim());
+      const fromTask = (payload.logs ?? []).filter(looksLikeErrorLine);
+      const merged = fromApi.length > 0 ? fromApi : fromTask;
+      if (merged.length === 0) {
+        appendErrorLog(fallback);
+        return;
+      }
+      for (const line of merged) {
+        appendErrorLog(line);
+      }
+      // Ensure the task.error summary is visible even if already partially mirrored.
+      if (task.error && !merged.some((l) => l.includes(task.error.slice(0, 80)))) {
+        appendErrorLog(task.error);
+      }
+    } catch {
+      appendErrorLog(fallback);
+    }
+  };
+
+  const applyTask = async (task: JobTask, warnings?: string[]) => {
     const {
       setActiveTask,
       setProgress,
@@ -44,12 +93,24 @@ export function useJobPolling({
       setIsRendering,
       setLastOutputPath,
       appendTaskLog,
-      appendErrorLog,
+      upsertProgressLog,
     } = useJobStore.getState();
     const locale = useLocaleStore.getState().locale;
+    const now = Date.now();
+    const progressPct = Math.round(clamp(task.progress, 0, 1) * 100);
+
+    if (rateRef.current.jobId !== task.id) {
+      const createdMs = Date.parse(task.created_at);
+      rateRef.current = {
+        jobId: task.id,
+        startedAt: Number.isFinite(createdMs) ? createdMs : now,
+        lastProgressPct: progressPct,
+        lastAt: now,
+      };
+    }
 
     setActiveTask(task);
-    setProgress(Math.round(clamp(task.progress, 0, 1) * 100));
+    setProgress(progressPct);
     setStageLabel(stageLabelOf(task));
     if (task.output_path) setLastOutputPath(task.output_path);
     if (warnings?.length) {
@@ -60,11 +121,7 @@ export function useJobPolling({
     if (task.status === "failed" || task.status === "cancelled") {
       setIsRendering(false);
       stopPolling();
-      appendErrorLog(
-        task.error ||
-          task.message ||
-          t(locale, "jobs.taskStatus", { status: task.status })
-      );
+      await pullFailureLogs(task);
       return;
     }
     if (task.status === "succeeded") {
@@ -77,16 +134,52 @@ export function useJobPolling({
       );
       return;
     }
+
     setIsRendering(true);
+
+    const rateState = rateRef.current;
+    const elapsedMs = Math.max(0, now - rateState.startedAt);
+    const dtSec = (now - rateState.lastAt) / 1000;
+    const dPct = progressPct - rateState.lastProgressPct;
+    let ratePctPerSec: number | null = null;
+    if (dtSec > 0 && dPct > 0) {
+      ratePctPerSec = dPct / dtSec;
+    } else if (elapsedMs > 0 && progressPct > 0) {
+      ratePctPerSec = progressPct / (elapsedMs / 1000);
+    }
+
+    if (dPct !== 0 || rateState.lastAt === 0) {
+      rateRef.current = {
+        ...rateState,
+        lastProgressPct: progressPct,
+        lastAt: now,
+      };
+    }
+
+    upsertProgressLog(
+      formatSvfiProgressLine({
+        progress: task.progress,
+        stage: task.stage,
+        message: task.message,
+        elapsedMs,
+        ratePctPerSec,
+      })
+    );
   };
 
   const startPolling = (id: string) => {
     stopPolling();
+    rateRef.current = {
+      jobId: null,
+      startedAt: 0,
+      lastProgressPct: 0,
+      lastAt: 0,
+    };
     pollRef.current = window.setInterval(() => {
       void (async () => {
         try {
           const task = await renderService.getJob(id);
-          applyTask(task);
+          await applyTask(task);
           if (isTerminalStatus(task.status)) {
             stopPolling();
           }
