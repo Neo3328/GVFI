@@ -46,8 +46,8 @@ html[data-desktop-shell="true"] .gvfi-window-frame {
   border-radius: var(--window-radius);
   overflow: hidden;
   /* Keep fill + border + clip on the same layer */
-  background-color: color-mix(in srgb, var(--bg-0) 92%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--glass-border) 70%, transparent);
+  background-color: var(--bg-1);
+  box-shadow: 0 0 0 1px var(--glass-border);
 }
 
 /* Maximized / fullscreen: square to the monitor edge */

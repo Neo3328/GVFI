@@ -114,7 +114,10 @@ def remove_duplicate_frames(
         if prev_gray is None or _mad_score(prev_gray, gray) > threshold:
             kept += 1
             out_path = os.path.join(dst_dir, f"{kept:08d}.png")
-            shutil.copy2(path, out_path)
+            try:
+                os.link(path, out_path)
+            except OSError:
+                shutil.copy2(path, out_path)
             prev_gray = gray
 
     removed = len(paths) - kept
@@ -247,6 +250,7 @@ def discover_rife_models(rife_dir: Optional[str]) -> List[str]:
     if not rife_dir or not os.path.isdir(rife_dir):
         return []
     preferred = (
+        # General-purpose first — rife-anime remains available but not the silent default.
         "rife-v4.6", "rife-v4", "rife-anime", "rife-v3.1", "rife-v3.0",
         "rife-UHD", "rife-HD", "rife-v2.4", "rife-v2.3", "rife-v2", "rife",
     )

@@ -119,6 +119,7 @@ export async function createJob(options: {
     form.append(
       "settings",
       JSON.stringify({
+        task_type: settings.task_type,
         model: settings.model,
         fps: settings.fps,
         superResolution: settings.superResolution,

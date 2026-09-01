@@ -7,13 +7,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Loader2, RefreshCcw } from "lucide-react";
+import { GlassButton } from "@/components/glass/glass-button";
 import { GlassPanel } from "@/components/glass/glass-card";
 import { GlassLogViewer } from "@/components/glass/glass-log-viewer";
 import { GlassTaskCard } from "@/components/glass/glass-task-card";
+import { Badge } from "@/components/ui/badge";
 import { VideoComparisonViewer } from "@/components/workspace/video-comparison-viewer";
 import { useWorkspaceChrome } from "@/components/workspace/workspace-chrome-context";
 import { useRenderService } from "@/hooks/use-render-service";
 import { useT } from "@/hooks/use-t";
+import type { TranslateFn } from "@/lib/i18n/t";
 import {
   isTerminalStatus,
   mediaUrlForPath,
@@ -32,6 +36,12 @@ function taskTitle(task: JobTask, untitled: string): string {
   return basename(task.input_path || task.id, untitled);
 }
 
+function taskTypeLabel(task: JobTask, t: TranslateFn): string {
+  if (task.task_type === "interp") return t("task.type.interp");
+  if (task.task_type === "sr") return t("task.type.sr");
+  return t("task.type.both");
+}
+
 export function RenderCenter() {
   const t = useT();
   const renderService = useRenderService();
@@ -41,6 +51,7 @@ export function RenderCenter() {
   const [taskLogs, setTaskLogs] = useState<string[]>([]);
   const [errorLogs, setErrorLogs] = useState<string[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const selected = useMemo(
     () => tasks.find((task) => task.id === selectedId) ?? null,
@@ -62,6 +73,8 @@ export function RenderCenter() {
       });
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLoading(false);
     }
   }, [renderService]);
 
@@ -128,6 +141,12 @@ export function RenderCenter() {
     }
   };
 
+  const handleRetry = async () => {
+    setLoading(true);
+    setLoadError(null);
+    await refreshTasks();
+  };
+
   const untitled = t("tasks.untitled");
   const srcBefore = selected?.input_path
     ? mediaUrlForPath(selected.input_path)
@@ -141,8 +160,29 @@ export function RenderCenter() {
     <div className="flex flex-1 flex-col gap-4 lg:flex-row lg:items-start">
       <aside className="flex w-full flex-col gap-3 lg:max-w-sm">
         <GlassPanel title={t("tasks.queueTitle")} description={t("tasks.queueDesc")}>
-          {loadError ? (
-            <p className="text-[13px] text-[var(--danger)]">{loadError}</p>
+          {loading && tasks.length === 0 ? (
+            <div
+              className="flex items-center gap-2 text-[13px] text-[var(--text-muted)]"
+              role="status"
+            >
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+              {t("tasks.loading")}
+            </div>
+          ) : loadError ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-[13px] text-[var(--danger)]" role="alert">
+                {t("tasks.loadFailHint", { error: loadError })}
+              </p>
+              <GlassButton
+                type="button"
+                variant="glass"
+                size="sm"
+                onClick={() => void handleRetry()}
+              >
+                <RefreshCcw className="size-3.5" aria-hidden />
+                {t("tasks.retry")}
+              </GlassButton>
+            </div>
           ) : tasks.length === 0 ? (
             <p className="text-[13px] text-[var(--text-muted)]">
               {t("tasks.empty")}
@@ -152,7 +192,14 @@ export function RenderCenter() {
               {tasks.map((task) => (
                 <li key={task.id}>
                   <GlassTaskCard
-                    title={taskTitle(task, untitled)}
+                    title={
+                      <span className="flex items-center gap-2">
+                        {taskTitle(task, untitled)}
+                        <Badge variant="outline" className="text-[10px]">
+                          {taskTypeLabel(task, t)}
+                        </Badge>
+                      </span>
+                    }
                     status={task.status}
                     stage={task.stage}
                     progress={Math.round(task.progress * 100)}
@@ -202,7 +249,10 @@ export function RenderCenter() {
                 </div>
                 <div className="col-span-2">
                   <dt className="text-[var(--text-muted)]">{t("tasks.output")}</dt>
-                  <dd className="truncate font-mono text-[11px]">
+                  <dd
+                    className="truncate font-mono text-[11px]"
+                    title={selected.output_path ?? ""}
+                  >
                     {selected.output_path || t("common.emDash")}
                   </dd>
                 </div>

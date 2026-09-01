@@ -1,47 +1,31 @@
 /**
- * Glass material tokens — macOS Liquid Glass layering.
+ * GVFI — Windows desktop shadow tokens (subtle, no inset glow).
  * Developed by Mr. Gong
  * Copyright © 2026 Mr. Gong. All Rights Reserved.
  */
 
 :root {
-  --lg-glass-blur-1: var(--glass-blur);
-  --lg-glass-blur-2: calc(var(--glass-blur) * 0.72);
-  --lg-glass-blur-3: calc(var(--glass-blur) * 0.5);
-  --lg-glass-blur-4: calc(var(--glass-blur) * 0.33);
-  --lg-glass-opacity: var(--glass-opacity);
-  --lg-glass-blur: var(--lg-glass-blur-2);
-  --lg-border-brightness: calc(var(--glass-border-opacity) * 100);
-  --lg-shadow-strength: calc(var(--glass-shadow-opacity) * 100);
+  --lg-glass-blur-1: 0px;
+  --lg-glass-blur-2: 0px;
+  --lg-glass-blur-3: 0px;
+  --lg-glass-blur-4: 0px;
+  --lg-glass-opacity: 1;
+  --lg-glass-blur: 0px;
+  --lg-border-brightness: 100;
+  --lg-shadow-strength: 8;
   --lg-glow-strength: 0;
   --lg-bg-opacity: 100;
   --lg-bg-blur: 0px;
 
-  /* Soft ambient stack — restrained glass elevation */
-  --lg-shadow-glass: var(--lg-elev-shadow, 0 8px 30px rgba(0, 0, 0, 0.25)),
-    inset 0 1px 0 var(--lg-glass-highlight);
+  /* Subtle elevation shadow — no inset highlight */
+  --lg-shadow-glass: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 :root[data-theme="studio"] {
-  --lg-shadow-glass: var(--lg-elev-shadow, 0 8px 28px rgba(15, 23, 42, 0.12)),
-    inset 0 1px 0 var(--lg-highlight, rgba(255, 255, 255, 0.45));
+  --lg-shadow-glass: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 :root[data-theme="dark"],
 :root[data-theme="ai"] {
-  --lg-shadow-glass: var(--lg-elev-shadow, 0 8px 30px rgba(0, 0, 0, 0.25)),
-    inset 0 1px 0 var(--lg-glass-highlight);
-}
-
-@media (prefers-reduced-transparency: reduce) {
-  :root {
-    --glass-blur: 0px;
-    --lg-glass-fill: var(--bg-2);
-    --lg-glass-fill-2: var(--bg-2);
-    --lg-glass-blur: 0px;
-    --lg-glass-blur-1: 0px;
-    --lg-glass-blur-2: 0px;
-    --lg-glass-blur-3: 0px;
-    --lg-glass-blur-4: 0px;
-  }
+  --lg-shadow-glass: 0 1px 3px rgba(0, 0, 0, 0.2);
 }

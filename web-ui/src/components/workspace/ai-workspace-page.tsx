@@ -6,4 +6,4 @@
 
 "use client";
 
-export { AiWorkspaceShell as AiWorkspacePage } from "@/components/ai-workspace/ai-workspace-shell";
+export { AiWorkspaceShell as AiWorkspacePage } from"@/components/ai-workspace/ai-workspace-shell";

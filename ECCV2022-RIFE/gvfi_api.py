@@ -10,13 +10,14 @@ from __future__ import annotations
 import cgi
 import json
 import os
+import queue
 import sys
 import threading
 import time
 import uuid
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, unquote, urlparse
 
 # Force UTF-8 stdio on Windows so Electron logs / consoles don't garble Chinese.
@@ -32,7 +33,12 @@ except Exception:
 from PyQt5.QtCore import QCoreApplication, QTimer
 
 from main import VideoWorker
-from tool_resolver import resolve_runtime_tools
+from tool_resolver import (
+    DEFAULT_RIFE_MODEL_NAME,
+    pick_default_rife_model,
+    resolve_rife_thread_config,
+    resolve_runtime_tools,
+)
 from svfi_pipeline import discover_rife_models
 from llm_video import run_llm_video_job, test_llm_connection
 
@@ -71,6 +77,9 @@ _active_job_id: Optional[str] = None
 _active_llm_cancelled: Dict[str, bool] = {}
 _upload_dir: Optional[str] = None
 _output_dir: Optional[str] = None
+# VideoWorker is a QThread — must be created/started on the Qt main thread.
+# HTTP handlers run on ThreadingHTTPServer worker threads, so enqueue here.
+_start_queue: "queue.Queue[Tuple[str, str, dict]]" = queue.Queue()
 _mem_monitor = MemoryPressureMonitor() if MemoryPressureMonitor else None
 if _mem_monitor is not None:
     _mem_monitor.set_thresholds(75, 90)
@@ -248,25 +257,125 @@ def _health_payload() -> dict:
     }
 
 
-def _resolve_rife_model(model_id: str, tools: dict) -> str:
+def _resolve_rife_model_choice(model_id: str, tools: dict) -> Tuple[str, str, str]:
+    """
+    Resolve JobSettings.model to (path, selected_name, reason).
+
+    reason:
+      - user_selected — explicit non-empty model matched
+      - default_general_model — empty / missing → rife-v4.6 (or next general)
+      - fallback_default_general_model — requested id missing → general default
+    """
     catalog = _model_catalog(tools)
-    if model_id:
+    requested = (model_id or "").strip()
+
+    def _default_path() -> str:
+        path = pick_default_rife_model([item["path"] for item in catalog]) or tools.get(
+            "rife_model"
+        )
+        return path or ""
+
+    if requested:
         for item in catalog:
-            if item["id"] == model_id or item["name"] in model_id:
-                return item["path"]
-        if os.path.isdir(model_id):
-            return model_id
-        basename = model_id.split(":")[-1]
+            if item["id"] == requested or item["name"] in requested:
+                return item["path"], item["name"], "user_selected"
+        if os.path.isdir(requested):
+            name = os.path.basename(requested.rstrip("\\/"))
+            return requested, name, "user_selected"
+        basename = requested.split(":")[-1]
         for item in catalog:
             if item["name"] == basename:
-                return item["path"]
-    return tools.get("rife_model") or ""
+                return item["path"], item["name"], "user_selected"
+        path = _default_path()
+        name = os.path.basename(path.rstrip("\\/")) if path else DEFAULT_RIFE_MODEL_NAME
+        return path, name, "fallback_default_general_model"
+
+    path = _default_path()
+    name = os.path.basename(path.rstrip("\\/")) if path else DEFAULT_RIFE_MODEL_NAME
+    return path, name, "default_general_model"
+
+
+def _resolve_rife_model(model_id: str, tools: dict) -> str:
+    path, _, _ = _resolve_rife_model_choice(model_id, tools)
+    return path
+
+
+def _format_model_config_log(
+    *,
+    selected_model: str,
+    reason: str,
+    input_type: str = "unknown",
+) -> str:
+    return (
+        "MODEL CONFIG:\n"
+        f"input_type={input_type}\n"
+        f"selected_model={selected_model}\n"
+        f"reason={reason}"
+    )
+
+
+def _format_rife_config_log(params: dict) -> str:
+    model_label = params.get("selected_model") or os.path.basename(
+        str(params.get("rife_model") or params.get("model") or "").rstrip("\\/")
+    ) or "unknown"
+    return (
+        "RIFE CONFIG:\n"
+        f"model={model_label}\n"
+        f"gpu={params.get('gpu', 0)}\n"
+        f"thread_config={params.get('rife_thread_config', '2:4:4')}"
+    )
+
+
+# Canonical JobSettings names from web-ui → worker. One name per concept.
+# quality (0..1 UI slider, or CRF if >1) → derived crf for FFmpeg only.
+
+
+def _quality_to_crf(quality) -> int:
+    """Map UI quality to FFmpeg CRF. quality∈[0,1] → CRF 28..14; values >1 treated as CRF."""
+    try:
+        q = float(quality)
+    except (TypeError, ValueError):
+        q = 0.8
+    if q > 1.0:
+        return max(0, min(51, int(round(q))))
+    q = max(0.0, min(1.0, q))
+    return int(round(28 - q * 14))
 
 
 def _settings_to_worker_params(settings: dict, tools: dict) -> dict:
+    """Map frontend JobSettings (camelCase) into VideoWorker params. No alternate aliases."""
     fps = int(settings.get("fps") or 120)
-    super_sr = bool(settings.get("superResolution", True))
+    task_type = str(settings.get("task_type") or "both").lower()
+    if task_type not in ("interp", "sr", "both"):
+        task_type = "both"
+    super_sr = bool(settings.get("superResolution", True)) and task_type in ("sr", "both")
     resolution = settings.get("resolution") or "source"
+    if task_type == "interp":
+        super_sr = False
+        resolution = "source"
+    quality = settings.get("quality", 0.8)
+    sr_model = settings.get("srModel") or "realesrgan"
+    precision = settings.get("precision") or "fp16"
+    model = settings.get("model") or ""
+    try:
+        gpu = int(settings.get("gpu", 0))
+    except (TypeError, ValueError):
+        gpu = 0
+    pipeline_mode = str(settings.get("pipeline_mode") or settings.get("pipelineMode") or "disk").lower()
+    if pipeline_mode not in ("disk", "memory"):
+        pipeline_mode = "disk"
+    backend_mode = str(settings.get("backend_mode") or settings.get("backendMode") or "cli").lower()
+    if backend_mode not in ("cli", "native"):
+        backend_mode = "cli"
+    try:
+        queue_size = max(1, int(settings.get("queue_size") or settings.get("queueSize") or 32))
+    except (TypeError, ValueError):
+        queue_size = 32
+    try:
+        worker_count = max(1, int(settings.get("worker_count") or settings.get("workerCount") or 1))
+    except (TypeError, ValueError):
+        worker_count = 1
+
     if not super_sr or resolution == "source":
         scale = "原始"
     elif resolution in ("4k", "1440p"):
@@ -274,19 +383,80 @@ def _settings_to_worker_params(settings: dict, tools: dict) -> dict:
     else:
         scale = "2x"
 
+    crf = _quality_to_crf(quality)
+    codec = settings.get("codec") or "H.265 (HEVC)"
+    rife_path, selected_model, model_reason = _resolve_rife_model_choice(model, tools)
+    # Configurable; resolution-aware clamp applied later in VideoWorker with probed size.
+    rife_thread_config = resolve_rife_thread_config(
+        settings.get("rife_thread_config")
+    )
+
     return {
+        # Canonical contract fields (same names as web-ui JobSettings)
+        "model": model,
+        "task_type": task_type,
         "fps": str(fps),
+        "superResolution": super_sr,
+        "srModel": sr_model,
+        "resolution": resolution,
+        "gpu": gpu,
+        "precision": precision,
+        "quality": quality,
+        # Derived execution fields consumed by VideoWorker / CLI
         "scale": scale,
-        "codec": "H.265 (HEVC)",
-        "crf": 18,
-        "encode_preset": "medium",
-        "rife_model": _resolve_rife_model(settings.get("model", ""), tools),
+        "codec": codec,
+        "crf": crf,
+        "encode_preset": "slow" if crf <= 16 else "medium",
+        "rife_model": rife_path,
+        "selected_model": selected_model,
+        "model_select_reason": model_reason,
+        "input_type": settings.get("input_type") or "unknown",
+        "rife_thread_config": rife_thread_config,
+        # auto | hardware | software — internal config, no GUI control yet
+        "encoder_mode": str(settings.get("encoder_mode") or "auto").lower(),
         "enable_dedup": bool(settings.get("enableDedup", True)),
         "enable_scdet": bool(settings.get("enableScdet", True)),
         "dedup_threshold": float(settings.get("dedupThreshold", 1.5)),
         "scdet_threshold": float(settings.get("scdetThreshold", 12.0)),
         "keep_audio": bool(settings.get("keepAudio", True)),
+        "pipeline_mode": pipeline_mode,
+        "queue_size": queue_size,
+        "worker_count": worker_count,
+        "backend_mode": backend_mode,
     }
+
+
+def _format_effective_config(params: dict) -> str:
+    """Human-readable final config line for job-start logs."""
+    model_label = params.get("selected_model") or os.path.basename(
+        str(params.get("rife_model") or params.get("model") or "").rstrip("\\/")
+    ) or "unknown"
+    sr = params.get("srModel") or "none"
+    if not params.get("superResolution", True) or params.get("scale") == "原始":
+        sr = "none"
+    model_block = _format_model_config_log(
+        selected_model=str(model_label),
+        reason=str(params.get("model_select_reason") or "default_general_model"),
+        input_type=str(params.get("input_type") or "unknown"),
+    )
+    rife_block = _format_rife_config_log(params)
+    return (
+        f"{model_block}\n"
+        f"{rife_block}\n"
+        "任务开始：\n"
+        f"model={model_label}\n"
+        f"gpu={params.get('gpu', 0)}\n"
+        f"precision={params.get('precision', 'fp16')}\n"
+        f"quality={params.get('quality', '')}\n"
+        f"srModel={sr}\n"
+        f"resolution={params.get('resolution', params.get('scale', ''))}\n"
+        f"fps={params.get('fps', '')}\n"
+        f"codec={params.get('codec', '')}\n"
+        f"crf={params.get('crf', '')}"
+        f"\nPIPELINE CONFIG:\nmode={params.get('pipeline_mode', 'disk')}\n"
+        f"queue_size={params.get('queue_size', 32)}\nworker_count={params.get('worker_count', 1)}"
+        f"\nBACKEND CONFIG:\nbackend={params.get('backend_mode', 'cli')}\nmodel={model_label}"
+    )
 
 
 def _task_snapshot(job_id: str) -> dict:
@@ -306,15 +476,38 @@ def _update_task(job_id: str, **fields) -> None:
         job["task"]["updated_at"] = _utc_now()
 
 
+def _looks_like_error_line(line: str) -> bool:
+    text = str(line or "")
+    markers = (
+        "❌",
+        "处理异常失败",
+        "任务启动失败",
+        "traceback",
+        "Traceback",
+        "退出码",
+        "stderr",
+        "RuntimeError",
+        "ProcessExecutionError",
+        "OSError",
+        "FileNotFoundError",
+    )
+    return any(m in text for m in markers)
+
+
 def _append_log(job_id: str, line: str, *, error: bool = False) -> None:
+    text = str(line)
+    as_error = error or _looks_like_error_line(text)
     with _jobs_lock:
         job = _jobs.get(job_id)
         if not job:
             return
-        bucket = job["error_logs"] if error else job["logs"]
-        bucket.append(line)
-        if not error:
-            job["task"]["message"] = line[:500]
+        # Keep full stream in task logs; also mirror diagnostics into error_logs.
+        job["logs"].append(text)
+        if as_error:
+            job["error_logs"].append(text)
+        # Prefer a concise one-liner for the live status chip.
+        one_line = text.strip().splitlines()[0] if text.strip() else text
+        job["task"]["message"] = one_line[:500]
 
 
 def _finish_job(job_id: str, success: bool, message: str) -> None:
@@ -323,16 +516,30 @@ def _finish_job(job_id: str, success: bool, message: str) -> None:
     if "取消" in message or "终止" in message or "停止" in message:
         status = "cancelled"
     input_path = ""
+    error_detail = ""
     with _jobs_lock:
         job = _jobs.get(job_id) or {}
         input_path = (job.get("task") or {}).get("input_path") or ""
+        if not success and status != "cancelled":
+            errs = list(job.get("error_logs") or [])
+            # Prefer the richest failure block already captured.
+            packed = "\n\n".join(errs[-12:]) if errs else ""
+            error_detail = (message or "").strip()
+            if packed and packed not in error_detail:
+                error_detail = f"{error_detail}\n\n{packed}".strip()
+            if len(error_detail) > 12000:
+                error_detail = error_detail[-12000:]
+            if error_detail:
+                job.setdefault("error_logs", []).append(
+                    f"❌ 任务失败摘要\n{error_detail}"
+                )
     _update_task(
         job_id,
         status=status,
         stage="done" if success else ("cancelled" if status == "cancelled" else "failed"),
         progress=1.0 if success else _task_snapshot(job_id).get("progress", 0),
-        message=message,
-        error="" if success or status == "cancelled" else message,
+        message=(message or "")[:500],
+        error="" if success or status == "cancelled" else (error_detail or message),
     )
     # Drop temporary upload copies after the job ends (success or failure).
     _cleanup_upload_if_owned(input_path)
@@ -349,6 +556,9 @@ def _start_worker(job_id: str, file_path: str, settings: dict) -> None:
     tools = resolve_runtime_tools()
     params = _settings_to_worker_params(settings, tools)
     out_path = _output_dir or os.path.join(tools["base_dir"], "user_data", "output")
+    config_text = _format_effective_config(params)
+    print(config_text, flush=True)
+    _append_log(job_id, config_text)
 
     worker = VideoWorker(
         [file_path],
@@ -391,10 +601,25 @@ def _start_worker(job_id: str, file_path: str, settings: dict) -> None:
 
     def on_finished(success: bool, message: str) -> None:
         if orch is not None:
+            fields = {"report_path": worker.report_path} if worker.report_path else {}
+            if success and worker.completed_outputs:
+                fields["output_path"] = worker.completed_outputs[-1]
+            if fields:
+                _update_task(job_id, **fields)
             orch.post_finished(job_id, success, message)
             return
         if success:
-            _update_task(job_id, output_path=_guess_output_path(file_path, out_path))
+            _update_task(
+                job_id,
+                output_path=(
+                    worker.completed_outputs[-1]
+                    if worker.completed_outputs
+                    else _guess_output_path(file_path, out_path)
+                ),
+                report_path=worker.report_path,
+            )
+        elif worker.report_path:
+            _update_task(job_id, report_path=worker.report_path)
         _finish_job(job_id, success, message)
 
     worker.progress_updated.connect(on_progress)
@@ -415,7 +640,7 @@ def _start_worker(job_id: str, file_path: str, settings: dict) -> None:
 def _finish_job_from_orch(
     job_id: str, success: bool, message: str, file_path: str, out_path: str
 ) -> None:
-    if success:
+    if success and not _task_snapshot(job_id).get("output_path"):
         _update_task(job_id, output_path=_guess_output_path(file_path, out_path))
     _finish_job(job_id, success, message)
 
@@ -441,6 +666,7 @@ def _create_job(input_path: str, settings: dict) -> dict:
         "id": job_id,
         "input_path": input_path,
         "output_path": "",
+        "report_path": "",
         "status": "pending",
         "progress": 0.0,
         "stage": "queued",
@@ -449,6 +675,7 @@ def _create_job(input_path: str, settings: dict) -> dict:
         "created_at": now,
         "updated_at": now,
         "engine": engine,
+        "task_type": str(settings.get("task_type") or "both"),
     }
     with _jobs_lock:
         _jobs[job_id] = {
@@ -467,12 +694,24 @@ def _create_job(input_path: str, settings: dict) -> dict:
             daemon=True,
         ).start()
     else:
-        threading.Thread(
-            target=_start_worker,
-            args=(job_id, input_path, settings),
-            daemon=True,
-        ).start()
+        # Do NOT start QThread from a random HTTP/thread-pool thread —
+        # run() never advances and ffmpeg never launches (stuck at 0%/queued).
+        _start_queue.put((job_id, input_path, settings))
     return task
+
+
+def _drain_start_queue() -> None:
+    """Pump pending VideoWorker starts on the Qt main thread."""
+    while True:
+        try:
+            job_id, file_path, settings = _start_queue.get_nowait()
+        except queue.Empty:
+            break
+        try:
+            _start_worker(job_id, file_path, settings)
+        except Exception as exc:  # pragma: no cover - defensive
+            print(f"[GVFI API] start worker failed: {exc}", file=sys.stderr)
+            _finish_job(job_id, False, f"任务启动失败：{exc}")
 
 
 def _start_llm_worker(job_id: str, file_path: str, settings: dict) -> None:
@@ -912,8 +1151,15 @@ def main() -> None:
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
 
+    # Drain QThread starts on the Qt event loop (not HTTP worker threads).
+    start_pump = QTimer()
+    start_pump.setInterval(50)
+    start_pump.timeout.connect(_drain_start_queue)
+    start_pump.start()
+
     print(f"GVFI API 运行于 http://{API_HOST}:{API_PORT}")
     print("引擎: VideoWorker (PyQt)")
+    print("启动队列: Qt main-thread pump (50ms)")
 
     sys.exit(app.exec_())
 
