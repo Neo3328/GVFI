@@ -31,7 +31,7 @@ body {
 
 html,
 body {
-  background: var(--bg-1) !important;
+  background: linear-gradient(135deg, var(--bg-0) 0%, var(--bg-1) 100%) !important;
 }
 
 body {
@@ -58,10 +58,10 @@ textarea {
 .glass-panel {
   position: relative;
   overflow: hidden;
-  border: 1px solid var(--glass-border);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: var(--panel-radius);
-  background: var(--glass-bg);
-  box-shadow: var(--glass-shadow);
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   color: var(--text-strong);
   transition:
     box-shadow var(--duration-normal) var(--ease-standard),
@@ -85,10 +85,10 @@ textarea {
 .glass-card {
   position: relative;
   overflow: hidden;
-  border: 1px solid var(--glass-border);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: var(--card-radius);
-  background: var(--glass-bg);
-  box-shadow: var(--glass-shadow);
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   transition:
     box-shadow var(--duration-normal) var(--ease-standard),
     border-color var(--duration-normal) var(--ease-standard);
@@ -109,10 +109,10 @@ textarea {
   position: relative;
   width: 100%;
   min-height: var(--control-height);
-  border: 1px solid var(--glass-border) !important;
+  border: 1px solid #d0d7de !important;
   border-radius: var(--control-radius);
   color: var(--text-strong) !important;
-  background: var(--glass-bg-option) !important;
+  background: #ffffff !important;
   outline: none;
   padding: 6px 10px;
   box-shadow: none;

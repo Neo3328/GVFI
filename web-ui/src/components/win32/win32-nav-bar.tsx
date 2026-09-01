@@ -34,7 +34,7 @@ export function WinNavBar({
   onChange: (id: NavId) => void;
 }) {
   return (
-    <nav className="flex w-[140px] shrink-0 flex-col border-r border-[#c0c0c0] bg-[#f0f0f0] p-1">
+    <nav className="flex w-[150px] shrink-0 flex-col border-r border-[#e0e7ef] bg-white p-2">
       {NAV_ITEMS.map((item) => {
         const Icon = item.icon;
         const isActive = active === item.id;
@@ -43,13 +43,13 @@ export function WinNavBar({
             key={item.id}
             onClick={() => onChange(item.id)}
             className={cn(
-              "flex h-[36px] items-center gap-2 rounded-[4px] px-2 text-[12px] transition-colors duration-180 ease-out",
+              "relative flex h-[38px] items-center gap-2.5 rounded-[6px] px-3 text-[13px] transition-colors duration-180 ease-out",
               isActive
-                ? "bg-[#cce4f7] text-[#005a9e] font-medium"
-                : "text-[#333] hover:bg-[#e0e0e0] active:bg-[#d0d0d0]"
+                ? "bg-[#e3f2fd] text-[#1565c0] font-semibold"
+                : "text-[#555] hover:bg-[#f0f7ff] hover:text-[#1976d2] active:bg-[#e3f2fd]"
             )}
           >
-            <Icon className="h-[16px] w-[16px] shrink-0" strokeWidth={1.8} />
+            <Icon className={cn("h-[18px] w-[18px] shrink-0", isActive ? "text-[#1565c0]" : "text-[#777]")} strokeWidth={1.8} />
             <span className="truncate">{item.label}</span>
           </button>
         );

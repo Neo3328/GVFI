@@ -13,12 +13,12 @@ export function WinTitleBar() {
   return (
     <div className="flex flex-col border-b border-[#c0c0c0] bg-[#f0f0f0] select-none">
       {/* Title row */}
-      <div className="flex h-[32px] items-center justify-between px-2">
+      <div className="flex h-[36px] items-center justify-between bg-[linear-gradient(90deg,#1565c0,#1e88e5)] px-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-[18px] w-[18px] items-center justify-center rounded-[3px] bg-[linear-gradient(135deg,#0067c0,#0078d4)]">
+          <div className="flex h-[20px] w-[20px] items-center justify-center rounded-[4px] bg-white/20 backdrop-blur-sm">
             <span className="text-[10px] font-bold text-white">AI</span>
           </div>
-          <span className="text-[12px] font-medium text-[#1a1a1a]">
+          <span className="text-[13px] font-semibold text-white">
             AI视频补帧超分工具
           </span>
         </div>
@@ -35,11 +35,11 @@ export function WinTitleBar() {
         </div>
       </div>
       {/* Menu bar */}
-      <div className="flex h-[24px] items-center border-t border-[#e0e0e0] bg-[#f5f5f5] px-1">
+      <div className="flex h-[28px] items-center border-b border-[#c8dcf5] bg-[#f0f7ff] px-2">
         {MENU_ITEMS.map((item) => (
           <button
             key={item}
-            className="h-[20px] rounded-[3px] px-2 text-[12px] text-[#1a1a1a] transition-colors duration-180 ease-out hover:bg-[#e0e0e0] active:bg-[#d0d0d0]"
+            className="h-[22px] rounded-[4px] px-2.5 text-[12px] text-[#333] transition-colors duration-180 ease-out hover:bg-[#e3f2fd] hover:text-[#1565c0] active:bg-[#bbdefb]"
           >
             {item}
           </button>
@@ -62,10 +62,10 @@ function WinTitleButton({
     <button
       aria-label={label}
       className={cn(
-        "flex h-[28px] w-[46px] items-center justify-center transition-colors duration-180 ease-out",
+        "flex h-[36px] w-[46px] items-center justify-center transition-colors duration-180 ease-out",
         close
-          ? "text-[#1a1a1a] hover:bg-[#e81123] hover:text-white active:bg-[#c00d1a]"
-          : "text-[#1a1a1a] hover:bg-[#e0e0e0] active:bg-[#d0d0d0]"
+          ? "text-white hover:bg-[#e81123] active:bg-[#c00d1a]"
+          : "text-white hover:bg-white/20 active:bg-white/30"
       )}
     >
       {children}

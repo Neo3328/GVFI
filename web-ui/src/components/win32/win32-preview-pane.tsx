@@ -25,10 +25,10 @@ export function WinPreviewPane() {
   const totalTime = formatTime(totalFrames, 24);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col border-r border-[#c0c0c0] bg-[#e8e8e8]">
+    <div className="flex min-h-0 flex-1 flex-col p-3">
       {/* Preview canvas */}
-      <div className="flex min-h-0 flex-1 items-center justify-center p-3">
-        <div className="flex h-full w-full items-center justify-center rounded-[4px] border border-[#b0b0b0] bg-[#1a1a1a] shadow-inner">
+      <div className="flex min-h-0 flex-1 items-center justify-center">
+        <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-[8px] bg-[#1a1a1a] shadow-[0_2px_12px_rgba(0,0,0,0.12)]">
           <div className="text-center">
             <div className="mb-2 text-[48px] text-[#555]">🎬</div>
             <p className="text-[12px] text-[#888]">视频预览区域</p>
@@ -38,7 +38,7 @@ export function WinPreviewPane() {
       </div>
 
       {/* Transport controls */}
-      <div className="border-t border-[#c0c0c0] bg-[#f0f0f0] px-3 py-2">
+      <div className="mt-2.5 rounded-[8px] border border-[#e0e7ef] bg-white px-4 py-2.5 shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
         {/* Progress bar */}
         <div className="mb-2 flex items-center gap-2">
           <span className="w-[52px] shrink-0 text-right font-mono text-[11px] text-[#333]">

@@ -18,11 +18,11 @@ export function GroupBox({ title, children, className }: GroupBoxProps) {
   return (
     <fieldset
       className={cn(
-        "mb-2 rounded-[6px] border border-[#c8c8c8] bg-[#fafafa] p-3",
+        "mb-2.5 rounded-[8px] border border-[#e0e7ef] bg-white p-3.5 shadow-[0_1px_4px_rgba(0,0,0,0.04)]",
         className
       )}
     >
-      <legend className="px-1.5 text-[12px] font-semibold text-[#1a1a1a]">
+      <legend className="px-1.5 text-[12px] font-bold text-[#1565c0]">
         {title}
       </legend>
       <div className="flex flex-col gap-2">{children}</div>

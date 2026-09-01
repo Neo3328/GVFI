@@ -8,11 +8,14 @@
  */
 
 :root {
-  /* Light-gray canvas — Windows desktop atmosphere */
-  --bg-0: #e8e8e8;
-  --bg-1: #f0f0f0;
-  --bg-2: #f7f7f7;
+  /* Blue-white canvas — PCL-style modern desktop */
+  --bg-0: #e3f2fd;
+  --bg-1: #f0f7ff;
+  --bg-2: #f8fbff;
   --bg-3: #ffffff;
+  --topbar-start: #1565c0;
+  --topbar-end: #1e88e5;
+  --sidebar-bg: #ffffff;
 
   /* Global typography — Segoe UI Variable */
   --app-font-family: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI",
@@ -29,23 +32,25 @@
   --text-muted: #666666;
   --text-disabled: #999999;
 
-  /* Low-saturation Windows blue accent */
-  --accent: #0067c0;
-  --accent-hover: #106ebe;
-  --accent-pressed: #005a9e;
-  --accent-cyan: #0078d4;
+  /* Material Blue accent — PCL-style */
+  --accent: #1976d2;
+  --accent-hover: #1e88e5;
+  --accent-pressed: #1565c0;
+  --accent-cyan: #42a5f5;
+  --accent-light: #e3f2fd;
+  --accent-lighter: #bbdefb;
   --success: #107c10;
   --warning: #ca5010;
   --danger: #c42b1c;
 
-  /* Opaque solid surfaces — no translucency, no blur */
+  /* White floating cards on light-blue canvas */
   --glass-opacity: 1;
   --glass-blur: 0px;
-  --glass-shadow-blur: 4px;
+  --glass-shadow-blur: 8px;
   --glass-border-opacity: 1;
-  --glass-shadow-opacity: 0.08;
+  --glass-shadow-opacity: 0.06;
   --glass-fill: #ffffff;
-  --glass-fill-clear: #fafafa;
+  --glass-fill-clear: #f8fbff;
   --glass-label: #1a1a1a;
   --glass-label-secondary: #555555;
 
@@ -53,10 +58,10 @@
    * Corner hierarchy — plain software, 6px cards:
    * window 8 → panel 6 → card 6 → control 4
    */
-  --window-radius: 8px;
-  --panel-radius: 6px;
-  --card-radius: 6px;
-  --control-radius: 4px;
+  --window-radius: 10px;
+  --panel-radius: 8px;
+  --card-radius: 8px;
+  --control-radius: 6px;
 
   /* Legacy aliases */
   --radius-sm: var(--control-radius);

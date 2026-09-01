@@ -20,9 +20,9 @@ const SAMPLE_LOGS = [
 
 export function WinLogPane() {
   return (
-    <div className="flex h-[120px] shrink-0 flex-col border-t border-[#c0c0c0] bg-[#fafafa]">
-      <div className="flex h-[22px] items-center justify-between border-b border-[#e0e0e0] bg-[#f0f0f0] px-2">
-        <span className="text-[11px] font-medium text-[#333]">运行日志</span>
+    <div className="mx-3 mb-2 flex h-[110px] shrink-0 flex-col overflow-hidden rounded-[8px] border border-[#e0e7ef] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
+      <div className="flex h-[26px] items-center justify-between border-b border-[#eef2f7] bg-[#f8fbff] px-3">
+        <span className="text-[11px] font-semibold text-[#1565c0]">运行日志</span>
         <span className="text-[10px] text-[#888]">自动滚动</span>
       </div>
       <div className="flex-1 overflow-y-auto p-2 font-mono text-[11px] leading-[1.5] text-[#333]">
@@ -38,7 +38,7 @@ export function WinLogPane() {
 
 export function WinStatusBar() {
   return (
-    <div className="flex h-[22px] shrink-0 items-center justify-between border-t border-[#c0c0c0] bg-[#f0f0f0] px-2">
+    <div className="flex h-[26px] shrink-0 items-center justify-between border-t border-[#d0e0f0] bg-[#f0f7ff] px-4">
       <div className="flex items-center gap-3 text-[11px] text-[#333]">
         <span className="flex items-center gap-1">
           <Circle className="h-[8px] w-[8px] fill-[#107c10] text-[#107c10]" />

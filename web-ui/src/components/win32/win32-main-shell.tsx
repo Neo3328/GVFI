@@ -15,7 +15,7 @@ export function Win32MainShell() {
   const [navActive, setNavActive] = useState<NavId>("params");
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#e8e8e8] font-[var(--app-font-family)] text-[#1a1a1a]">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[linear-gradient(135deg,#e3f2fd_0%,#f0f7ff_100%)] font-[var(--app-font-family)] text-[#1a1a1a]">
       {/* Title + menu */}
       <WinTitleBar />
 
