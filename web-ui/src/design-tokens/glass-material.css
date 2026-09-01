@@ -1,39 +1,38 @@
 /**
- * GVFI — Unified Liquid Glass material (no solid white rectangles).
+ * GVFI — Windows desktop material (opaque solid surfaces).
  * Developed by Mr. Gong
  * Copyright © 2026 Mr. Gong. All Rights Reserved.
  *
- * Panel / control fills use translucent layers + backdrop-filter only.
- * Never paint opaque #fff blocks behind UI chrome.
+ * All --lg-* variables resolve to opaque light-gray values. No translucency,
+ * no backdrop-filter, no specular highlights.
  */
 
 :root {
-  --lg-panel-bg: rgba(20, 24, 30, 0.55);
-  --lg-panel-bg-strong: rgba(20, 24, 30, 0.72);
-  --lg-input-bg: rgba(255, 255, 255, 0.06);
-  --lg-input-bg-hover: rgba(255, 255, 255, 0.09);
-  --lg-input-bg-focus: rgba(255, 255, 255, 0.1);
-  --lg-border: rgba(255, 255, 255, 0.14);
-  --lg-border-strong: rgba(255, 255, 255, 0.22);
-  --lg-highlight: rgba(255, 255, 255, 0.08);
-  --lg-backdrop-blur: 20px;
-  --lg-backdrop-saturate: 140%;
-  --lg-elev-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
-  --lg-inset-highlight: inset 0 1px 0 var(--lg-highlight);
+  --lg-panel-bg: #ffffff;
+  --lg-panel-bg-strong: #ffffff;
+  --lg-input-bg: #ffffff;
+  --lg-input-bg-hover: #f0f0f0;
+  --lg-input-bg-focus: #ffffff;
+  --lg-border: #d0d0d0;
+  --lg-border-strong: #b0b0b0;
+  --lg-highlight: transparent;
+  --lg-backdrop-blur: 0px;
+  --lg-backdrop-saturate: 100%;
+  --lg-elev-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --lg-inset-highlight: none;
   --titlebar-overlay-h: 36px;
 }
 
 :root[data-theme="studio"] {
-  /* Cool translucent glass — no milky #e8ecf4 slabs */
-  --lg-panel-bg: rgba(120, 132, 152, 0.38);
-  --lg-panel-bg-strong: rgba(100, 112, 132, 0.52);
-  --lg-input-bg: rgba(15, 23, 42, 0.08);
-  --lg-input-bg-hover: rgba(15, 23, 42, 0.11);
-  --lg-input-bg-focus: rgba(15, 23, 42, 0.14);
-  --lg-border: rgba(15, 23, 42, 0.16);
-  --lg-border-strong: rgba(15, 23, 42, 0.24);
-  --lg-highlight: rgba(255, 255, 255, 0.28);
-  --lg-elev-shadow: 0 8px 28px rgba(15, 23, 42, 0.16);
+  --lg-panel-bg: #ffffff;
+  --lg-panel-bg-strong: #ffffff;
+  --lg-input-bg: #ffffff;
+  --lg-input-bg-hover: #f0f0f0;
+  --lg-input-bg-focus: #ffffff;
+  --lg-border: #d0d0d0;
+  --lg-border-strong: #b0b0b0;
+  --lg-highlight: transparent;
+  --lg-elev-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 /* Electron overlay titlebar drag strip */
@@ -55,144 +54,4 @@
 .app-titlebar-no-drag {
   -webkit-app-region: no-drag;
   app-region: no-drag;
-}
-
-@media (min-width: 1px) {
-  [data-slot="top-bar"] {
-    min-height: max(var(--workspace-topbar-h), var(--titlebar-overlay-h));
-    padding-right: var(--space-2);
-  }
-}
-
-/* Frameless desktop: glass title strip (no native white caption) */
-[data-slot="top-bar"] {
-  background: color-mix(
-    in srgb,
-    var(--lg-panel-bg) calc(var(--glass-opacity) * 90%),
-    transparent
-  ) !important;
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--lg-backdrop-saturate));
-  -webkit-backdrop-filter: blur(var(--glass-blur))
-    saturate(var(--lg-backdrop-saturate));
-}
-
-/* Contrast scrim layer for non-.glass-panel surfaces */
-.ios-grouped,
-.lg-glass-1,
-.lg-glass-2,
-.lg-glass-3,
-[data-slot="dialog-content"],
-[data-slot="drawer-content"] {
-  position: relative;
-  isolation: isolate;
-}
-
-.ios-grouped::before,
-.lg-glass-1::before,
-.lg-glass-2::before,
-.lg-glass-3::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  z-index: 0;
-  background: rgba(0, 0, 0, calc(var(--app-contrast-scrim, 0.12) * 0.55));
-}
-
-.glass-panel > *,
-.ios-grouped > *,
-.lg-glass-1 > *,
-.lg-glass-2 > *,
-.lg-glass-3 > * {
-  position: relative;
-  z-index: 1;
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  [data-slot="top-bar"],
-  [data-slot="popover-content"],
-  [data-slot="dropdown-menu-content"],
-  [data-slot="select-content"],
-  [data-slot="dialog-content"] {
-    background: var(--lg-panel-bg-strong) !important;
-  }
-}
-
-/* Kill native white number steppers */
-input[type="number"] {
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  appearance: none;
-  margin: 0;
-  display: none;
-}
-
-/* Native <select> dropdown list — dark glass, never #f2f2f7 */
-select option,
-.glass-select option,
-select.glass-select option {
-  color: var(--text-strong);
-  background-color: #1a1f28;
-}
-
-:root[data-theme="studio"] select option,
-:root[data-theme="studio"] .glass-select option {
-  color: var(--text-strong);
-  background-color: #6e788c;
-}
-
-/* Popover / menu / dialog surfaces from design system */
-[data-slot="popover-content"],
-[data-slot="dropdown-menu-content"],
-[data-slot="select-content"],
-[data-slot="dialog-content"],
-[data-slot="tooltip-content"],
-[data-slot="drawer-content"],
-[data-radix-popper-content-wrapper] [role="dialog"],
-[data-radix-popper-content-wrapper] [data-slot="select-content"] {
-  background: var(--lg-panel-bg) !important;
-  background-clip: padding-box !important;
-  border: 1px solid var(--lg-border) !important;
-  border-radius: var(--panel-radius) !important;
-  overflow: hidden;
-  box-shadow: var(--lg-inset-highlight), var(--lg-elev-shadow) !important;
-  backdrop-filter: blur(var(--lg-backdrop-blur)) saturate(var(--lg-backdrop-saturate)) !important;
-  -webkit-backdrop-filter: blur(var(--lg-backdrop-blur))
-    saturate(var(--lg-backdrop-saturate)) !important;
-  color: var(--text-strong) !important;
-}
-
-[data-slot="select-content"],
-[data-slot="dropdown-menu-content"],
-[data-slot="popover-content"] {
-  border-radius: var(--card-radius) !important;
-}
-
-/* Generic form controls without .glass-* class */
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
-select,
-textarea {
-  background-color: var(--lg-input-bg);
-  background-clip: padding-box;
-  border: 1px solid var(--lg-border);
-  color: var(--text-strong);
-  border-radius: var(--control-radius);
-  box-shadow: var(--lg-inset-highlight);
-}
-
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus,
-select:focus,
-textarea:focus {
-  background-color: var(--lg-input-bg-focus);
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--lg-border));
-  outline: none;
-  box-shadow:
-    var(--lg-inset-highlight),
-    0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
 }

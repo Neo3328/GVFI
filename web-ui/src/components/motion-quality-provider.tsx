@@ -6,22 +6,22 @@
 
 "use client";
 
-import { useEffect } from "react";
-import { applyMotionQuality, detectMotionQuality } from "@/lib/motion-quality";
+import { useEffect } from"react";
+import { applyMotionQuality, detectMotionQuality } from"@/lib/motion-quality";
 
 export function MotionQualityProvider({
-  children,
+ children,
 }: {
-  children: React.ReactNode;
+ children: React.ReactNode;
 }) {
-  useEffect(() => {
-    applyMotionQuality(detectMotionQuality());
+ useEffect(() => {
+ applyMotionQuality(detectMotionQuality());
 
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const onChange = () => applyMotionQuality(detectMotionQuality());
-    mq.addEventListener?.("change", onChange);
-    return () => mq.removeEventListener?.("change", onChange);
-  }, []);
+ const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+ const onChange = () => applyMotionQuality(detectMotionQuality());
+ mq.addEventListener?.("change", onChange);
+ return () => mq.removeEventListener?.("change", onChange);
+ }, []);
 
-  return <>{children}</>;
+ return <>{children}</>;
 }
