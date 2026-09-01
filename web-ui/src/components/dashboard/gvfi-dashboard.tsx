@@ -15,6 +15,14 @@ import type {
 import { DashboardDonutChart } from "@/components/dashboard/dashboard-donut-chart";
 import { DashboardLineChart } from "@/components/dashboard/dashboard-line-chart";
 import { DashboardStatCard } from "@/components/dashboard/dashboard-stat-card";
+import { glassButtonVariants } from "@/components/glass/glass-button";
+import { cn } from "@/lib/utils";
+import {
+  GlassCard,
+  GlassCardDescription,
+  GlassCardHeader,
+  GlassCardTitle,
+} from "@/components/glass/glass-card";
 import { useWorkspaceChrome } from "@/components/workspace/workspace-chrome-context";
 import { useHealth } from "@/hooks/use-health";
 import { useRenderService } from "@/hooks/use-render-service";
@@ -167,13 +175,13 @@ export function GvfiDashboard() {
         <div className="flex flex-wrap gap-2">
           <Link
             href="/app/video"
-            className="rounded-full bg-[linear-gradient(135deg,var(--accent),var(--accent-cyan))] px-4 py-2 text-[13px] font-semibold text-white"
+            className={cn(glassButtonVariants({ variant: "primary", size: "sm" }))}
           >
             {t("dashboard.processVideo")}
           </Link>
           <Link
             href="/app/ai"
-            className="rounded-full border border-[var(--glass-border)] px-4 py-2 text-[13px] font-semibold text-[var(--text-strong)]"
+            className={cn(glassButtonVariants({ variant: "ghost", size: "sm" }))}
           >
             {t("dashboard.aiAnalyze")}
           </Link>
@@ -240,15 +248,11 @@ export function GvfiDashboard() {
       </div>
 
       <div className="grid grid-cols-1 gap-[var(--space-4)] xl:grid-cols-2">
-        <section className="overflow-hidden rounded-[var(--panel-radius)] border border-[var(--glass-border)] bg-[color-mix(in_srgb,var(--bg-2)_68%,transparent)] bg-clip-padding p-[var(--space-5)] backdrop-blur-xl">
-          <div className="mb-[var(--space-4)]">
-            <h3 className="text-[15px] font-semibold text-[var(--text-strong)]">
-              {t("dashboard.donut.title")}
-            </h3>
-            <p className="text-[12px] text-[var(--text-muted)]">
-              {t("dashboard.donut.subtitle")}
-            </p>
-          </div>
+        <GlassCard className="p-[var(--space-5)]">
+          <GlassCardHeader>
+            <GlassCardTitle>{t("dashboard.donut.title")}</GlassCardTitle>
+            <GlassCardDescription>{t("dashboard.donut.subtitle")}</GlassCardDescription>
+          </GlassCardHeader>
           <DashboardDonutChart
             totalValue={String(filteredTasks.length)}
             totalLabel={t("dashboard.donut.totalLabel")}
@@ -292,9 +296,9 @@ export function GvfiDashboard() {
               {t("dashboard.viewTasks")}
             </Link>
           </div>
-        </section>
+        </GlassCard>
 
-        <section className="overflow-hidden rounded-[var(--panel-radius)] border border-[var(--glass-border)] bg-[color-mix(in_srgb,var(--bg-2)_68%,transparent)] bg-clip-padding p-[var(--space-5)] backdrop-blur-xl">
+        <GlassCard className="p-[var(--space-5)]">
           <DashboardLineChart
             title={t("dashboard.load.title")}
             subtitle={t("dashboard.load.subtitle")}
@@ -329,7 +333,7 @@ export function GvfiDashboard() {
               },
             ]}
           />
-        </section>
+        </GlassCard>
       </div>
     </div>
   );

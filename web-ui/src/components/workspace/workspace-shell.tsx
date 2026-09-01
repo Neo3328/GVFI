@@ -91,10 +91,11 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
             iconOnly
             brand={
               <div className="flex flex-col items-center gap-2 text-center">
-                <div className="flex size-9 items-center justify-center rounded-[var(--control-radius)] border border-[color-mix(in_srgb,#fff_22%,transparent)] bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.04))] bg-clip-padding shadow-[inset_0_1px_0_rgba(255,255,255,0.28)] backdrop-blur-md">
-                  <Zap className="size-4 text-[var(--accent)]" aria-hidden />
+                <div className="group relative flex size-10 items-center justify-center rounded-[var(--control-radius)] border border-[color-mix(in_srgb,#fff_28%,transparent)] bg-[linear-gradient(160deg,rgba(255,255,255,0.22),rgba(255,255,255,0.04)_55%,rgba(10,132,255,0.12))] bg-clip-padding shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_2px_8px_rgba(10,132,255,0.18)] backdrop-blur-md transition-all duration-300 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_4px_16px_rgba(10,132,255,0.28)]">
+                  <div className="pointer-events-none absolute inset-0 rounded-[var(--control-radius)] bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.25),transparent_60%)]" />
+                  <Zap className="relative z-[1] size-4 text-[var(--accent)] drop-shadow-[0_0_6px_rgba(10,132,255,0.5)] transition-transform duration-300 group-hover:scale-110" aria-hidden />
                 </div>
-                <span className="hidden text-[10px] font-semibold tracking-wide text-[var(--text-muted)] lg:block">
+                <span className="hidden text-[10px] font-semibold tracking-[0.08em] text-[var(--text-muted)] lg:block">
                   {APP_NAME}
                 </span>
               </div>
