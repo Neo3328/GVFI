@@ -130,6 +130,16 @@ textarea {
   font-size: 12px;
 }
 
+/* Nav items: transparent surface (no white blocks on dark themes) */
+.glass-option {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+.glass-option:hover {
+  background: color-mix(in srgb, var(--text-strong) 8%, transparent) !important;
+}
+
 .glass-option:hover,
 .glass-input:hover,
 .glass-select:hover,
@@ -170,10 +180,10 @@ select.glass-select option {
   gap: 6px;
   min-height: var(--control-height);
   padding: 0 12px;
-  border: 1px solid var(--glass-border);
+  border: 1px solid transparent;
   border-radius: var(--control-radius);
   color: var(--text-normal);
-  background: #ffffff;
+  background: transparent;
   font-size: var(--control-font);
   font-weight: 400;
   cursor: pointer;
@@ -185,8 +195,8 @@ select.glass-select option {
 
 .glass-option-chip:hover {
   color: var(--text-strong);
-  background: var(--glass-bg-option-hover);
-  border-color: var(--glass-border-strong);
+  background: color-mix(in srgb, var(--text-strong) 8%, transparent);
+  border-color: transparent;
 }
 
 .glass-option-chip[aria-selected="true"],
