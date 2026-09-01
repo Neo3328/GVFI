@@ -1,6 +1,6 @@
 /**
- * GVFI — Win32-style main application shell.
- * Layout: title bar + menu bar | 3-column (nav / preview / params) | log pane | status bar.
+ * GVFI — Main application shell (light blue-white Win32 workspace).
+ * Layout: title/menu bar | 3-column (nav / preview / params) | log pane | status bar.
  */
 "use client";
 
@@ -15,8 +15,8 @@ export function Win32MainShell() {
   const [navActive, setNavActive] = useState<NavId>("params");
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#1f1f21] font-[var(--app-font-family)] text-[#f4f4f5]">
-      {/* Title + menu */}
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#f4f6f9] font-[var(--app-font-family)] text-[#1a1a1a] [color-scheme:light]">
+      {/* Title + integrated menu */}
       <WinTitleBar />
 
       {/* 3-column work area */}

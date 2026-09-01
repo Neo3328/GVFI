@@ -1,66 +1,48 @@
 /**
- * GVFI — Win32-style bottom log pane + status bar.
- * Read-only multi-line log output, status bar at bottom-right.
+ * GVFI — Bottom log pane (three startup entries) + status bar.
  */
 "use client";
 
-import { Circle } from "lucide-react";
-
-const SAMPLE_LOGS = [
-  "[10:32:01] [INFO] GVFI 引擎初始化完成",
-  "[10:32:01] [INFO] Native 后端已加载: rife-v4.6",
-  "[10:32:02] [INFO] Vulkan 设备: NVIDIA GeForce RTX 5060 Laptop GPU",
-  "[10:32:05] [INFO] 已加载输入文件: input_video.mp4 (1920x1080, 24fps, 00:01:40)",
-  "[10:32:06] [INFO] 场景检测: 发现 3 个场景切换点",
-  "[10:32:06] [INFO] 任务配置: 补帧 24→60fps, 超分 2x, CRF=18",
-  "[10:32:07] [RUN] 开始处理场景 1/3 (帧 0-815)",
-  "[10:32:12] [RUN] 场景 1 进度: 34% (277/816 帧)",
-  "[10:32:15] [RUN] 平均速度: 45.9ms/帧, 预计剩余 24.8s",
+const STARTUP_LOGS = [
+  { text: "已加载视频文件", active: true },
+  { text: "模型初始化完成", active: false },
+  { text: "等待开始处理", active: false },
 ];
 
 export function WinLogPane() {
   return (
-    <div className="mx-3 mb-2 flex h-[110px] shrink-0 flex-col overflow-hidden rounded-[6px] border border-[#3b3b40] bg-[#29292d]">
-      <div className="flex h-[26px] items-center justify-between border-b border-[#3b3b40] bg-[#303035] px-3">
-        <span className="text-[11px] font-semibold text-[#b9a7ff]">运行日志</span>
-        <span className="text-[10px] text-[#85858e]">自动滚动</span>
-      </div>
-      <div className="flex-1 overflow-y-auto p-2 font-mono text-[11px] leading-[1.5] text-[#333]">
-        {SAMPLE_LOGS.map((line, i) => (
-          <div key={i} className={logLineClass(line)}>
-            {line}
-          </div>
-        ))}
-      </div>
-    </div>
+    <section className="mx-2.5 mb-1 h-[150px] shrink-0 overflow-y-auto rounded-[6px] border border-[#e2e6eb] bg-white">
+      {STARTUP_LOGS.map((log) => (
+        <div
+          key={log.text}
+          className={
+            log.active
+              ? "flex h-[42px] items-center border-b border-[#eef1f5] bg-[#eaf2fe] px-4 text-[13px] font-medium text-[#1a1a1a]"
+              : "flex h-[42px] items-center border-b border-[#eef1f5] px-4 text-[13px] text-[#333] last:border-b-0"
+          }
+        >
+          {log.text}
+        </div>
+      ))}
+    </section>
   );
 }
 
 export function WinStatusBar() {
   return (
-      <div className="flex h-[26px] shrink-0 items-center justify-between border-t border-[#3a3a3f] bg-[#242427] px-4">
-      <div className="flex items-center gap-3 text-[11px] text-[#b7b7bf]">
-        <span className="flex items-center gap-1">
-          <Circle className="h-[8px] w-[8px] fill-[#107c10] text-[#107c10]" />
-          就绪
+    <footer className="flex h-[28px] shrink-0 items-center justify-between border-t border-[#e4e7eb] bg-white px-3 text-[12px]">
+      <div className="flex items-center gap-2">
+        <span className="h-[9px] w-[9px] rounded-full bg-[#22c55e] shadow-[0_0_0_2px_rgba(34,197,94,0.18)]" />
+        <span className="font-medium text-[#333]">就绪</span>
+      </div>
+      <div className="flex items-center gap-5 text-[#555]">
+        <span>
+          显卡负载 <span className="font-medium text-[#333]">23%</span>
         </span>
-        <span className="text-[#5e5e66]">|</span>
-        <span>GPU: RTX 5060 Laptop</span>
-        <span className="text-[#5e5e66]">|</span>
-        <span>显存: 6.2 / 8.0 GB</span>
+        <span>
+          剩余时间 <span className="font-mono font-medium text-[#333]">00:08:30</span>
+        </span>
       </div>
-      <div className="flex items-center gap-3 text-[11px] text-[#666]">
-        <span>任务: 1 进行中</span>
-        <span className="text-[#888]">|</span>
-        <span>v1.1.0</span>
-      </div>
-    </div>
+    </footer>
   );
-}
-
-function logLineClass(line: string): string {
-  if (line.includes("[ERROR]")) return "text-[#c42b1c]";
-  if (line.includes("[WARN]")) return "text-[#ca5010]";
-  if (line.includes("[RUN]")) return "text-[#a99aff]";
-  return "text-[#c2c2c8]";
 }

@@ -80,6 +80,11 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
  const { title, breadcrumbs, status, statusLabel } = useWorkspaceChrome();
  const isDashboard = surface ==="dashboard";
 
+ // The Win32 video studio renders its own full-screen title bar / nav / panels.
+ const isVideoStudio =
+ pathname === "/app/video" || pathname.startsWith("/app/video/");
+ if (isVideoStudio) return <>{children}</>;
+
  return (
  <>
  <AppShell

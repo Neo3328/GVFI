@@ -1,49 +1,81 @@
 /**
- * GVFI — Win32-style title bar + menu bar.
- * Standard Windows chrome: app title, min/max/close, menu strip.
+ * GVFI — White title bar with integrated menu strip.
+ * Left: app icon + title; center: menus (active = blue underline); right: window controls.
  */
 "use client";
 
-import { Minus, Square, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Minus, Square, Copy, X, Blocks } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getDesktopBridge } from "@/lib/desktop";
 
 const MENU_ITEMS = ["文件", "批量处理", "模型管理", "输出设置", "工具", "帮助"];
 
 export function WinTitleBar() {
+  const [activeMenu, setActiveMenu] = useState("批量处理");
+  const [maximized, setMaximized] = useState(false);
+
+  useEffect(() => {
+    const bridge = getDesktopBridge();
+    if (!bridge) return;
+    bridge.windowIsMaximized?.().then(setMaximized);
+    return bridge.onMaximizedChange(setMaximized);
+  }, []);
+
   return (
-    <div className="flex flex-col border-b border-[#3a3a3f] bg-[#242427] select-none">
-      {/* Title row */}
-      <div className="flex h-[36px] items-center justify-between bg-[#242427] px-3">
-        <div className="flex items-center gap-2">
-          <div className="flex h-[20px] w-[20px] items-center justify-center rounded-[4px] bg-[#7561ff]">
-            <span className="text-[10px] font-bold text-white">AI</span>
-          </div>
-          <span className="text-[13px] font-semibold text-white">
-            AI视频补帧超分工具
-          </span>
+    <div className="flex h-[40px] shrink-0 select-none items-center justify-between border-b border-[#e4e7eb] bg-white pl-3">
+      {/* Left: icon + title */}
+      <div className="flex items-center gap-2 pr-4">
+        <div className="flex h-[22px] w-[22px] items-center justify-center rounded-[6px] bg-[#1a73e8]">
+          <Blocks className="h-[13px] w-[13px] text-white" strokeWidth={2.2} />
         </div>
-        <div className="flex items-center">
-          <WinTitleButton label="最小化">
-            <Minus className="h-[14px] w-[14px]" strokeWidth={2} />
-          </WinTitleButton>
-          <WinTitleButton label="最大化">
-            <Square className="h-[12px] w-[12px]" strokeWidth={2} />
-          </WinTitleButton>
-          <WinTitleButton label="关闭" close>
-            <X className="h-[14px] w-[14px]" strokeWidth={2} />
-          </WinTitleButton>
-        </div>
+        <span className="whitespace-nowrap text-[14px] font-bold text-[#1a1a1a]">
+          AI视频补帧超分工具
+        </span>
       </div>
-      {/* Menu bar */}
-      <div className="flex h-[30px] items-center border-b border-[#3a3a3f] bg-[#29292d] px-2">
-        {MENU_ITEMS.map((item) => (
-          <button
-            key={item}
-            className="h-[24px] rounded-[4px] px-2.5 text-[12px] text-[#c6c6cc] transition-colors duration-180 ease-out hover:bg-[#3a3942] hover:text-white active:bg-[#454354]"
-          >
-            {item}
-          </button>
-        ))}
+
+      {/* Center: menu strip */}
+      <nav className="flex h-full flex-1 items-stretch">
+        {MENU_ITEMS.map((item) => {
+          const isActive = activeMenu === item;
+          return (
+            <button
+              key={item}
+              onClick={() => setActiveMenu(item)}
+              className={cn(
+                "relative flex h-full items-center px-4 text-[13px] transition-colors duration-180 ease-out",
+                isActive
+                  ? "font-medium text-[#1a73e8]"
+                  : "text-[#444] hover:bg-[#f0f4fa] hover:text-[#1a73e8]"
+              )}
+            >
+              {item}
+              {isActive ? (
+                <span className="absolute inset-x-3 bottom-0 h-[2px] rounded-full bg-[#1a73e8]" />
+              ) : null}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Right: window controls */}
+      <div className="flex h-full items-stretch">
+        <WinTitleButton label="最小化" onClick={() => void getDesktopBridge()?.windowMinimize()}>
+          <Minus className="h-[15px] w-[15px]" strokeWidth={2} />
+        </WinTitleButton>
+        <WinTitleButton
+          label="最大化/还原"
+          onClick={() => void getDesktopBridge()?.windowMaximizeToggle()}
+        >
+          {maximized ? (
+            <Copy className="h-[12px] w-[12px]" strokeWidth={2} />
+          ) : (
+            <Square className="h-[12px] w-[12px]" strokeWidth={2} />
+          )}
+        </WinTitleButton>
+        <WinTitleButton label="关闭" close onClick={() => void getDesktopBridge()?.windowClose()}>
+          <X className="h-[15px] w-[15px]" strokeWidth={2} />
+        </WinTitleButton>
       </div>
     </div>
   );
@@ -53,19 +85,23 @@ function WinTitleButton({
   children,
   label,
   close,
+  onClick,
 }: {
   children: React.ReactNode;
   label: string;
   close?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <button
       aria-label={label}
+      title={label}
+      onClick={onClick}
       className={cn(
-        "flex h-[36px] w-[46px] items-center justify-center transition-colors duration-180 ease-out",
+        "flex w-[46px] items-center justify-center text-[#555] transition-colors duration-180 ease-out",
         close
-          ? "text-white hover:bg-[#e81123] active:bg-[#c00d1a]"
-          : "text-white hover:bg-white/20 active:bg-white/30"
+          ? "hover:bg-[#e81123] hover:text-white active:bg-[#c00d1a]"
+          : "hover:bg-[#e8eaed] active:bg-[#d8dde3]"
       )}
     >
       {children}

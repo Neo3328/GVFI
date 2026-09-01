@@ -28,6 +28,9 @@ export interface GvfiDesktopBridge {
   restartApi?: () => Promise<boolean>;
   writeTextCopy?: (payload: WriteTextCopyPayload) => Promise<WriteTextCopyResult>;
   revealInFolder?: (targetPath: string) => Promise<boolean>;
+  selectDirectory?: () => Promise<string | null>;
+  selectVideoFile?: () => Promise<string | null>;
+  openPath?: (targetPath: string) => Promise<boolean>;
   onMaximizedChange: (callback: (maximized: boolean) => void) => () => void;
 }
 

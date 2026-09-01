@@ -398,6 +398,45 @@ function registerWindowIpc() {
       return false;
     }
   });
+
+  ipcMain.handle("gvfi:select-directory", async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: "选择输出目录",
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (result.canceled || !result.filePaths.length) return null;
+    return result.filePaths[0];
+  });
+
+  ipcMain.handle("gvfi:select-video-file", async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: "选择输入视频",
+      properties: ["openFile"],
+      filters: [
+        {
+          name: "视频文件",
+          extensions: ["mp4", "mkv", "mov", "avi", "webm", "flv", "wmv", "m4v"],
+        },
+        { name: "所有文件", extensions: ["*"] },
+      ],
+    });
+    if (result.canceled || !result.filePaths.length) return null;
+    return result.filePaths[0];
+  });
+
+  ipcMain.handle("gvfi:open-path", async (_event, targetPath) => {
+    try {
+      const resolved = path.resolve(String(targetPath || ""));
+      if (!resolved || !fs.existsSync(resolved)) return false;
+      const errorMessage = await shell.openPath(resolved);
+      return !errorMessage;
+    } catch (error) {
+      log(`[GVFI] open-path failed: ${error.message}`);
+      return false;
+    }
+  });
 }
 
 function createWindow() {

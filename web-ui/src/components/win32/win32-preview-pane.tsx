@@ -1,130 +1,153 @@
 /**
- * GVFI — Win32-style video preview pane with full player controls.
- * Center canvas + bottom transport: progress bar, timecode, frame step buttons.
+ * GVFI — Center video preview canvas + transport controls.
+ * Dark canvas, white control strip, blue play button.
  */
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import {
-  SkipBack,
-  Rewind,
   Play,
-  FastForward,
-  SkipForward,
   Pause,
+  SkipBack,
+  SkipForward,
+  ChevronLeft,
+  ChevronRight,
+  Volume2,
+  Repeat,
+  BarChart3,
 } from "lucide-react";
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 
-export function WinPreviewPane() {
-  const [playing, setPlaying] = useState(false);
-  const [progress, setProgress] = useState(34);
-  const [currentFrame] = useState(816);
-  const [totalFrames] = useState(2400);
+const TOTAL_FRAMES = 305; // 00:00:12:45 @ 24fps
+const FPS = 24;
 
-  const currentTime = formatTime(currentFrame, 24);
-  const totalTime = formatTime(totalFrames, 24);
+function frameToTC(frame: number): string {
+  const totalSec = Math.floor(frame / FPS);
+  const h = String(Math.floor(totalSec / 3600)).padStart(2, "0");
+  const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, "0");
+  const s = String(totalSec % 60).padStart(2, "0");
+  const f = String(frame % FPS).padStart(2, "0");
+  return `${h}:${m}:${s}:${f}`;
+}
+
+export function WinPreviewPane() {
+  const [currentFrame, setCurrentFrame] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!playing) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      return;
+    }
+    timerRef.current = setInterval(() => {
+      setCurrentFrame((f) => {
+        if (f >= TOTAL_FRAMES) {
+          setPlaying(false);
+          return TOTAL_FRAMES;
+        }
+        return f + 1;
+      });
+    }, 1000 / FPS);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [playing]);
+
+  const step = (delta: number) =>
+    setCurrentFrame((f) => Math.max(0, Math.min(TOTAL_FRAMES, f + delta)));
+
+  const progress = (currentFrame / TOTAL_FRAMES) * 100;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col p-3 bg-[#1f1f21]">
-      {/* Preview canvas */}
-      <div className="flex min-h-0 flex-1 items-center justify-center">
-        <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-[6px] bg-[#151517] border border-[#35353a]">
-          <div className="text-center">
-            <div className="mb-2 text-[48px] text-[#555]">🎬</div>
-            <p className="text-[12px] text-[#888]">视频预览区域</p>
-            <p className="mt-1 text-[11px] text-[#666]">1920 × 1080 · 24fps</p>
-          </div>
+    <section className="flex min-w-0 flex-1 flex-col gap-2 p-2.5">
+      {/* Canvas */}
+      <div className="relative min-h-0 flex-1 overflow-hidden rounded-[6px] bg-[#2b2f36]">
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-[13px] text-white/35">视频预览区域</span>
+        </div>
+        {/* progress bar at canvas bottom */}
+        <div className="absolute inset-x-0 bottom-0 h-[5px] bg-white/20">
+          <div
+            className="h-full bg-[#1a73e8] transition-[width] duration-100 ease-linear"
+            style={{ width: `${progress}%` }}
+          />
         </div>
       </div>
 
-      {/* Transport controls */}
-      <div className="mt-2.5 rounded-[6px] border border-[#3b3b40] bg-[#29292d] px-4 py-2.5">
-        {/* Progress bar */}
-        <div className="mb-2 flex items-center gap-2">
-          <span className="w-[52px] shrink-0 text-right font-mono text-[11px] text-[#333]">
-            {currentTime}
-          </span>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={progress}
-            onChange={(e) => setProgress(Number(e.target.value))}
-            className="h-[4px] flex-1 cursor-pointer appearance-none rounded-full bg-[#4a4a50] accent-[#7561ff]"
-          />
-          <span className="w-[52px] shrink-0 font-mono text-[11px] text-[#333]">
-            {totalTime}
-          </span>
-        </div>
+      {/* Transport strip */}
+      <div className="flex h-[52px] shrink-0 items-center gap-3 rounded-[6px] border border-[#e2e6eb] bg-white px-3">
+        <ChevronLeft className="h-[18px] w-[18px] text-[#666]" strokeWidth={2} />
+        <span className="w-[104px] shrink-0 font-mono text-[13px] text-[#333]">
+          {frameToTC(currentFrame)}
+        </span>
 
-        {/* Buttons row */}
-        <div className="flex items-center justify-center gap-1">
-          <TransportButton label="上一帧" onClick={() => {}}>
-            <SkipBack className="h-[14px] w-[14px]" strokeWidth={2} />
+        <div className="flex flex-1 items-center justify-center gap-2.5">
+          <TransportButton onClick={() => step(-10)} title="后退10帧">
+            <SkipBack className="h-[15px] w-[15px]" strokeWidth={2} />
           </TransportButton>
-          <TransportButton label="后退" onClick={() => {}}>
-            <Rewind className="h-[14px] w-[14px]" strokeWidth={2} />
+          <TransportButton onClick={() => step(-1)} title="上一帧">
+            <ChevronLeft className="h-[16px] w-[16px]" strokeWidth={2.2} />
           </TransportButton>
-          <TransportButton
-            label={playing ? "暂停" : "播放"}
-            primary
-            onClick={() => setPlaying(!playing)}
+          <button
+            onClick={() => setPlaying((p) => !p)}
+            title={playing ? "暂停" : "播放"}
+            className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-[#1a73e8] text-white shadow-sm transition-colors duration-180 ease-out hover:bg-[#3a8af0] active:bg-[#155fc4]"
           >
             {playing ? (
-              <Pause className="h-[16px] w-[16px]" strokeWidth={2} />
+              <Pause className="h-[16px] w-[16px]" strokeWidth={2.2} />
             ) : (
-              <Play className="h-[16px] w-[16px]" strokeWidth={2} />
+              <Play className="ml-[2px] h-[16px] w-[16px]" strokeWidth={2.2} />
             )}
+          </button>
+          <TransportButton onClick={() => step(1)} title="下一帧">
+            <ChevronRight className="h-[16px] w-[16px]" strokeWidth={2.2} />
           </TransportButton>
-          <TransportButton label="前进" onClick={() => {}}>
-            <FastForward className="h-[14px] w-[14px]" strokeWidth={2} />
+          <TransportButton onClick={() => step(10)} title="前进10帧">
+            <SkipForward className="h-[15px] w-[15px]" strokeWidth={2} />
           </TransportButton>
-          <TransportButton label="下一帧" onClick={() => {}}>
-            <SkipForward className="h-[14px] w-[14px]" strokeWidth={2} />
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <TransportButton small title="循环">
+            <Repeat className="h-[14px] w-[14px]" strokeWidth={2} />
           </TransportButton>
-          <div className="ml-3 text-[11px] text-[#666]">
-            帧 <span className="font-mono text-[#333]">{currentFrame}</span> /{" "}
-            {totalFrames}
-          </div>
+          <TransportButton small title="倍速">
+            <span className="text-[10px] font-semibold">1x</span>
+          </TransportButton>
+          <TransportButton small title="音量">
+            <Volume2 className="h-[14px] w-[14px]" strokeWidth={2} />
+          </TransportButton>
+          <TransportButton small title="统计">
+            <BarChart3 className="h-[14px] w-[14px]" strokeWidth={2} />
+          </TransportButton>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
 function TransportButton({
   children,
-  label,
   onClick,
-  primary,
+  title,
+  small,
 }: {
   children: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  primary?: boolean;
+  onClick?: () => void;
+  title?: string;
+  small?: boolean;
 }) {
   return (
     <button
-      aria-label={label}
-      title={label}
       onClick={onClick}
+      title={title}
       className={cn(
-        "flex h-[26px] w-[32px] items-center justify-center rounded-[4px] border transition-all duration-180 ease-out",
-        primary
-          ? "border-[#7561ff] bg-[#7561ff] text-white hover:bg-[#8473ff] active:bg-[#6250e8]"
-          : "border-[#4a4a50] bg-[#35353a] text-[#c8c8ce] hover:bg-[#414149] active:bg-[#2f2f34]"
+        "flex items-center justify-center rounded-full border border-[#d4d9df] bg-white text-[#555] transition-colors duration-180 ease-out hover:border-[#1a73e8] hover:text-[#1a73e8] active:bg-[#eaf2fe]",
+        small ? "h-[28px] w-[28px]" : "h-[32px] w-[32px]"
       )}
     >
       {children}
     </button>
   );
-}
-
-function formatTime(frame: number, fps: number): string {
-  const totalSeconds = Math.floor(frame / fps);
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  const f = frame % fps;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}:${String(f).padStart(2, "0")}`;
 }

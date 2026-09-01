@@ -19,6 +19,9 @@ contextBridge.exposeInMainWorld("gvfiDesktop", {
   writeTextCopy: (payload) => ipcRenderer.invoke("gvfi:write-text-copy", payload),
   revealInFolder: (targetPath) =>
     ipcRenderer.invoke("gvfi:reveal-in-folder", targetPath),
+  selectDirectory: () => ipcRenderer.invoke("gvfi:select-directory"),
+  selectVideoFile: () => ipcRenderer.invoke("gvfi:select-video-file"),
+  openPath: (targetPath) => ipcRenderer.invoke("gvfi:open-path", targetPath),
   onMaximizedChange: (callback) => {
     if (typeof callback !== "function") return () => {};
     const handler = (_event, value) => callback(Boolean(value));
