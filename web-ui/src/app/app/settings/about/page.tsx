@@ -1,12 +1,11 @@
-import type { Metadata } from "next";
+/**
+ * GVFI — About route.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
+ */
+
 import { AboutPage } from "@/components/about/about-page";
 
-/** SSR defaults (English); client AboutPage sets document.title via useT. */
-export const metadata: Metadata = {
-  title: "About · GVFI",
-  description: "GVFI software information and version",
-};
-
-export default function AboutRoutePage() {
+export default function About() {
   return <AboutPage />;
 }

@@ -380,7 +380,10 @@ export const zhCN = {
   "tasks.errors": "错误日志",
   "tasks.selectTitle": "选择任务",
   "tasks.selectDesc": "从左侧列表选择任务查看详情与预览",
-  "tasks.cloudHint": "云端渲染接口尚未接入；当前仅显示本地 GVFI 任务。",
+  "tasks.cloudHint": "当前显示本地 GVFI 渲染任务。选择左侧任意任务查看进度、对比预览与详细日志。",
+  "tasks.loading": "加载任务列表…",
+  "tasks.retry": "重试",
+  "tasks.loadFailHint": "无法加载任务列表：{error}",
 
   /* Logs panel */
   "tasks.logs.title": "日志",
@@ -415,6 +418,8 @@ export const zhCN = {
   "settings.api.kind": "类型",
   "settings.api.local": "本地",
   "settings.api.cloud": "云端",
+  "settings.api.cloudStub": "未实现",
+  "settings.api.cloudStubNote": "云端渲染仅作配置占位；当前所有任务均由本地 GVFI 引擎执行。",
   "settings.api.keyLabel": "API 密钥 / Token（可选）",
   "settings.api.keyPlaceholder": "Bearer Token（云端鉴权时填写）",
   "settings.api.addSection": "新增配置",

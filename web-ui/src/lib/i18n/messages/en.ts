@@ -399,7 +399,10 @@ export const en: MessageDict = {
   "tasks.selectTitle": "Select a task",
   "tasks.selectDesc": "Choose a task from the list to view details and preview",
   "tasks.cloudHint":
-    "Cloud render API is not connected yet; only local GVFI tasks are shown.",
+    "Local GVFI render tasks are listed here. Pick any task on the left to view progress, before/after preview, and detailed logs.",
+  "tasks.loading": "Loading task list…",
+  "tasks.retry": "Retry",
+  "tasks.loadFailHint": "Failed to load task list: {error}",
 
   /* Logs panel */
   "tasks.logs.title": "Logs",
@@ -435,6 +438,9 @@ export const en: MessageDict = {
   "settings.api.kind": "Type",
   "settings.api.local": "Local",
   "settings.api.cloud": "Cloud",
+  "settings.api.cloudStub": "not implemented",
+  "settings.api.cloudStubNote":
+    "Cloud rendering is a placeholder configuration; all tasks run on the local GVFI engine.",
   "settings.api.keyLabel": "API Key / Token (optional)",
   "settings.api.keyPlaceholder": "Bearer token (for cloud auth)",
   "settings.api.addSection": "Add profile",

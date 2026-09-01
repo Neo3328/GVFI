@@ -1,48 +1,132 @@
 /**
- * GVFI — Bottom log pane (three startup entries) + status bar.
+ * GVFI — Bottom log pane (collapsible) + status bar (dark glass).
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
  */
+
 "use client";
 
-const STARTUP_LOGS = [
-  { text: "已加载视频文件", active: true },
-  { text: "模型初始化完成", active: false },
-  { text: "等待开始处理", active: false },
+import { useEffect, useRef, useState } from "react";
+import { Circle, ChevronDown, ChevronUp } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+export interface LogLine {
+  id: number;
+  text: string;
+  level: "INFO" | "RUN" | "WARN" | "ERROR";
+}
+
+const DEFAULT_LOGS: LogLine[] = [
+  { id: 1, level: "INFO", text: "[INFO] GVFI 引擎初始化完成" },
+  { id: 2, level: "INFO", text: "[INFO] 等待输入视频文件" },
 ];
 
-export function WinLogPane() {
+export function WinLogPane({
+  logs = DEFAULT_LOGS,
+}: { logs?: LogLine[] } = {}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [logs]);
+
   return (
-    <section className="mx-2.5 mb-1 h-[150px] shrink-0 overflow-y-auto rounded-[6px] border border-[#e2e6eb] bg-white">
-      {STARTUP_LOGS.map((log) => (
-        <div
-          key={log.text}
-          className={
-            log.active
-              ? "flex h-[42px] items-center border-b border-[#eef1f5] bg-[#eaf2fe] px-4 text-[13px] font-medium text-[#1a1a1a]"
-              : "flex h-[42px] items-center border-b border-[#eef1f5] px-4 text-[13px] text-[#333] last:border-b-0"
-          }
-        >
-          {log.text}
+    <div
+      className={cn(
+        "relative mx-3 mb-2 flex shrink-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.02] backdrop-blur-xl transition-[height] duration-200 ease-out",
+        expanded ? "h-[160px]" : "h-[60px]"
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-label={expanded ? "折叠日志" : "展开日志"}
+        className="flex h-7 shrink-0 w-full items-center justify-between border-b border-white/[0.06] px-4 text-left hover:bg-white/[0.03]"
+      >
+        <div className="flex items-center gap-2">
+          <span className="size-1.5 rounded-full bg-[var(--accent-cyan)] shadow-[0_0_6px_rgba(100,210,255,0.8)]" />
+          <span className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--accent-cyan)]">
+            运行日志
+          </span>
+          <span className="ml-1 rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[9.5px] tabular-nums text-white/55">
+            {logs.length} 条
+          </span>
         </div>
-      ))}
-    </section>
+        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-white/50 transition-colors hover:text-white">
+          {expanded ? "收起" : "展开"}
+          {expanded ? (
+            <ChevronDown className="size-3" strokeWidth={2.2} />
+          ) : (
+            <ChevronUp className="size-3" strokeWidth={2.2} />
+          )}
+        </span>
+      </button>
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-4 py-1.5 font-mono text-[11px] leading-[1.5]"
+      >
+        {logs.length === 0 ? (
+          <div className="text-white/35">暂无日志 — 任务将在这里实时记录</div>
+        ) : (
+          logs.map((line) => (
+            <div key={line.id} className={cn("py-0.5", logLineClass(line.level))}>
+              {line.text}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
   );
 }
 
-export function WinStatusBar() {
+export function WinStatusBar({
+  apiOk = true,
+  runningCount = 0,
+  gpuName = "GPU: 未检测",
+}: {
+  apiOk?: boolean | null;
+  runningCount?: number;
+  gpuName?: string;
+} = {}) {
   return (
-    <footer className="flex h-[28px] shrink-0 items-center justify-between border-t border-[#e4e7eb] bg-white px-3 text-[12px]">
-      <div className="flex items-center gap-2">
-        <span className="h-[9px] w-[9px] rounded-full bg-[#22c55e] shadow-[0_0_0_2px_rgba(34,197,94,0.18)]" />
-        <span className="font-medium text-[#333]">就绪</span>
-      </div>
-      <div className="flex items-center gap-5 text-[#555]">
-        <span>
-          显卡负载 <span className="font-medium text-[#333]">23%</span>
+    <div className="flex h-7 shrink-0 items-center justify-between border-t border-white/10 bg-black/40 px-4 text-[10.5px] text-white/60 backdrop-blur-md">
+      <div className="flex items-center gap-3">
+        <span className="flex items-center gap-1.5">
+          <Circle
+            className={cn(
+              "size-2",
+              apiOk === null
+                ? "fill-white/30 text-white/30"
+                : apiOk
+                  ? "fill-[var(--success)] text-[var(--success)] shadow-[0_0_6px_rgba(46,204,113,0.6)]"
+                  : "fill-[var(--danger)] text-[var(--danger)] shadow-[0_0_6px_rgba(220,38,38,0.6)]"
+            )}
+          />
+          {apiOk === null ? "连接中…" : apiOk ? "API 就绪" : "API 未连接"}
         </span>
-        <span>
-          剩余时间 <span className="font-mono font-medium text-[#333]">00:08:30</span>
-        </span>
+        <span className="text-white/15">·</span>
+        <span className="truncate">{gpuName || "GPU: 检测中"}</span>
       </div>
-    </footer>
+      <div className="flex items-center gap-3">
+        <span>任务 {runningCount} 运行中</span>
+        <span className="text-white/15">·</span>
+        <span className="font-mono">v1.1.0</span>
+      </div>
+    </div>
   );
+}
+
+function logLineClass(level: LogLine["level"]): string {
+  switch (level) {
+    case "ERROR":
+      return "text-[var(--danger)]";
+    case "WARN":
+      return "text-[var(--warning)]";
+    case "RUN":
+      return "text-[var(--accent-cyan)]";
+    default:
+      return "text-white/70";
+  }
 }

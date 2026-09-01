@@ -1,80 +1,77 @@
 /**
- * GVFI — White title bar with integrated menu strip.
- * Left: app icon + title; center: menus (active = blue underline); right: window controls.
+ * GVFI — Title bar (dark glass, Figma-inspired).
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
  */
+
 "use client";
 
-import { useEffect, useState } from "react";
-import { Minus, Square, Copy, X, Blocks } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { Minus, Square, Copy, X, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getDesktopBridge } from "@/lib/desktop";
 
-const MENU_ITEMS = ["文件", "批量处理", "模型管理", "输出设置", "工具", "帮助"];
-
 export function WinTitleBar() {
-  const [activeMenu, setActiveMenu] = useState("批量处理");
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
     const bridge = getDesktopBridge();
     if (!bridge) return;
     bridge.windowIsMaximized?.().then(setMaximized);
-    return bridge.onMaximizedChange(setMaximized);
+    const off = bridge.onMaximizedChange(setMaximized);
+    return off;
   }, []);
 
+  const handleMinimize = () => void getDesktopBridge()?.windowMinimize();
+  const handleToggleMaximize = () =>
+    void getDesktopBridge()?.windowMaximizeToggle();
+  const handleClose = () => void getDesktopBridge()?.windowClose();
+
   return (
-    <div className="flex h-[40px] shrink-0 select-none items-center justify-between border-b border-[#e4e7eb] bg-white pl-3">
-      {/* Left: icon + title */}
-      <div className="flex items-center gap-2 pr-4">
-        <div className="flex h-[22px] w-[22px] items-center justify-center rounded-[6px] bg-[#1a73e8]">
-          <Blocks className="h-[13px] w-[13px] text-white" strokeWidth={2.2} />
-        </div>
-        <span className="whitespace-nowrap text-[14px] font-bold text-[#1a1a1a]">
-          AI视频补帧超分工具
-        </span>
+    <div
+      className="relative flex h-10 shrink-0 select-none items-center justify-between border-b border-white/10 px-3"
+      style={{
+        background:
+          "linear-gradient(180deg, rgba(15,18,28,0.85) 0%, rgba(10,13,22,0.92) 100%)",
+        backdropFilter: "blur(24px) saturate(160%)",
+      }}
+    >
+      {/* Aurora glow accents */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+      >
+        <div className="absolute -left-12 -top-6 size-32 rounded-full bg-[var(--accent)]/20 blur-3xl" />
+        <div className="absolute right-1/3 -top-6 size-24 rounded-full bg-[var(--accent-cyan)]/15 blur-3xl" />
       </div>
 
-      {/* Center: menu strip */}
-      <nav className="flex h-full flex-1 items-stretch">
-        {MENU_ITEMS.map((item) => {
-          const isActive = activeMenu === item;
-          return (
-            <button
-              key={item}
-              onClick={() => setActiveMenu(item)}
-              className={cn(
-                "relative flex h-full items-center px-4 text-[13px] transition-colors duration-180 ease-out",
-                isActive
-                  ? "font-medium text-[#1a73e8]"
-                  : "text-[#444] hover:bg-[#f0f4fa] hover:text-[#1a73e8]"
-              )}
-            >
-              {item}
-              {isActive ? (
-                <span className="absolute inset-x-3 bottom-0 h-[2px] rounded-full bg-[#1a73e8]" />
-              ) : null}
-            </button>
-          );
-        })}
-      </nav>
+      <div className="relative z-[1] flex items-center gap-2.5">
+        <div className="flex size-6 items-center justify-center rounded-md bg-gradient-to-br from-[var(--accent)] to-[#7c3aed] shadow-[0_0_12px_rgba(10,132,255,0.45)]">
+          <Sparkles className="size-3.5 text-white" strokeWidth={2.2} />
+        </div>
+        <div className="flex items-baseline gap-2">
+          <span className="text-[12px] font-semibold tracking-tight text-white">
+            GVFI Workbench
+          </span>
+          <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-white/40">
+            Frame · Upscale · Analyze
+          </span>
+        </div>
+      </div>
 
-      {/* Right: window controls */}
-      <div className="flex h-full items-stretch">
-        <WinTitleButton label="最小化" onClick={() => void getDesktopBridge()?.windowMinimize()}>
-          <Minus className="h-[15px] w-[15px]" strokeWidth={2} />
+      <div className="relative z-[1] flex items-center gap-1">
+        <WinTitleButton label="最小化" onClick={handleMinimize}>
+          <Minus className="size-3.5" strokeWidth={2} />
         </WinTitleButton>
-        <WinTitleButton
-          label="最大化/还原"
-          onClick={() => void getDesktopBridge()?.windowMaximizeToggle()}
-        >
+        <WinTitleButton label="最大化/还原" onClick={handleToggleMaximize}>
           {maximized ? (
-            <Copy className="h-[12px] w-[12px]" strokeWidth={2} />
+            <Copy className="size-3" strokeWidth={2} />
           ) : (
-            <Square className="h-[12px] w-[12px]" strokeWidth={2} />
+            <Square className="size-3" strokeWidth={2} />
           )}
         </WinTitleButton>
-        <WinTitleButton label="关闭" close onClick={() => void getDesktopBridge()?.windowClose()}>
-          <X className="h-[15px] w-[15px]" strokeWidth={2} />
+        <WinTitleButton label="关闭" close onClick={handleClose}>
+          <X className="size-3.5" strokeWidth={2} />
         </WinTitleButton>
       </div>
     </div>
@@ -87,7 +84,7 @@ function WinTitleButton({
   close,
   onClick,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   label: string;
   close?: boolean;
   onClick?: () => void;
@@ -98,10 +95,9 @@ function WinTitleButton({
       title={label}
       onClick={onClick}
       className={cn(
-        "flex w-[46px] items-center justify-center text-[#555] transition-colors duration-180 ease-out",
-        close
-          ? "hover:bg-[#e81123] hover:text-white active:bg-[#c00d1a]"
-          : "hover:bg-[#e8eaed] active:bg-[#d8dde3]"
+        "flex size-8 items-center justify-center rounded-lg text-white/70 transition-all duration-150 ease-out",
+        "hover:bg-white/10 hover:text-white",
+        close && "hover:bg-[var(--danger)] hover:text-white"
       )}
     >
       {children}

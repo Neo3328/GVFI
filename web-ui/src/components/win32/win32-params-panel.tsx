@@ -1,197 +1,379 @@
 /**
- * GVFI — Right-side parameter panel with six numbered GroupBoxes.
- * 1 AI model · 2 interpolation · 3 super-resolution · 4 denoise · 5 output · 6 task control.
+ * GVFI — Right-side parameter panel (dark glass, groupbox layout).
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
  */
+
 "use client";
 
+import { FolderOpen, FolderSearch, Cpu } from "lucide-react";
 import { useState } from "react";
-import { FolderOpen, Play, Square, Eye } from "lucide-react";
+import type { JobSettings } from "@/lib/gvfi-types";
+import { getDesktopBridge } from "@/lib/desktop";
 import {
   GroupBox,
-  WinButton,
-  WinCheckbox,
-  WinNumberInput,
+  FieldRow,
   WinSelect,
+  WinNumberInput,
   WinSlider,
+  WinCheckbox,
+  WinSwitch,
+  WinButton,
 } from "./win32-controls";
-import { getDesktopBridge } from "@/lib/desktop";
 
-export function WinParamsPanel() {
-  // 1. AI model
-  const [model, setModel] = useState("rife");
-  // 2. interpolation
-  const fps = 60;
-  const [motionComp, setMotionComp] = useState(72);
-  const [interp, setInterp] = useState(true);
-  const [antiShake, setAntiShake] = useState(false);
-  // 3. super resolution
-  const [srScale, setSrScale] = useState(2);
-  const [sharpen, setSharpen] = useState(35);
-  const [colorEnhance, setColorEnhance] = useState(false);
-  // 4. denoise
-  const [denoise, setDenoise] = useState(30);
-  const [denoiseMode, setDenoiseMode] = useState("smart");
-  const [preserveDetail, setPreserveDetail] = useState(false);
-  // 5. output
+export function WinParamsPanel({
+  hasInput,
+  inputName,
+  running,
+  starting,
+  onStart,
+  onStop,
+}: {
+  hasInput: boolean;
+  inputName: string | null;
+  running: boolean;
+  starting: boolean;
+  onStart: (settings: JobSettings & {
+    outputDir: string;
+    container: string;
+    codec: string;
+    audioCopy: boolean;
+    sceneDetect: boolean;
+    sharpen: number;
+    denoiseEnabled: boolean;
+    denoiseStrength: number;
+    preserveDetail: boolean;
+    backend: string;
+  }) => void;
+  onStop: () => void;
+}) {
+  // AI model
+  const [model, setModel] = useState("rife-v4.6");
+  const [backend, setBackend] = useState("native");
+  const [gpu, setGpu] = useState("0");
+
+  // Interpolation
+  const [targetFps, setTargetFps] = useState(60);
+  const [sceneDetect, setSceneDetect] = useState(true);
+  const [taskType, setTaskType] = useState<"interp" | "sr" | "both">("both");
+
+  // Super-res
+  const [srEnabled, setSrEnabled] = useState(true);
+  const [srModel, setSrModel] = useState("realesrgan");
+  const [resolution, setResolution] = useState("source");
+  const [sharpen, setSharpen] = useState(30);
+
+  // Denoise
+  const [denoiseEnabled, setDenoiseEnabled] = useState(false);
+  const [denoiseStrength, setDenoiseStrength] = useState(50);
+  const [preserveDetail, setPreserveDetail] = useState(true);
+
+  // Output
+  const [outputDir, setOutputDir] = useState("D:\\Videos\\GVFI_Output");
   const [container, setContainer] = useState("mp4");
   const [codec, setCodec] = useState("h264");
-  const [bitrate, setBitrate] = useState(12);
-  const [outDir, setOutDir] = useState("");
-  // 6. task
-  const [running, setRunning] = useState(false);
+  const [crf, setCrf] = useState(18);
+  const [audioCopy, setAudioCopy] = useState(true);
 
   const handleBrowse = async () => {
-    const dir = await getDesktopBridge()?.selectDirectory?.();
-    if (dir) setOutDir(dir);
+    const picked = await getDesktopBridge()?.selectDirectory?.();
+    if (picked) setOutputDir(picked);
+  };
+
+  const handleOpenOutput = async () => {
+    await getDesktopBridge()?.openPath?.(outputDir);
+  };
+
+  const handleStart = () => {
+    onStart({
+      task_type: taskType,
+      model,
+      fps: targetFps,
+      superResolution: srEnabled,
+      srModel: srModel as JobSettings["srModel"],
+      resolution: resolution as JobSettings["resolution"],
+      gpu: Number(gpu),
+      precision: "fp16",
+      quality: crf,
+      outputDir,
+      container,
+      codec,
+      audioCopy,
+      sceneDetect,
+      sharpen,
+      denoiseEnabled,
+      denoiseStrength,
+      preserveDetail,
+      backend,
+    });
   };
 
   return (
-    <aside className="flex w-[320px] shrink-0 flex-col overflow-y-auto border-l border-[#e4e7eb] bg-[#f4f6f9] p-2.5">
-      {/* 1. AI model */}
-      <GroupBox title="1. AI处理模型">
-        <div className="flex items-center gap-2">
-          <div className="min-w-0 flex-1">
-            <WinSelect
-              value={model}
-              onChange={setModel}
-              options={[
-                { value: "rife", label: "轻量补帧模型" },
-                { value: "rife-heavy", label: "高精度补帧模型" },
-                { value: "gmfs", label: "GMFlow 补帧模型" },
-              ]}
-            />
-          </div>
-          <WinButton className="shrink-0">加载模型</WinButton>
-        </div>
-        <div className="flex items-center justify-between text-[12px] text-[#555]">
-          <span>目标帧率 {fps}fps</span>
-          <span>
-            设备：<span className="font-medium text-[#1a73e8]">CUDA</span>
-          </span>
-        </div>
-      </GroupBox>
-
-      {/* 2. Interpolation */}
-      <GroupBox title="2. 补帧参数">
-        <div className="flex items-center gap-2">
-          <label className="w-[76px] shrink-0 text-right text-[12px] text-[#555]">
-            运动补偿
-          </label>
-          <WinSlider value={motionComp} onChange={setMotionComp} min={0} max={100} suffix="%" />
-        </div>
-        <div className="flex items-center gap-2 pl-1">
-          <WinCheckbox checked={interp} onChange={setInterp} label="开启帧插值" />
-          <WinCheckbox checked={antiShake} onChange={setAntiShake} label="抗抖动" />
-        </div>
-      </GroupBox>
-
-      {/* 3. Super resolution */}
-      <GroupBox title="3. 超分与增强">
-        <div className="flex items-center gap-2">
-          <label className="w-[76px] shrink-0 text-right text-[12px] text-[#555]">
-            超分比例
-          </label>
-          <WinSlider value={srScale} onChange={setSrScale} min={1} max={4} suffix=".0x" />
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="w-[76px] shrink-0 text-right text-[12px] text-[#555]">
-            锐化强度
-          </label>
-          <WinSlider value={sharpen} onChange={setSharpen} min={0} max={100} suffix="%" />
-        </div>
-        <div className="pl-1">
-          <WinCheckbox checked={colorEnhance} onChange={setColorEnhance} label="色彩增强" />
-        </div>
-      </GroupBox>
-
-      {/* 4. Denoise */}
-      <GroupBox title="4. 降噪设置">
-        <div className="flex items-center gap-2">
-          <label className="w-[76px] shrink-0 text-right text-[12px] text-[#555]">
-            降噪强度
-          </label>
-          <WinSlider value={denoise} onChange={setDenoise} min={0} max={100} suffix="%" />
-        </div>
-        <div className="flex items-center gap-2 pl-1">
-          <div className="w-[76px]" />
+    <aside className="relative flex h-full w-[320px] shrink-0 flex-col gap-1.5 overflow-y-auto overflow-x-hidden p-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/15 [&::-webkit-scrollbar-track]:bg-transparent">
+      <div
+        aria-hidden
+        className="pointer-events-none sticky bottom-0 -mt-4 h-4 bg-gradient-to-t from-[#07090f] to-transparent"
+      />
+      {/* ── AI 模型 ── */}
+      <GroupBox title="AI 模型" badge={model === "rife-v4.6" ? "推荐" : undefined}>
+        <FieldRow label="推理模型" hint="RIFE 系列">
           <WinSelect
-            className="flex-1"
-            value={denoiseMode}
-            onChange={setDenoiseMode}
+            value={model}
+            onChange={setModel}
+            disabled={running}
             options={[
-              { value: "smart", label: "智能降噪" },
-              { value: "off", label: "关闭降噪" },
-              { value: "strong", label: "强力降噪" },
+              { value: "rife-v4.6", label: "RIFE v4.6 (推荐)" },
+              { value: "rife-v4.0", label: "RIFE v4.0" },
+              { value: "rife-v3.1", label: "RIFE v3.1" },
             ]}
           />
-          <WinCheckbox checked={preserveDetail} onChange={setPreserveDetail} label="保留细节" />
-        </div>
+        </FieldRow>
+        <FieldRow label="推理后端" hint="Native / CLI">
+          <WinSelect
+            value={backend}
+            onChange={setBackend}
+            disabled={running}
+            options={[
+              { value: "native", label: "Native (ncnn/Vulkan)" },
+              { value: "cli", label: "CLI 子进程" },
+            ]}
+          />
+        </FieldRow>
+        <FieldRow label="计算设备" hint="GPU 选择">
+          <WinSelect
+            value={gpu}
+            onChange={setGpu}
+            disabled={running}
+            options={[
+              { value: "0", label: "GPU 0 · RTX 5060" },
+              { value: "1", label: "GPU 1 · 核显" },
+            ]}
+          />
+        </FieldRow>
       </GroupBox>
 
-      {/* 5. Output */}
-      <GroupBox title="5. 输出配置">
-        <div className="flex items-center gap-2">
+      {/* ── 补帧参数 ── */}
+      <GroupBox title="补帧参数">
+        <FieldRow label="任务类型">
+          <WinSelect
+            value={taskType}
+            onChange={(v) => setTaskType(v as typeof taskType)}
+            disabled={running}
+            options={[
+              { value: "both", label: "补帧 + 超分" },
+              { value: "interp", label: "仅补帧" },
+              { value: "sr", label: "仅超分" },
+            ]}
+          />
+        </FieldRow>
+        <FieldRow label="目标帧率">
+          <WinNumberInput
+            value={targetFps}
+            onChange={setTargetFps}
+            min={24}
+            max={240}
+            suffix="fps"
+            disabled={running}
+          />
+        </FieldRow>
+        <FieldRow label="场景检测">
+          <WinSwitch
+            checked={sceneDetect}
+            onChange={setSceneDetect}
+            disabled={running}
+            label={sceneDetect ? "已启用" : "已禁用"}
+          />
+        </FieldRow>
+      </GroupBox>
+
+      {/* ── 超分与增强 ── */}
+      <GroupBox title="超分与增强">
+        <FieldRow label="启用超分">
+          <WinSwitch
+            checked={srEnabled}
+            onChange={setSrEnabled}
+            disabled={running}
+            label={srEnabled ? "已启用" : "已禁用"}
+          />
+        </FieldRow>
+        <FieldRow label="超分模型" hint={srEnabled ? undefined : "已禁用"}>
+          <WinSelect
+            value={srModel}
+            onChange={setSrModel}
+            disabled={running || !srEnabled}
+            options={[
+              { value: "realesrgan", label: "RealESRGAN" },
+              { value: "realcugan", label: "RealCUGAN" },
+              { value: "swinir", label: "SwinIR" },
+            ]}
+          />
+        </FieldRow>
+        <FieldRow label="输出分辨率" hint={srEnabled ? undefined : "已禁用"}>
+          <WinSelect
+            value={resolution}
+            onChange={setResolution}
+            disabled={running || !srEnabled}
+            options={[
+              { value: "source", label: "跟随源 / 倍数" },
+              { value: "1080p", label: "1080p" },
+              { value: "1440p", label: "1440p" },
+              { value: "4k", label: "4K" },
+            ]}
+          />
+        </FieldRow>
+        <FieldRow label="锐化强度">
+          <WinSlider
+            value={sharpen}
+            onChange={setSharpen}
+            min={0}
+            max={100}
+            disabled={running}
+          />
+        </FieldRow>
+      </GroupBox>
+
+      {/* ── 降噪设置 ── */}
+      <GroupBox title="降噪设置">
+        <FieldRow label="启用降噪">
+          <WinSwitch
+            checked={denoiseEnabled}
+            onChange={setDenoiseEnabled}
+            disabled={running}
+            label={denoiseEnabled ? "已启用" : "已禁用"}
+          />
+        </FieldRow>
+        <FieldRow label="降噪强度">
+          <WinSlider
+            value={denoiseStrength}
+            onChange={setDenoiseStrength}
+            min={0}
+            max={100}
+            disabled={running || !denoiseEnabled}
+          />
+        </FieldRow>
+        <FieldRow label="细节保护">
+          <WinCheckbox
+            checked={preserveDetail}
+            onChange={setPreserveDetail}
+            disabled={running}
+            label="保留边缘细节"
+          />
+        </FieldRow>
+      </GroupBox>
+
+      {/* ── 输出配置 ── */}
+      <GroupBox title="输出配置">
+        <FieldRow label="输出目录">
+          <div className="flex items-center gap-1.5">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={outputDir}
+                disabled={running}
+                onChange={(e) => setOutputDir(e.target.value)}
+                title={outputDir}
+                className="h-7 w-full truncate rounded-lg border border-white/10 bg-black/30 px-2 pr-7 text-[11px] text-white outline-none transition-colors duration-150 hover:border-white/20 focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/30 disabled:opacity-40"
+              />
+              <FolderOpen
+                className="pointer-events-none absolute right-2 top-1/2 size-3 -translate-y-1/2 text-white/30"
+                strokeWidth={1.8}
+              />
+            </div>
+            <WinButton variant="default" onClick={() => void handleBrowse()}>
+              浏览
+            </WinButton>
+          </div>
+        </FieldRow>
+        <FieldRow label="封装格式">
           <WinSelect
             value={container}
             onChange={setContainer}
+            disabled={running}
             options={[
               { value: "mp4", label: "MP4" },
               { value: "mkv", label: "MKV" },
               { value: "mov", label: "MOV" },
             ]}
           />
+        </FieldRow>
+        <FieldRow label="视频编码">
           <WinSelect
             value={codec}
             onChange={setCodec}
+            disabled={running}
             options={[
-              { value: "h264", label: "H.264" },
-              { value: "h265", label: "H.265" },
+              { value: "h264", label: "H.264 (AVC)" },
+              { value: "h265", label: "H.265 (HEVC)" },
               { value: "av1", label: "AV1" },
             ]}
           />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-[44px] shrink-0 text-[12px] text-[#555]">输入</span>
-          <WinNumberInput value={bitrate} onChange={setBitrate} min={1} max={200} suffix="Mbps" />
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            value={outDir}
-            readOnly
-            placeholder="选择输出目录"
-            className="h-[30px] min-w-0 flex-1 rounded-[5px] border border-[#d4d9df] bg-white px-2 text-[12px] text-[#333] outline-none placeholder:text-[#aaa] hover:border-[#1a73e8] focus:border-[#1a73e8]"
+        </FieldRow>
+        <FieldRow label="画质 CRF">
+          <WinNumberInput
+            value={crf}
+            onChange={setCrf}
+            min={0}
+            max={51}
+            disabled={running}
           />
-          <WinButton onClick={() => void handleBrowse()} className="shrink-0">
-            <FolderOpen className="h-[13px] w-[13px]" strokeWidth={2} />
-            浏览
-          </WinButton>
-        </div>
+        </FieldRow>
+        <FieldRow label="音频处理">
+          <WinCheckbox
+            checked={audioCopy}
+            onChange={setAudioCopy}
+            disabled={running}
+            label="直接复制音频流"
+          />
+        </FieldRow>
+        <button
+          onClick={() => void handleOpenOutput()}
+          className="mt-0.5 inline-flex items-center gap-1 self-end text-[11px] font-medium text-[var(--accent-cyan)] transition-colors duration-150 hover:text-white"
+        >
+          <FolderSearch className="size-3" strokeWidth={2} />
+          打开输出文件夹
+        </button>
       </GroupBox>
 
-      {/* 6. Task control */}
-      <GroupBox title="6. 任务控制">
-        <div className="flex items-center gap-2">
-          <WinButton className="flex-1">
-            <Eye className="h-[13px] w-[13px]" strokeWidth={2} />
-            预览
-          </WinButton>
-          <WinButton
-            variant="primary"
-            className="flex-1"
-            onClick={() => setRunning((r) => !r)}
-          >
-            <Play className="h-[13px] w-[13px]" strokeWidth={2.2} />
-            {running ? "处理中…" : "开始处理"}
-          </WinButton>
-          <WinButton
-            variant="danger"
-            className="flex-1"
-            disabled={!running}
-            onClick={() => setRunning(false)}
-          >
-            <Square className="h-[11px] w-[11px]" strokeWidth={2.2} />
-            停止
-          </WinButton>
+      {/* ── 任务控制 ── */}
+      <GroupBox title="任务控制" badge={running ? "运行中" : hasInput ? "就绪" : "等待输入"}>
+        {hasInput ? (
+          <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2">
+            <Cpu className="size-4 shrink-0 text-[var(--accent-cyan)]" strokeWidth={1.8} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[11.5px] font-medium text-white/85">
+                {inputName}
+              </p>
+              <p className="mt-0.5 text-[10px] text-white/40">
+                {taskType === "both"
+                  ? "补帧 + 超分"
+                  : taskType === "interp"
+                    ? "仅补帧"
+                    : "仅超分"}
+                · {targetFps}fps · CRF {crf}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p className="rounded-xl border border-dashed border-white/15 bg-black/20 px-3 py-2.5 text-[11px] leading-relaxed text-white/55">
+            请先点击左侧「输入文件」选择视频后再启动任务。
+          </p>
+        )}
+        <div className="flex gap-2 pt-1">
+          {running ? (
+            <WinButton variant="danger" className="flex-1" onClick={onStop}>
+              停止处理
+            </WinButton>
+          ) : (
+            <WinButton
+              variant="primary"
+              className="flex-1"
+              loading={starting}
+              disabled={!hasInput}
+              onClick={handleStart}
+            >
+              开始处理
+            </WinButton>
+          )}
         </div>
       </GroupBox>
     </aside>

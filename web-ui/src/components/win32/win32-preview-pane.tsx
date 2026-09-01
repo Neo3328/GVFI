@@ -1,153 +1,225 @@
 /**
- * GVFI — Center video preview canvas + transport controls.
- * Dark canvas, white control strip, blue play button.
+ * GVFI — Central video preview stage.
+ * Black canvas with film icon when empty; glass transport bar below.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
  */
+
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import {
-  Play,
-  Pause,
   SkipBack,
+  Rewind,
+  Play,
+  FastForward,
   SkipForward,
-  ChevronLeft,
-  ChevronRight,
-  Volume2,
-  Repeat,
-  BarChart3,
+  Pause,
+  Film,
+  Upload,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
-const TOTAL_FRAMES = 305; // 00:00:12:45 @ 24fps
-const FPS = 24;
-
-function frameToTC(frame: number): string {
-  const totalSec = Math.floor(frame / FPS);
-  const h = String(Math.floor(totalSec / 3600)).padStart(2, "0");
-  const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, "0");
-  const s = String(totalSec % 60).padStart(2, "0");
-  const f = String(frame % FPS).padStart(2, "0");
-  return `${h}:${m}:${s}:${f}`;
-}
-
-export function WinPreviewPane() {
-  const [currentFrame, setCurrentFrame] = useState(0);
+export function WinPreviewPane({
+  hasInput,
+  inputName,
+  onPickInput,
+}: {
+  hasInput: boolean;
+  inputName: string | null;
+  onPickInput?: () => void;
+}) {
   const [playing, setPlaying] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [currentFrame, setCurrentFrame] = useState(0);
+  const totalFrames = hasInput ? 2400 : 0;
+  const fps = 24;
 
   useEffect(() => {
-    if (!playing) {
-      if (timerRef.current) clearInterval(timerRef.current);
-      return;
-    }
-    timerRef.current = setInterval(() => {
+    if (!playing || !hasInput) return;
+    const timer = window.setInterval(() => {
       setCurrentFrame((f) => {
-        if (f >= TOTAL_FRAMES) {
+        if (f >= totalFrames - 1) {
           setPlaying(false);
-          return TOTAL_FRAMES;
+          return totalFrames - 1;
         }
         return f + 1;
       });
-    }, 1000 / FPS);
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [playing]);
+    }, 1000 / fps);
+    return () => window.clearInterval(timer);
+  }, [playing, hasInput, totalFrames, fps]);
 
-  const step = (delta: number) =>
-    setCurrentFrame((f) => Math.max(0, Math.min(TOTAL_FRAMES, f + delta)));
-
-  const progress = (currentFrame / TOTAL_FRAMES) * 100;
+  const progress = totalFrames > 0 ? (currentFrame / (totalFrames - 1)) * 100 : 0;
+  const step = (delta: number) => {
+    if (!hasInput) return;
+    setCurrentFrame((f) => Math.max(0, Math.min(totalFrames - 1, f + delta)));
+  };
 
   return (
-    <section className="flex min-w-0 flex-1 flex-col gap-2 p-2.5">
-      {/* Canvas */}
-      <div className="relative min-h-0 flex-1 overflow-hidden rounded-[6px] bg-[#2b2f36]">
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[13px] text-white/35">视频预览区域</span>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 p-2">
+      {/* Preview canvas */}
+      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-black shadow-[0_8px_40px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.04)_inset]">
+        {/* Aurora glow on empty */}
+        {!hasInput ? (
+          <>
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(60% 50% at 50% 50%, rgba(10,132,255,0.18) 0%, rgba(124,58,237,0.10) 35%, transparent 70%)",
+              }}
+            />
+            <div className="relative z-[1] flex flex-col items-center gap-3 px-6 text-center">
+              <div className="flex size-16 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md shadow-[0_0_24px_rgba(10,132,255,0.3)]">
+                <Film className="size-7 text-[var(--accent-cyan)]" strokeWidth={1.6} />
+              </div>
+              <div>
+                <p className="text-[15px] font-semibold text-white">
+                  未加载视频文件
+                </p>
+                <p className="mt-1 text-[12px] text-white/50">
+                  从左侧「输入文件」选择本地视频以开始处理
+                </p>
+              </div>
+              {onPickInput ? (
+                <button
+                  type="button"
+                  onClick={onPickInput}
+                  className="mt-2 inline-flex h-9 items-center gap-2 rounded-xl border border-white/15 bg-white/[0.06] px-4 text-[12px] font-semibold text-white backdrop-blur-md transition-all duration-150 hover:bg-white/[0.1] hover:border-white/25"
+                >
+                  <Upload className="size-3.5" strokeWidth={2} />
+                  打开文件
+                </button>
+              ) : null}
+            </div>
+          </>
+        ) : (
+          <div className="text-center">
+            <Film
+              className="mx-auto mb-2 size-9 text-white/40"
+              strokeWidth={1.5}
+            />
+            <p className="max-w-[80%] truncate px-4 text-[13px] text-white/85">
+              {inputName}
+            </p>
+            <p className="mt-1 text-[10px] tabular-nums text-white/40">
+              帧 {currentFrame} / {totalFrames}
+            </p>
+          </div>
+        )}
+
+        {/* Floating resolution badge */}
+        <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-white/70 backdrop-blur-md">
+          <span className="size-1.5 rounded-full bg-[var(--accent-cyan)]" />
+          1920 × 1080 · 24 fps
         </div>
-        {/* progress bar at canvas bottom */}
-        <div className="absolute inset-x-0 bottom-0 h-[5px] bg-white/20">
-          <div
-            className="h-full bg-[#1a73e8] transition-[width] duration-100 ease-linear"
-            style={{ width: `${progress}%` }}
-          />
+        <div className="absolute right-3 top-3 rounded-md border border-white/10 bg-black/50 px-1.5 py-0.5 text-[10px] font-medium text-white/60 backdrop-blur-md">
+          PREVIEW
         </div>
       </div>
 
-      {/* Transport strip */}
-      <div className="flex h-[52px] shrink-0 items-center gap-3 rounded-[6px] border border-[#e2e6eb] bg-white px-3">
-        <ChevronLeft className="h-[18px] w-[18px] text-[#666]" strokeWidth={2} />
-        <span className="w-[104px] shrink-0 font-mono text-[13px] text-[#333]">
-          {frameToTC(currentFrame)}
-        </span>
+      {/* Transport controls */}
+      <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.02] px-4 py-1.5 backdrop-blur-xl">
+        {/* Progress bar */}
+        <div className="mb-1.5 flex items-center gap-3">
+          <span className="w-[72px] shrink-0 text-right font-mono text-[10.5px] tabular-nums text-white/70">
+            {formatTime(currentFrame, fps)}
+          </span>
+          <div className="relative h-1 flex-1 overflow-hidden rounded-full bg-white/10">
+            <div
+              aria-hidden
+              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[var(--accent)] to-[var(--accent-cyan)] transition-[width] duration-100"
+              style={{ width: `${progress}%` }}
+            />
+            <input
+              type="range"
+              min={0}
+              max={totalFrames > 0 ? totalFrames - 1 : 0}
+              value={currentFrame}
+              disabled={!hasInput}
+              onChange={(e) => setCurrentFrame(Number(e.target.value))}
+              className="absolute inset-0 size-full cursor-pointer appearance-none bg-transparent opacity-0 disabled:cursor-not-allowed"
+            />
+          </div>
+          <span className="w-[72px] shrink-0 font-mono text-[10.5px] tabular-nums text-white/40">
+            {formatTime(totalFrames, fps)}
+          </span>
+        </div>
 
-        <div className="flex flex-1 items-center justify-center gap-2.5">
-          <TransportButton onClick={() => step(-10)} title="后退10帧">
-            <SkipBack className="h-[15px] w-[15px]" strokeWidth={2} />
+        {/* Buttons row */}
+        <div className="flex items-center justify-center gap-1.5">
+          <TransportButton label="上一帧" disabled={!hasInput} onClick={() => step(-1)}>
+            <SkipBack className="size-3.5" strokeWidth={2} />
           </TransportButton>
-          <TransportButton onClick={() => step(-1)} title="上一帧">
-            <ChevronLeft className="h-[16px] w-[16px]" strokeWidth={2.2} />
+          <TransportButton label="后退 10 帧" disabled={!hasInput} onClick={() => step(-10)}>
+            <Rewind className="size-3.5" strokeWidth={2} />
           </TransportButton>
-          <button
+          <TransportButton
+            label={playing ? "暂停" : "播放"}
+            primary
+            disabled={!hasInput}
             onClick={() => setPlaying((p) => !p)}
-            title={playing ? "暂停" : "播放"}
-            className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-[#1a73e8] text-white shadow-sm transition-colors duration-180 ease-out hover:bg-[#3a8af0] active:bg-[#155fc4]"
           >
             {playing ? (
-              <Pause className="h-[16px] w-[16px]" strokeWidth={2.2} />
+              <Pause className="size-4" strokeWidth={2.2} />
             ) : (
-              <Play className="ml-[2px] h-[16px] w-[16px]" strokeWidth={2.2} />
+              <Play className="size-4" strokeWidth={2.2} />
             )}
-          </button>
-          <TransportButton onClick={() => step(1)} title="下一帧">
-            <ChevronRight className="h-[16px] w-[16px]" strokeWidth={2.2} />
           </TransportButton>
-          <TransportButton onClick={() => step(10)} title="前进10帧">
-            <SkipForward className="h-[15px] w-[15px]" strokeWidth={2} />
+          <TransportButton label="前进 10 帧" disabled={!hasInput} onClick={() => step(10)}>
+            <FastForward className="size-3.5" strokeWidth={2} />
           </TransportButton>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-2">
-          <TransportButton small title="循环">
-            <Repeat className="h-[14px] w-[14px]" strokeWidth={2} />
+          <TransportButton label="下一帧" disabled={!hasInput} onClick={() => step(1)}>
+            <SkipForward className="size-3.5" strokeWidth={2} />
           </TransportButton>
-          <TransportButton small title="倍速">
-            <span className="text-[10px] font-semibold">1x</span>
-          </TransportButton>
-          <TransportButton small title="音量">
-            <Volume2 className="h-[14px] w-[14px]" strokeWidth={2} />
-          </TransportButton>
-          <TransportButton small title="统计">
-            <BarChart3 className="h-[14px] w-[14px]" strokeWidth={2} />
-          </TransportButton>
+          <div className="ml-3 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/30 px-2.5 py-0.5 text-[10.5px] font-medium text-white/70">
+            进度
+            <span className="font-mono tabular-nums text-[var(--accent-cyan)]">
+              {progress.toFixed(0)}%
+            </span>
+          </div>
         </div>
       </div>
-    </section>
+    </div>
   );
 }
 
 function TransportButton({
   children,
+  label,
   onClick,
-  title,
-  small,
+  primary,
+  disabled,
 }: {
   children: React.ReactNode;
-  onClick?: () => void;
-  title?: string;
-  small?: boolean;
+  label: string;
+  onClick: () => void;
+  primary?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <button
+      aria-label={label}
+      title={label}
       onClick={onClick}
-      title={title}
+      disabled={disabled}
       className={cn(
-        "flex items-center justify-center rounded-full border border-[#d4d9df] bg-white text-[#555] transition-colors duration-180 ease-out hover:border-[#1a73e8] hover:text-[#1a73e8] active:bg-[#eaf2fe]",
-        small ? "h-[28px] w-[28px]" : "h-[32px] w-[32px]"
+        "flex size-8 items-center justify-center rounded-lg border transition-all duration-150 ease-out disabled:cursor-not-allowed disabled:opacity-30",
+        primary
+          ? "border-transparent bg-gradient-to-r from-[var(--accent)] to-[#7c3aed] text-white shadow-[0_0_14px_rgba(10,132,255,0.45)] hover:brightness-110 active:brightness-95"
+          : "border-white/10 bg-white/[0.04] text-white/70 hover:border-white/25 hover:bg-white/[0.08] hover:text-white"
       )}
     >
       {children}
     </button>
   );
+}
+
+function formatTime(frame: number, fps: number): string {
+  const totalSeconds = Math.floor(frame / fps);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  const f = frame % fps;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}:${String(f).padStart(2, "0")}`;
 }

@@ -1,18 +1,17 @@
 /** Workspace layout & composite components */
 
-export { WorkspaceShell } from"./workspace-shell";
+export { WorkspaceShell } from "./workspace-shell";
 export {
- WORKSPACE_NAV,
- getWorkspaceNav,
- pageTitleForPath,
-} from"./workspace-nav";
+  WORKSPACE_NAV,
+  getWorkspaceNav,
+  pageTitleForPath,
+} from "./workspace-nav";
 export {
- WorkspaceChromeProvider,
- useWorkspaceChrome,
- useWorkspaceChromeOptional,
-} from"./workspace-chrome-context";
-export { PhasePlaceholder } from"./phase-placeholder";
-export { AppShell } from"./app-shell";
+  WorkspaceChromeProvider,
+  useWorkspaceChrome,
+  useWorkspaceChromeOptional,
+} from "./workspace-chrome-context";
+export { AppShell } from "./app-shell";
 export type { AppShellProps } from"./app-shell";
 
 export { Sidebar, sidebarVariants } from"./sidebar";

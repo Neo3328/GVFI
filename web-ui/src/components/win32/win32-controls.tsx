@@ -1,54 +1,75 @@
 /**
- * GVFI — Blue-white base controls: GroupBox, labeled field rows.
- * White cards, thin gray borders, Material Blue accent (#1a73e8).
+ * GVFI — Figma-style dark glass form controls.
+ * FieldRow, GroupBox, Select, Number, Slider, Checkbox, Switch, Button.
+ * Developed by Mr. Gong
+ * Copyright © 2026 Mr. Gong. All Rights Reserved.
  */
+
 "use client";
 
 import type { ReactNode } from "react";
+import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/* ── GroupBox: white card with bold title ─────────────────── */
+/* ── GroupBox: glass floating card with cyan heading ────────── */
 export interface GroupBoxProps {
   title: string;
+  badge?: string;
   children: ReactNode;
   className?: string;
 }
 
-export function GroupBox({ title, children, className }: GroupBoxProps) {
+export function GroupBox({ title, badge, children, className }: GroupBoxProps) {
   return (
-    <fieldset
+    <section
       className={cn(
-        "mb-2.5 rounded-[6px] border border-[#e2e6eb] bg-white p-3",
+        "relative overflow-hidden rounded-2xl border border-white/10",
+        "bg-gradient-to-b from-white/[0.04] to-white/[0.02]",
+        "shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_8px_24px_-12px_rgba(0,0,0,0.6)]",
+        "backdrop-blur-xl",
         className
       )}
     >
-      <legend className="px-1 text-[13px] font-bold text-[#222]">
-        {title}
-      </legend>
-      <div className="flex flex-col gap-2">{children}</div>
-    </fieldset>
+      <header className="flex items-center justify-between gap-2 border-b border-white/[0.06] px-3 py-1.5">
+        <h3 className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--accent-cyan)]">
+          {title}
+        </h3>
+        {badge ? (
+          <span className="rounded-full bg-[var(--accent)]/15 px-1.5 py-0 text-[8.5px] font-medium uppercase tracking-wider text-[var(--accent-cyan)] ring-1 ring-inset ring-[var(--accent)]/30">
+            {badge}
+          </span>
+        ) : null}
+      </header>
+      <div className="flex flex-col gap-1.5 p-2.5">{children}</div>
+    </section>
   );
 }
 
-/* ── Labeled field row: label left, control right ─────────── */
+/* ── FieldRow: label + control, flexible width ───────────────── */
 export interface FieldRowProps {
   label: string;
+  hint?: string;
   children: ReactNode;
   className?: string;
 }
 
-export function FieldRow({ label, children, className }: FieldRowProps) {
+export function FieldRow({ label, hint, children, className }: FieldRowProps) {
   return (
-    <div className={cn("flex items-center gap-2", className)}>
-      <label className="w-[76px] shrink-0 text-right text-[12px] text-[#555]">
-        {label}
-      </label>
-      <div className="min-w-0 flex-1">{children}</div>
+    <div className={cn("flex flex-col gap-0.5", className)}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[9.5px] font-medium uppercase tracking-wider text-white/55">
+          {label}
+        </span>
+        {hint ? (
+          <span className="truncate text-[9px] text-white/35">{hint}</span>
+        ) : null}
+      </div>
+      <div className="min-w-0">{children}</div>
     </div>
   );
 }
 
-/* ── Select ───────────────────────────────────────────────── */
+/* ── Select: dark glass with chevron ──────────────────────────── */
 export function WinSelect({
   value,
   onChange,
@@ -62,28 +83,51 @@ export function WinSelect({
   className?: string;
   disabled?: boolean;
 }) {
+  const selected = options.find((o) => o.value === value);
   return (
-    <select
-      value={value}
-      disabled={disabled}
-      onChange={(e) => onChange(e.target.value)}
-      className={cn(
-        "h-[30px] w-full rounded-[5px] border border-[#d4d9df] bg-white px-2 text-[12px] text-[#1a1a1a]",
-        "outline-none transition-colors duration-180 ease-out disabled:cursor-not-allowed disabled:bg-[#f5f5f5] disabled:text-[#999]",
-        "hover:border-[#1a73e8] focus:border-[#1a73e8] focus:ring-2 focus:ring-[#1a73e8]/15",
-        className
-      )}
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+    <div className={cn("relative", className)}>
+      <select
+        value={value}
+        disabled={disabled}
+        title={selected?.label ?? value}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn(
+          "h-7 w-full appearance-none rounded-lg border border-white/10 bg-black/30 pl-2.5 pr-8 text-[11px] text-white outline-none transition-colors duration-150",
+          "hover:border-white/20",
+          "focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/30",
+          "disabled:cursor-not-allowed disabled:opacity-40"
+        )}
+      >
+        {options.map((o) => (
+          <option
+            key={o.value}
+            value={o.value}
+            title={o.label}
+            className="bg-[#0a0d16] text-white"
+          >
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <svg
+        aria-hidden
+        className="pointer-events-none absolute right-2.5 top-1/2 size-3 -translate-y-1/2 text-white/40"
+        viewBox="0 0 12 12"
+        fill="none"
+      >
+        <path
+          d="M3 4.5 6 7.5 9 4.5"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </div>
   );
 }
 
-/* ── Number / text input ──────────────────────────────────── */
+/* ── Number input ─────────────────────────────────────────── */
 export function WinNumberInput({
   value,
   onChange,
@@ -104,7 +148,7 @@ export function WinNumberInput({
   disabled?: boolean;
 }) {
   return (
-    <div className={cn("flex items-center gap-1", className)}>
+    <div className={cn("flex items-center gap-1.5", className)}>
       <input
         type="number"
         value={value}
@@ -113,10 +157,12 @@ export function WinNumberInput({
         step={step}
         disabled={disabled}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-[30px] w-full rounded-[5px] border border-[#d4d9df] bg-white px-2 text-[12px] text-[#1a1a1a] outline-none transition-colors duration-180 ease-out hover:border-[#1a73e8] focus:border-[#1a73e8] focus:ring-2 focus:ring-[#1a73e8]/15 disabled:bg-[#f5f5f5] disabled:text-[#999]"
+        className="h-7 w-full rounded-lg border border-white/10 bg-black/30 px-2.5 text-center text-[11px] tabular-nums text-white outline-none transition-colors duration-150 hover:border-white/20 focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/30 disabled:opacity-40"
       />
       {suffix ? (
-        <span className="shrink-0 text-[11px] text-[#888]">{suffix}</span>
+        <span className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-white/40">
+          {suffix}
+        </span>
       ) : null}
     </div>
   );
@@ -129,7 +175,6 @@ export function WinSlider({
   min,
   max,
   step = 1,
-  suffix,
   className,
   disabled,
 }: {
@@ -138,25 +183,36 @@ export function WinSlider({
   min: number;
   max: number;
   step?: number;
-  suffix?: string;
   className?: string;
   disabled?: boolean;
 }) {
+  const pct = ((value - min) / (max - min)) * 100;
   return (
-    <div className={cn("flex flex-1 items-center gap-1.5", className)}>
-      <input
-        type="range"
-        value={value}
-        min={min}
-        max={max}
-        step={step}
-        disabled={disabled}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="h-[4px] flex-1 cursor-pointer appearance-none rounded-full bg-[#dfe3e8] accent-[#1a73e8] disabled:cursor-not-allowed disabled:opacity-50"
-      />
-      <span className="shrink-0 whitespace-nowrap text-right text-[11px] tabular-nums text-[#666]">
+    <div className={cn("flex items-center gap-2.5", className)}>
+      <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+        <div
+          aria-hidden
+          className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[var(--accent)] to-[#7c3aed]"
+          style={{ width: `${pct}%` }}
+        />
+        <input
+          type="range"
+          value={value}
+          min={min}
+          max={max}
+          step={step}
+          disabled={disabled}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="absolute inset-0 size-full cursor-pointer appearance-none bg-transparent opacity-0 disabled:cursor-not-allowed"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_8px_rgba(10,132,255,0.6)] transition-transform"
+          style={{ left: `${pct}%` }}
+        />
+      </div>
+      <span className="w-9 shrink-0 text-right text-[11px] font-semibold tabular-nums text-white/80">
         {value}
-        {suffix ?? ""}
       </span>
     </div>
   );
@@ -177,23 +233,43 @@ export function WinCheckbox({
   return (
     <label
       className={cn(
-        "flex cursor-pointer items-center gap-1.5 whitespace-nowrap text-[12px] text-[#333]",
-        disabled && "cursor-not-allowed opacity-60"
+        "flex cursor-pointer select-none items-center gap-2 text-[12px] text-white/85",
+        disabled && "cursor-not-allowed opacity-40"
       )}
     >
+      <span
+        className={cn(
+          "flex size-4 shrink-0 items-center justify-center rounded-md border transition-all duration-150",
+          checked
+            ? "border-[var(--accent)] bg-[var(--accent)] shadow-[0_0_8px_rgba(10,132,255,0.5)]"
+            : "border-white/20 bg-black/30"
+        )}
+      >
+        {checked ? (
+          <svg viewBox="0 0 12 12" className="size-3 text-white" fill="none">
+            <path
+              d="M2.5 6 5 8.5 9.5 4"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        ) : null}
+      </span>
       <input
         type="checkbox"
         checked={checked}
         disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-[14px] w-[14px] cursor-pointer accent-[#1a73e8]"
+        className="sr-only"
       />
       {label}
     </label>
   );
 }
 
-/* ── Toggle switch ────────────────────────────────────────── */
+/* ── Toggle switch (gradient pill) ─────────────────────────────────── */
 export function WinSwitch({
   checked,
   onChange,
@@ -208,10 +284,11 @@ export function WinSwitch({
   return (
     <label
       className={cn(
-        "flex cursor-pointer items-center gap-2 text-[12px] text-[#333]",
-        disabled && "cursor-not-allowed opacity-60"
+        "flex cursor-pointer items-center justify-between gap-2 text-[12px] text-white/85",
+        disabled && "cursor-not-allowed opacity-40"
       )}
     >
+      <span>{label}</span>
       <button
         type="button"
         role="switch"
@@ -219,20 +296,19 @@ export function WinSwitch({
         disabled={disabled}
         onClick={() => onChange(!checked)}
         className={cn(
-          "relative h-[18px] w-[34px] shrink-0 rounded-full border transition-colors duration-180 ease-out",
+          "relative h-5 w-9 shrink-0 rounded-full border transition-colors duration-200",
           checked
-            ? "border-[#1a73e8] bg-[#1a73e8]"
-            : "border-[#c4c9d0] bg-[#e4e7eb]"
+            ? "border-[var(--accent)]/60 bg-gradient-to-r from-[var(--accent)] to-[#7c3aed] shadow-[0_0_10px_rgba(10,132,255,0.45)]"
+            : "border-white/15 bg-white/10"
         )}
       >
         <span
           className={cn(
-            "absolute top-[1px] h-[14px] w-[14px] rounded-full bg-white shadow transition-transform duration-180 ease-out",
-            checked ? "translate-x-[17px]" : "translate-x-[1px]"
+            "absolute top-[1px] size-[14px] rounded-full bg-white shadow-md transition-transform duration-200 ease-out",
+            checked ? "translate-x-[18px]" : "translate-x-[2px]"
           )}
         />
       </button>
-      {label}
     </label>
   );
 }
@@ -243,31 +319,37 @@ export function WinButton({
   onClick,
   variant = "default",
   disabled,
+  loading,
   className,
 }: {
   children: ReactNode;
   onClick?: () => void;
   variant?: "default" | "primary" | "danger";
   disabled?: boolean;
+  loading?: boolean;
   className?: string;
 }) {
+  const isDisabled = disabled || loading;
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled}
+      disabled={isDisabled}
       className={cn(
-        "inline-flex h-[32px] shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-[5px] border px-3 text-[12px] font-medium transition-all duration-180 ease-out",
-        "disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border px-3 text-[11.5px] font-semibold transition-all duration-150 ease-out",
+        "disabled:cursor-not-allowed disabled:opacity-40",
         variant === "primary" &&
-          "border-[#1a73e8] bg-[#1a73e8] text-white hover:bg-[#3a8af0] active:bg-[#155fc4]",
+          "border-transparent bg-gradient-to-r from-[var(--accent)] to-[#7c3aed] text-white shadow-[0_4px_14px_rgba(10,132,255,0.4)] hover:shadow-[0_6px_20px_rgba(10,132,255,0.55)] hover:brightness-110 active:brightness-95",
         variant === "default" &&
-          "border-[#d4d9df] bg-[#f2f4f7] text-[#333] hover:border-[#1a73e8] hover:bg-[#eaf2fe] active:bg-[#dcebfd]",
+          "border-white/15 bg-white/[0.06] text-white/90 backdrop-blur-md hover:bg-white/[0.1] hover:border-white/25 active:bg-white/[0.04]",
         variant === "danger" &&
-          "border-[#d4d9df] bg-white text-[#333] hover:border-[#e81123] hover:text-[#e81123] active:bg-[#fdecec]",
+          "border-transparent bg-gradient-to-r from-[var(--danger)] to-[#b91c1c] text-white shadow-[0_4px_14px_rgba(220,38,38,0.4)] hover:brightness-110 active:brightness-95",
         className
       )}
     >
+      {loading ? (
+        <Loader2 className="size-3.5 animate-spin" strokeWidth={2.4} />
+      ) : null}
       {children}
     </button>
   );

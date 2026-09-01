@@ -14,32 +14,29 @@ import {
  useState,
  type ReactNode,
 } from"react";
-import { usePathname } from"next/navigation";
-import { useHealth } from"@/hooks/use-health";
-import { useJobPolling } from"@/hooks/use-job-polling";
-import { useRenderService } from"@/hooks/use-render-service";
-import { useVideoPreview } from"@/hooks/use-video-preview";
-import { isTerminalStatus, stripStagePrefix } from"@/lib/gvfi-api";
-import { formatDeviceLabel } from"@/lib/i18n/device-label";
-import { t } from"@/lib/i18n/t";
-import type { MessageKey } from"@/lib/i18n/types";
-import { createLlmJob } from"@/lib/llm-api";
-import { LLM_PROVIDER_PRESETS } from"@/lib/llm-types";
-import { BUILTIN_PRESETS } from"@/lib/presets";
+import { useHealth } from "@/hooks/use-health";
+import { useJobPolling } from "@/hooks/use-job-polling";
+import { useRenderService } from "@/hooks/use-render-service";
+import { useVideoPreview } from "@/hooks/use-video-preview";
+import { isTerminalStatus } from "@/lib/gvfi-api";
+import { formatDeviceLabel } from "@/lib/i18n/device-label";
+import { t } from "@/lib/i18n/t";
+import type { MessageKey } from "@/lib/i18n/types";
+import { createLlmJob } from "@/lib/llm-api";
+import { LLM_PROVIDER_PRESETS } from "@/lib/llm-types";
+import { BUILTIN_PRESETS } from "@/lib/presets";
 import type {
- FpsOption,
- GvfiGpu,
- GvfiModel,
- PrecisionOption,
- ResolutionOption,
- SrModelOption,
- WorkflowPreset,
-} from"@/lib/gvfi-types";
-import { useJobStore } from"@/stores/job-store";
-import { useLlmConfigStore } from"@/stores/llm-config-store";
-import { useLocaleStore } from"@/stores/locale-store";
-import { useWorkspaceChrome } from"@/components/workspace/workspace-chrome-context";
-import { pageTitleForPath } from"@/components/workspace/workspace-nav";
+  FpsOption,
+  GvfiGpu,
+  GvfiModel,
+  PrecisionOption,
+  ResolutionOption,
+  SrModelOption,
+  WorkflowPreset,
+} from "@/lib/gvfi-types";
+import { useJobStore } from "@/stores/job-store";
+import { useLlmConfigStore } from "@/stores/llm-config-store";
+import { useLocaleStore } from "@/stores/locale-store";
 import { useT } from"@/hooks/use-t";
 
 export type ProcessMode ="local" |"llm";
@@ -129,11 +126,9 @@ const ProcessWorkspaceContext = createContext<ProcessWorkspaceContextValue | nul
 );
 
 export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) {
- const pathname = usePathname();
  const tHook = useT();
  const renderService = useRenderService();
  const { applyTask, startPolling } = useJobPolling({ renderService });
- const { setChrome } = useWorkspaceChrome();
  const llmConfig = useLlmConfigStore();
 
  const [mode, setMode] = useState<ProcessMode>("local");
@@ -192,48 +187,12 @@ export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) 
  });
 
  useEffect(() => {
- if (mode ==="llm" && lastOutputPath.endsWith(".md")) {
- setLastReportPath(lastOutputPath);
- }
- }, [mode, lastOutputPath]);
+  if (mode === "llm" && lastOutputPath.endsWith(".md")) {
+    setLastReportPath(lastOutputPath);
+  }
+}, [mode, lastOutputPath]);
 
- /* Legacy /app/process/* only — dedicated pages own their chrome */
- useEffect(() => {
- if (!pathname.startsWith("/app/process")) return;
- const sectionLabel = pageTitleForPath(pathname, tHook);
- setChrome({
- title: file?.name || inputPath.trim() || sectionLabel,
- breadcrumbs: [
- { label: tHook("common.app"), href:"/app/dashboard" },
- {
- label: mode ==="llm" ? tHook("nav.ai") : tHook("nav.video"),
- href: mode ==="llm" ?"/app/ai" :"/app/video",
- },
- { label: sectionLabel },
- ],
- status:
- serviceReady === false
- ?"offline"
- : serviceReady
- ? isRendering
- ?"warning"
- :"online"
- :"idle",
- statusLabel: stripStagePrefix(stageLabel),
- });
- }, [
- pathname,
- serviceReady,
- stageLabel,
- isRendering,
- setChrome,
- file,
- inputPath,
- mode,
- tHook,
- ]);
-
- const applyPresetValues = (preset: WorkflowPreset, available: GvfiModel[]) => {
+const applyPresetValues = (preset: WorkflowPreset, available: GvfiModel[]) => {
  setModel(resolveModelId(available, preset.model));
  setFps(preset.fps);
  setSuperResolution(preset.superResolution);
