@@ -15,6 +15,7 @@ import { VideoComparisonViewer } from "@/components/workspace/video-comparison-v
 import { useWorkspaceChrome } from "@/components/workspace/workspace-chrome-context";
 import { useRenderService } from "@/hooks/use-render-service";
 import { useT } from "@/hooks/use-t";
+import type { TranslateFn } from "@/lib/i18n/t";
 import {
   isTerminalStatus,
   mediaUrlForPath,
@@ -33,10 +34,10 @@ function taskTitle(task: JobTask, untitled: string): string {
   return basename(task.input_path || task.id, untitled);
 }
 
-function taskTypeLabel(task: JobTask): string {
-  if (task.task_type === "interp") return "补帧";
-  if (task.task_type === "sr") return "超分";
-  return "组合任务";
+function taskTypeLabel(task: JobTask, t: TranslateFn): string {
+  if (task.task_type === "interp") return t("task.type.interp");
+  if (task.task_type === "sr") return t("task.type.sr");
+  return t("task.type.both");
 }
 
 export function RenderCenter() {
@@ -163,7 +164,7 @@ export function RenderCenter() {
                       <span className="flex items-center gap-2">
                         {taskTitle(task, untitled)}
                         <Badge variant="outline" className="text-[10px]">
-                          {taskTypeLabel(task)}
+                          {taskTypeLabel(task, t)}
                         </Badge>
                       </span>
                     }

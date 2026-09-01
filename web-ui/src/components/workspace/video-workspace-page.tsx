@@ -139,7 +139,7 @@ export function VideoWorkspacePage() {
                 void ctx.handleStartTask("interp");
               }}
             >
-              一键补帧
+              {t("video.startInterp")}
             </GlassButton>
             <GlassButton
               type="button"
@@ -147,7 +147,7 @@ export function VideoWorkspacePage() {
               disabled={!ctx.hasInput || ctx.serviceReady === false || ctx.isRendering}
               onClick={() => void ctx.handleStartTask("sr")}
             >
-              一键超分
+              {t("video.startSr")}
             </GlassButton>
             <GlassButton
               type="button"
@@ -155,7 +155,7 @@ export function VideoWorkspacePage() {
               disabled={!ctx.hasInput || ctx.serviceReady === false || ctx.isRendering}
               onClick={() => void ctx.handleStartTask("both")}
             >
-              补帧 + 超分（组合任务）
+              {t("video.startBoth")}
             </GlassButton>
             <GlassButton
               type="button"

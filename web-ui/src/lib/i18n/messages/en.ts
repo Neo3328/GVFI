@@ -303,6 +303,12 @@ export const en: MessageDict = {
   "video.progressAria": "Render progress",
   "video.start": "Start interpolation",
   "video.stop": "Stop",
+  "video.startInterp": "Interpolate",
+  "video.startSr": "Super-resolve",
+  "video.startBoth": "Interpolate + Super-resolve",
+  "task.type.interp": "Interpolation",
+  "task.type.sr": "Super-resolution",
+  "task.type.both": "Combined",
   "video.output": "Output: {path}",
   "video.footerHint":
     "View the task queue and history on the Tasks page. Connection settings are on the Connect page.",
