@@ -25,10 +25,10 @@ export function WinPreviewPane() {
   const totalTime = formatTime(totalFrames, 24);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col p-3">
+    <div className="flex min-h-0 flex-1 flex-col p-3 bg-[#1f1f21]">
       {/* Preview canvas */}
       <div className="flex min-h-0 flex-1 items-center justify-center">
-        <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-[8px] bg-[#1a1a1a] shadow-[0_2px_12px_rgba(0,0,0,0.12)]">
+        <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-[6px] bg-[#151517] border border-[#35353a]">
           <div className="text-center">
             <div className="mb-2 text-[48px] text-[#555]">🎬</div>
             <p className="text-[12px] text-[#888]">视频预览区域</p>
@@ -38,7 +38,7 @@ export function WinPreviewPane() {
       </div>
 
       {/* Transport controls */}
-      <div className="mt-2.5 rounded-[8px] border border-[#e0e7ef] bg-white px-4 py-2.5 shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
+      <div className="mt-2.5 rounded-[6px] border border-[#3b3b40] bg-[#29292d] px-4 py-2.5">
         {/* Progress bar */}
         <div className="mb-2 flex items-center gap-2">
           <span className="w-[52px] shrink-0 text-right font-mono text-[11px] text-[#333]">
@@ -50,7 +50,7 @@ export function WinPreviewPane() {
             max={100}
             value={progress}
             onChange={(e) => setProgress(Number(e.target.value))}
-            className="h-[4px] flex-1 cursor-pointer appearance-none rounded-full bg-[#c8c8c8] accent-[#0067c0]"
+            className="h-[4px] flex-1 cursor-pointer appearance-none rounded-full bg-[#4a4a50] accent-[#7561ff]"
           />
           <span className="w-[52px] shrink-0 font-mono text-[11px] text-[#333]">
             {totalTime}
@@ -111,8 +111,8 @@ function TransportButton({
       className={cn(
         "flex h-[26px] w-[32px] items-center justify-center rounded-[4px] border transition-all duration-180 ease-out",
         primary
-          ? "border-[#005a9e] bg-[#0067c0] text-white hover:bg-[#106ebe] active:bg-[#005a9e]"
-          : "border-[#c0c0c0] bg-[#f5f5f5] text-[#333] hover:bg-[#e8e8e8] active:bg-[#dcdcdc]"
+          ? "border-[#7561ff] bg-[#7561ff] text-white hover:bg-[#8473ff] active:bg-[#6250e8]"
+          : "border-[#4a4a50] bg-[#35353a] text-[#c8c8ce] hover:bg-[#414149] active:bg-[#2f2f34]"
       )}
     >
       {children}

@@ -20,10 +20,10 @@ const SAMPLE_LOGS = [
 
 export function WinLogPane() {
   return (
-    <div className="mx-3 mb-2 flex h-[110px] shrink-0 flex-col overflow-hidden rounded-[8px] border border-[#e0e7ef] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
-      <div className="flex h-[26px] items-center justify-between border-b border-[#eef2f7] bg-[#f8fbff] px-3">
-        <span className="text-[11px] font-semibold text-[#1565c0]">运行日志</span>
-        <span className="text-[10px] text-[#888]">自动滚动</span>
+    <div className="mx-3 mb-2 flex h-[110px] shrink-0 flex-col overflow-hidden rounded-[6px] border border-[#3b3b40] bg-[#29292d]">
+      <div className="flex h-[26px] items-center justify-between border-b border-[#3b3b40] bg-[#303035] px-3">
+        <span className="text-[11px] font-semibold text-[#b9a7ff]">运行日志</span>
+        <span className="text-[10px] text-[#85858e]">自动滚动</span>
       </div>
       <div className="flex-1 overflow-y-auto p-2 font-mono text-[11px] leading-[1.5] text-[#333]">
         {SAMPLE_LOGS.map((line, i) => (
@@ -38,15 +38,15 @@ export function WinLogPane() {
 
 export function WinStatusBar() {
   return (
-    <div className="flex h-[26px] shrink-0 items-center justify-between border-t border-[#d0e0f0] bg-[#f0f7ff] px-4">
-      <div className="flex items-center gap-3 text-[11px] text-[#333]">
+      <div className="flex h-[26px] shrink-0 items-center justify-between border-t border-[#3a3a3f] bg-[#242427] px-4">
+      <div className="flex items-center gap-3 text-[11px] text-[#b7b7bf]">
         <span className="flex items-center gap-1">
           <Circle className="h-[8px] w-[8px] fill-[#107c10] text-[#107c10]" />
           就绪
         </span>
-        <span className="text-[#888]">|</span>
+        <span className="text-[#5e5e66]">|</span>
         <span>GPU: RTX 5060 Laptop</span>
-        <span className="text-[#888]">|</span>
+        <span className="text-[#5e5e66]">|</span>
         <span>显存: 6.2 / 8.0 GB</span>
       </div>
       <div className="flex items-center gap-3 text-[11px] text-[#666]">
@@ -61,6 +61,6 @@ export function WinStatusBar() {
 function logLineClass(line: string): string {
   if (line.includes("[ERROR]")) return "text-[#c42b1c]";
   if (line.includes("[WARN]")) return "text-[#ca5010]";
-  if (line.includes("[RUN]")) return "text-[#0067c0]";
-  return "text-[#333]";
+  if (line.includes("[RUN]")) return "text-[#a99aff]";
+  return "text-[#c2c2c8]";
 }

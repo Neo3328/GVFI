@@ -7,15 +7,15 @@
 import { Minus, Square, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const MENU_ITEMS = ["首页", "批量", "变体", "实体", "工具"];
+const MENU_ITEMS = ["文件", "批量处理", "模型管理", "输出设置", "工具", "帮助"];
 
 export function WinTitleBar() {
   return (
-    <div className="flex flex-col border-b border-[#c0c0c0] bg-[#f0f0f0] select-none">
+    <div className="flex flex-col border-b border-[#3a3a3f] bg-[#242427] select-none">
       {/* Title row */}
-      <div className="flex h-[36px] items-center justify-between bg-[linear-gradient(90deg,#1565c0,#1e88e5)] px-3">
+      <div className="flex h-[36px] items-center justify-between bg-[#242427] px-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-[20px] w-[20px] items-center justify-center rounded-[4px] bg-white/20 backdrop-blur-sm">
+          <div className="flex h-[20px] w-[20px] items-center justify-center rounded-[4px] bg-[#7561ff]">
             <span className="text-[10px] font-bold text-white">AI</span>
           </div>
           <span className="text-[13px] font-semibold text-white">
@@ -35,11 +35,11 @@ export function WinTitleBar() {
         </div>
       </div>
       {/* Menu bar */}
-      <div className="flex h-[28px] items-center border-b border-[#c8dcf5] bg-[#f0f7ff] px-2">
+      <div className="flex h-[30px] items-center border-b border-[#3a3a3f] bg-[#29292d] px-2">
         {MENU_ITEMS.map((item) => (
           <button
             key={item}
-            className="h-[22px] rounded-[4px] px-2.5 text-[12px] text-[#333] transition-colors duration-180 ease-out hover:bg-[#e3f2fd] hover:text-[#1565c0] active:bg-[#bbdefb]"
+            className="h-[24px] rounded-[4px] px-2.5 text-[12px] text-[#c6c6cc] transition-colors duration-180 ease-out hover:bg-[#3a3942] hover:text-white active:bg-[#454354]"
           >
             {item}
           </button>

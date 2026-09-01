@@ -18,11 +18,11 @@ export function GroupBox({ title, children, className }: GroupBoxProps) {
   return (
     <fieldset
       className={cn(
-        "mb-2.5 rounded-[8px] border border-[#e0e7ef] bg-white p-3.5 shadow-[0_1px_4px_rgba(0,0,0,0.04)]",
+        "mb-2.5 rounded-[6px] border border-[#3b3b40] bg-[#29292d] p-3.5 shadow-none",
         className
       )}
     >
-      <legend className="px-1.5 text-[12px] font-bold text-[#1565c0]">
+      <legend className="px-1.5 text-[12px] font-semibold text-[#b9a7ff]">
         {title}
       </legend>
       <div className="flex flex-col gap-2">{children}</div>
@@ -40,7 +40,7 @@ export interface FieldRowProps {
 export function FieldRow({ label, children, className }: FieldRowProps) {
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <label className="w-[88px] shrink-0 text-right text-[12px] text-[#333]">
+      <label className="w-[88px] shrink-0 text-right text-[12px] text-[#b8b8be]">
         {label}
       </label>
       <div className="min-w-0 flex-1">{children}</div>
@@ -65,9 +65,9 @@ export function WinSelect({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className={cn(
-        "h-[26px] w-full rounded-[4px] border border-[#c0c0c0] bg-white px-2 text-[12px] text-[#1a1a1a]",
+        "h-[28px] w-full rounded-[5px] border border-[#4a4a50] bg-[#202023] px-2 text-[12px] text-[#f4f4f5]",
         "outline-none transition-colors duration-180 ease-out",
-        "hover:border-[#a0a0a0] focus:border-[#0067c0] focus:ring-1 focus:ring-[#0067c0]",
+        "hover:border-[#77717f] focus:border-[#7561ff] focus:ring-1 focus:ring-[#7561ff]",
         className
       )}
     >
@@ -107,10 +107,10 @@ export function WinNumberInput({
         max={max}
         step={step}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-[26px] w-full rounded-[4px] border border-[#c0c0c0] bg-white px-2 text-[12px] text-[#1a1a1a] outline-none transition-colors duration-180 ease-out hover:border-[#a0a0a0] focus:border-[#0067c0] focus:ring-1 focus:ring-[#0067c0]"
+        className="h-[28px] w-full rounded-[5px] border border-[#4a4a50] bg-[#202023] px-2 text-[12px] text-[#f4f4f5] outline-none transition-colors duration-180 ease-out hover:border-[#77717f] focus:border-[#7561ff] focus:ring-1 focus:ring-[#7561ff]"
       />
       {suffix ? (
-        <span className="shrink-0 text-[11px] text-[#666]">{suffix}</span>
+        <span className="shrink-0 text-[11px] text-[#8d8d95]">{suffix}</span>
       ) : null}
     </div>
   );
@@ -141,7 +141,7 @@ export function WinSlider({
         max={max}
         step={step}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-[4px] flex-1 cursor-pointer appearance-none rounded-full bg-[#d0d0d0] accent-[#0067c0]"
+        className="h-[4px] flex-1 cursor-pointer appearance-none rounded-full bg-[#4a4a50] accent-[#7561ff]"
       />
       <span className="w-[36px] shrink-0 text-right text-[11px] text-[#333]">
         {value}
@@ -161,12 +161,12 @@ export function WinCheckbox({
   label: string;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-[#333]">
+    <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-[#c7c7cc]">
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-[14px] w-[14px] cursor-pointer accent-[#0067c0]"
+        className="h-[14px] w-[14px] cursor-pointer accent-[#7561ff]"
       />
       {label}
     </label>
@@ -184,7 +184,7 @@ export function WinSwitch({
   label: string;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2 text-[12px] text-[#333]">
+    <label className="flex cursor-pointer items-center gap-2 text-[12px] text-[#c7c7cc]">
       <button
         type="button"
         role="switch"
@@ -192,7 +192,7 @@ export function WinSwitch({
         onClick={() => onChange(!checked)}
         className={cn(
           "relative h-[18px] w-[34px] shrink-0 rounded-full border transition-colors duration-180 ease-out",
-          checked ? "border-[#0067c0] bg-[#0067c0]" : "border-[#c0c0c0] bg-[#e8e8e8]"
+          checked ? "border-[#7561ff] bg-[#7561ff]" : "border-[#55555c] bg-[#3a3a40]"
         )}
       >
         <span
@@ -227,14 +227,14 @@ export function WinButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "h-[28px] rounded-[4px] border px-3 text-[12px] font-medium transition-all duration-180 ease-out",
+        "h-[30px] rounded-[5px] border px-3 text-[12px] font-medium transition-all duration-180 ease-out",
         "disabled:cursor-not-allowed disabled:opacity-50",
         variant === "primary" &&
-          "border-[#005a9e] bg-[#0067c0] text-white hover:bg-[#106ebe] active:bg-[#005a9e]",
+          "border-[#7561ff] bg-[#7561ff] text-white hover:bg-[#8473ff] active:bg-[#6250e8]",
         variant === "default" &&
-          "border-[#c0c0c0] bg-[#f5f5f5] text-[#1a1a1a] hover:bg-[#e8e8e8] active:bg-[#dcdcdc]",
+          "border-[#4a4a50] bg-[#35353a] text-[#e5e5e8] hover:bg-[#414149] active:bg-[#2f2f34]",
         variant === "danger" &&
-          "border-[#a02020] bg-[#c42b1c] text-white hover:bg-[#d03525] active:bg-[#a02020]",
+          "border-[#a64646] bg-[#8f3d46] text-white hover:bg-[#a44b55] active:bg-[#74323a]",
         className
       )}
     >

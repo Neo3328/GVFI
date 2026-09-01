@@ -193,11 +193,11 @@ export function WinParamsPanel() {
               type="text"
               value={outputDir}
               onChange={(e) => setOutputDir(e.target.value)}
-              className="h-[26px] flex-1 rounded-[4px] border border-[#c0c0c0] bg-white px-2 text-[11px] text-[#1a1a1a] outline-none transition-colors duration-180 ease-out hover:border-[#a0a0a0] focus:border-[#0067c0] focus:ring-1 focus:ring-[#0067c0]"
+              className="h-[28px] flex-1 rounded-[5px] border border-[#4a4a50] bg-[#202023] px-2 text-[11px] text-[#f4f4f5] outline-none transition-colors duration-180 ease-out hover:border-[#77717f] focus:border-[#7561ff] focus:ring-1 focus:ring-[#7561ff]"
             />
             <button
               title="浏览目录"
-              className="flex h-[26px] w-[28px] shrink-0 items-center justify-center rounded-[4px] border border-[#c0c0c0] bg-[#f5f5f5] text-[#333] transition-colors duration-180 ease-out hover:bg-[#e8e8e8] active:bg-[#dcdcdc]"
+              className="flex h-[28px] w-[30px] shrink-0 items-center justify-center rounded-[5px] border border-[#4a4a50] bg-[#35353a] text-[#c8c8ce] transition-colors duration-180 ease-out hover:bg-[#414149] active:bg-[#2f2f34]"
             >
               <FolderOpen className="h-[14px] w-[14px]" strokeWidth={1.8} />
             </button>
@@ -242,7 +242,7 @@ export function WinParamsPanel() {
           />
         </FieldRow>
         <div className="mt-1 flex justify-end">
-          <button className="flex items-center gap-1 text-[11px] text-[#0067c0] underline-offset-2 hover:underline">
+          <button className="flex items-center gap-1 text-[11px] text-[#a99aff] underline-offset-2 hover:underline">
             <FolderIcon className="h-[12px] w-[12px]" strokeWidth={1.8} />
             打开输出文件夹
           </button>
