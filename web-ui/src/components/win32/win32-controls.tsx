@@ -40,7 +40,7 @@ export interface FieldRowProps {
 export function FieldRow({ label, children, className }: FieldRowProps) {
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <label className="w-[88px] shrink-0 text-right text-[12px] text-[#b8b8be]">
+      <label className="w-[88px] shrink-0 text-right text-[12px] text-[#555]">
         {label}
       </label>
       <div className="min-w-0 flex-1">{children}</div>
@@ -65,9 +65,9 @@ export function WinSelect({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className={cn(
-        "h-[28px] w-full rounded-[5px] border border-[#4a4a50] bg-[#202023] px-2 text-[12px] text-[#f4f4f5]",
+        "h-[30px] w-full rounded-[6px] border border-[#d0d7de] bg-white px-2 text-[12px] text-[#1a1a1a]",
         "outline-none transition-colors duration-180 ease-out",
-        "hover:border-[#77717f] focus:border-[#7561ff] focus:ring-1 focus:ring-[#7561ff]",
+        "hover:border-[#1976d2] focus:border-[#1976d2] focus:ring-2 focus:ring-[#1976d2]/20",
         className
       )}
     >
@@ -107,10 +107,10 @@ export function WinNumberInput({
         max={max}
         step={step}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-[28px] w-full rounded-[5px] border border-[#4a4a50] bg-[#202023] px-2 text-[12px] text-[#f4f4f5] outline-none transition-colors duration-180 ease-out hover:border-[#77717f] focus:border-[#7561ff] focus:ring-1 focus:ring-[#7561ff]"
+        className="h-[30px] w-full rounded-[6px] border border-[#d0d7de] bg-white px-2 text-[12px] text-[#1a1a1a] outline-none transition-colors duration-180 ease-out hover:border-[#1976d2] focus:border-[#1976d2] focus:ring-2 focus:ring-[#1976d2]/20"
       />
       {suffix ? (
-        <span className="shrink-0 text-[11px] text-[#8d8d95]">{suffix}</span>
+        <span className="shrink-0 text-[11px] text-[#888]">{suffix}</span>
       ) : null}
     </div>
   );
@@ -141,7 +141,7 @@ export function WinSlider({
         max={max}
         step={step}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-[4px] flex-1 cursor-pointer appearance-none rounded-full bg-[#4a4a50] accent-[#7561ff]"
+        className="h-[4px] flex-1 cursor-pointer appearance-none rounded-full bg-[#d0d7de] accent-[#1976d2]"
       />
       <span className="w-[36px] shrink-0 text-right text-[11px] text-[#333]">
         {value}
@@ -161,12 +161,12 @@ export function WinCheckbox({
   label: string;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-[#c7c7cc]">
+    <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-[#333]">
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-[14px] w-[14px] cursor-pointer accent-[#7561ff]"
+        className="h-[14px] w-[14px] cursor-pointer accent-[#1976d2]"
       />
       {label}
     </label>
@@ -184,7 +184,7 @@ export function WinSwitch({
   label: string;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2 text-[12px] text-[#c7c7cc]">
+    <label className="flex cursor-pointer items-center gap-2 text-[12px] text-[#333]">
       <button
         type="button"
         role="switch"
@@ -192,7 +192,7 @@ export function WinSwitch({
         onClick={() => onChange(!checked)}
         className={cn(
           "relative h-[18px] w-[34px] shrink-0 rounded-full border transition-colors duration-180 ease-out",
-          checked ? "border-[#7561ff] bg-[#7561ff]" : "border-[#55555c] bg-[#3a3a40]"
+          checked ? "border-[#1976d2] bg-[#1976d2]" : "border-[#c0c0c0] bg-[#e0e0e0]"
         )}
       >
         <span
@@ -230,11 +230,11 @@ export function WinButton({
         "h-[30px] rounded-[5px] border px-3 text-[12px] font-medium transition-all duration-180 ease-out",
         "disabled:cursor-not-allowed disabled:opacity-50",
         variant === "primary" &&
-          "border-[#7561ff] bg-[#7561ff] text-white hover:bg-[#8473ff] active:bg-[#6250e8]",
+          "border-[#1976d2] bg-[#1976d2] text-white hover:bg-[#1e88e5] active:bg-[#1565c0]",
         variant === "default" &&
-          "border-[#4a4a50] bg-[#35353a] text-[#e5e5e8] hover:bg-[#414149] active:bg-[#2f2f34]",
+          "border-[#d0d7de] bg-white text-[#333] hover:bg-[#f0f7ff] hover:border-[#1976d2] active:bg-[#e3f2fd]",
         variant === "danger" &&
-          "border-[#a64646] bg-[#8f3d46] text-white hover:bg-[#a44b55] active:bg-[#74323a]",
+          "border-[#d32f2f] bg-[#d32f2f] text-white hover:bg-[#e53935] active:bg-[#c62828]",
         className
       )}
     >

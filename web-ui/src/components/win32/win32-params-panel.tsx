@@ -48,7 +48,7 @@ export function WinParamsPanel() {
   const [audioCopy, setAudioCopy] = useState(true);
 
   return (
-    <div className="flex w-[330px] shrink-0 flex-col overflow-y-auto p-3 pr-3">
+    <div className="flex w-[360px] shrink-0 flex-col overflow-y-auto overflow-x-hidden p-3 pr-3">
       {/* ── AI处理模型组 ── */}
       <GroupBox title="AI处理模型">
         <FieldRow label="推理模型">
