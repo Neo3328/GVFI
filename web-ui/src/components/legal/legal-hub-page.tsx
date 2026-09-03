@@ -34,7 +34,7 @@ export function LegalHubPage({
     setChrome({
       title: t("legal.chromeTitle"),
       breadcrumbs: [
-        { label: t("common.app"), href: "/app/dashboard" },
+        { label: t("common.app"), href: "/app" },
         { label: t("settings.title"), href: "/app/settings" },
         { label: t("legal.chromeTitle") },
       ],

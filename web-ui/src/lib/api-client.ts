@@ -117,7 +117,14 @@ function mergeInit(init?: RequestInit): RequestInit {
  * - Multipart / large uploads go **direct** first (Next rewrite defaults to 10MB).
  * - Body is never reused across retries (FormData can only be read once).
  * - Active API profile from `gvfi-api-config-v1` controls base URL + auth.
+ * - Bug#4 修复：原实现每次失败都会再访问一次 127.0.0.1:8765（preflight 已经被代理拦下 / 不可达），
+ *   结果是 Next.js 进程侧吐出大量 ECONNRESET 噪声，并让 UI 处于无限重试循环。
+ *   现在加入 per-process cooldown：默认 5 秒内只重试一次，超过的请求直接 reject，
+ *   让 useHealth 等 hook 进入 off-line 状态而非疯狂打日志。
  */
+const DIRECT_FALLBACK_COOLDOWN_MS = 5_000;
+let directFallbackBlockedUntil = 0;
+
 export async function apiFetch(
   path: string,
   init?: RequestInit
@@ -146,14 +153,25 @@ export async function apiFetch(
     }
   }
 
+  // Bug#4：普通 GET 请求先走 /api 代理；代理失败时仅在 cooldown 之外降级到直连，避免日志风暴。
+  if (Date.now() < directFallbackBlockedUntil) {
+    return fetch(apiUrl(path, false), requestInit);
+  }
+
   try {
     const response = await fetch(apiUrl(path, false), requestInit);
     if (response.status >= 500) {
-      return fetch(apiUrl(path, true), requestInit);
+      try {
+        return await fetch(apiUrl(path, true), requestInit);
+      } catch {
+        directFallbackBlockedUntil = Date.now() + DIRECT_FALLBACK_COOLDOWN_MS;
+        return response;
+      }
     }
     return response;
   } catch {
-    return fetch(apiUrl(path, true), requestInit);
+    directFallbackBlockedUntil = Date.now() + DIRECT_FALLBACK_COOLDOWN_MS;
+    return fetch(apiUrl(path, false), requestInit);
   }
 }
 

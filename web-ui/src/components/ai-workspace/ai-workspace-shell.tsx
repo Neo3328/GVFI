@@ -21,7 +21,7 @@ export function AiWorkspaceShell() {
     setChrome({
       title: t("ai.title"),
       breadcrumbs: [
-        { label: t("common.app"), href: "/app/dashboard" },
+        { label: t("common.app"), href: "/app" },
         { label: t("ai.title") },
       ],
       status: "online",

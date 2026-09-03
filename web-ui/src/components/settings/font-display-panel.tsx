@@ -101,7 +101,12 @@ export function FontDisplayPanel() {
           }}
         >
           <GlassSelectTrigger id="display-font-family" className="glass-select">
-            <GlassSelectValue />
+            {/* Bug#3 同源修复：children 回调确保 label 稳定渲染。*/}
+            <GlassSelectValue>{(value) => {
+              if (typeof value !== "string") return "";
+              const item = FONT_PRESETS.find((i) => i.value === value);
+              return item ? t(item.labelKey) : "";
+            }}</GlassSelectValue>
           </GlassSelectTrigger>
           <GlassSelectContent>
             {FONT_PRESETS.map((item) => (
@@ -175,8 +180,13 @@ export function FontDisplayPanel() {
           }}
         >
           <GlassSelectTrigger id="display-font-color" className="glass-select">
-            <GlassSelectValue />
-          </GlassSelectTrigger>
+                      {/* Bug#3 同源修复：children 回调确保 label 稳定渲染。*/}
+                      <GlassSelectValue>{(value) => {
+                        if (typeof value !== "string") return "";
+                        const item = COLOR_MODES.find((i) => i.value === value);
+                        return item ? t(item.labelKey) : "";
+                      }}</GlassSelectValue>
+                    </GlassSelectTrigger>
           <GlassSelectContent>
             {COLOR_MODES.map((item) => (
               <GlassSelectItem key={item.value} value={item.value}>
@@ -223,8 +233,15 @@ export function FontDisplayPanel() {
           }}
         >
           <GlassSelectTrigger id="display-font-weight" className="glass-select">
-            <GlassSelectValue />
-          </GlassSelectTrigger>
+                      {/* Bug#3 同源修复：children 回调确保 label 稳定渲染。*/}
+                      <GlassSelectValue>{(value) => {
+                        if (typeof value !== "string") return "";
+                        const w = Number(value);
+                        return WEIGHTS.includes(w as FontWeightOption)
+                          ? t("display.weightValue", { weight: w })
+                          : "";
+                      }}</GlassSelectValue>
+                    </GlassSelectTrigger>
           <GlassSelectContent>
             {WEIGHTS.map((w) => (
               <GlassSelectItem key={w} value={String(w)}>

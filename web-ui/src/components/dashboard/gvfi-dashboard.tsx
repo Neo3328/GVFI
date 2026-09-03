@@ -99,7 +99,7 @@ export function GvfiDashboard() {
     setChrome({
       title: t("dashboard.title"),
       breadcrumbs: [
-        { label: t("common.app"), href: "/app/dashboard" },
+        { label: t("common.app"), href: "/app" },
         { label: t("dashboard.crumb") },
       ],
       status:

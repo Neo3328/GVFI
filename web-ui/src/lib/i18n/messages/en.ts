@@ -286,10 +286,13 @@ export const en: MessageDict = {
   /* Video workspace */
   "video.title": "Video processing",
   "video.crumb": "Video",
-  "video.subtitle": "Import media, preview comparisons, and start local interpolation",
-  "video.advanced": "Advanced parameters",
-  "video.advancedDesc":
-    "Interpolation models, super-resolution, and presets — without cluttering the main flow",
+    "video.subtitle": "Import media, preview comparisons, and start local interpolation",
+    "video.advanced": "Advanced parameters",
+    "video.advancedDesc":
+      "Interpolation models, super-resolution, and presets — without cluttering the main flow",
+    "video.tab.frame": "Frame",
+    "video.tab.upscale": "Upscale",
+    "video.tab.analyze": "Analyze",
   "video.emptyTitle": "Add a video to start",
   "video.emptyHint":
     "Drop a file or enter a local path. Encoding and super-resolution details are under Advanced parameters.",

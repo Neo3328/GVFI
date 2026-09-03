@@ -3,16 +3,22 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cva, type VariantProps } from "class-variance-authority";
-import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { glassFocusRing, glassMotion } from "@/components/glass/glass-styles";
 import { motionPanel } from "@/components/workspace/motion";
 import { useT } from "@/hooks/use-t";
 
+/**
+ * 侧栏 nav icon 类型：兼容本地 SVG 组件。
+ * 原来要求 LucideIcon；现在改为通用 ReactComponentType，避免锁定 lucide-react。
+ */
+import type { ComponentType } from "react";
+import type { IconProps as LocalIconProps } from "@/icons";
+
 export interface SidebarNavItem {
   href: string;
   label: string;
-  icon?: LucideIcon;
+  icon?: ComponentType<LocalIconProps & React.SVGProps<SVGSVGElement>>;
   ariaLabel?: string;
 }
 
@@ -126,7 +132,8 @@ export function Sidebar({
                 className={classNames}
               >
                 {Icon ? (
-                  <Icon className="size-[18px] shrink-0" strokeWidth={2.25} aria-hidden />
+                  /* 本地 SVG icon：用 size 属性传固定尺寸，currentColor 由按钮 className 控制 */
+                  <Icon size={18} className="shrink-0" aria-hidden />
                 ) : null}
                 {!compact ? (
                   <span className="truncate font-semibold">{item.label}</span>

@@ -98,7 +98,12 @@ export function ParamsPanel({
           onValueChange={(v) => { if (typeof v === "string") onModelChange(v); }}
         >
           <GlassSelectTrigger id="model" className="glass-select">
-            <GlassSelectValue />
+            {/* Bug#3 同源修复：参数面板 SelectValue 改 children 回调，
+                确保 base-ui 在 popup 关闭后稳定渲染 label（避免 Trigger 中央空白）。*/}
+            <GlassSelectValue>{(value) => {
+              if (typeof value !== "string") return "";
+              return modelItems.find((item) => item.id === value)?.name ?? "";
+            }}</GlassSelectValue>
           </GlassSelectTrigger>
           <GlassSelectContent>
             {modelItems.map((item) => (
@@ -117,7 +122,10 @@ export function ParamsPanel({
           onValueChange={(v) => { if (typeof v === "string") onFpsChange(v as FpsOption); }}
         >
           <GlassSelectTrigger id="fps" className="glass-select">
-            <GlassSelectValue />
+            <GlassSelectValue>{(value) => {
+              if (typeof value !== "string") return "";
+              return FPS_OPTIONS.find((item) => item.value === value)?.label ?? "";
+            }}</GlassSelectValue>
           </GlassSelectTrigger>
           <GlassSelectContent>
             {FPS_OPTIONS.map((item) => (
@@ -143,7 +151,11 @@ export function ParamsPanel({
           onValueChange={(v) => { if (typeof v === "string") onResolutionChange(v as ResolutionOption); }}
         >
           <GlassSelectTrigger id="resolution" className="glass-select">
-            <GlassSelectValue />
+            <GlassSelectValue>{(value) => {
+              if (typeof value !== "string") return "";
+              if (value === "source") return t("video.params.resolutionSource");
+              return RESOLUTION_OPTIONS.find((item) => item.value === value)?.label ?? "";
+            }}</GlassSelectValue>
           </GlassSelectTrigger>
           <GlassSelectContent>
             {RESOLUTION_OPTIONS.map((item) => (
@@ -169,7 +181,12 @@ export function ParamsPanel({
           onValueChange={(v) => { if (typeof v === "string") onGpuChange(Number(v)); }}
         >
           <GlassSelectTrigger id="gpu" className="glass-select">
-            <GlassSelectValue />
+            <GlassSelectValue>{(value) => {
+              if (typeof value !== "string") return "";
+              const idx = Number(value);
+              const item = gpuItems.find((g) => g.index === idx);
+              return item ? formatDeviceLabel(locale, item, { withVram: true }) : "";
+            }}</GlassSelectValue>
           </GlassSelectTrigger>
           <GlassSelectContent>
             {gpuItems.map((item) => (
@@ -190,7 +207,10 @@ export function ParamsPanel({
           onValueChange={(v) => { if (typeof v === "string") onPrecisionChange(v as PrecisionOption); }}
         >
           <GlassSelectTrigger id="precision" className="glass-select">
-            <GlassSelectValue />
+            <GlassSelectValue>{(value) => {
+              if (typeof value !== "string") return "";
+              return PRECISION_OPTIONS.find((item) => item.value === value)?.label ?? "";
+            }}</GlassSelectValue>
           </GlassSelectTrigger>
           <GlassSelectContent>
             {PRECISION_OPTIONS.map((item) => (

@@ -177,15 +177,20 @@ export function ApiProfilesPanel() {
                     }}
                   >
                     <GlassSelectTrigger className="glass-select">
-                      <GlassSelectValue />
-                    </GlassSelectTrigger>
-                    <GlassSelectContent>
-                      <GlassSelectItem value="local">{t("settings.api.local")}</GlassSelectItem>
-                      <GlassSelectItem value="cloud">{t("settings.api.cloud")}</GlassSelectItem>
-                    </GlassSelectContent>
-                  </GlassSelect>
-                </label>
-              </div>
+                                        {/* Bug#3 同源修复：children 回调确保 label 稳定渲染。*/}
+                                        <GlassSelectValue>{(value) => {
+                                          if (value === "local") return t("settings.api.local");
+                                          if (value === "cloud") return t("settings.api.cloud");
+                                          return "";
+                                        }}</GlassSelectValue>
+                                      </GlassSelectTrigger>
+                                      <GlassSelectContent>
+                                        <GlassSelectItem value="local">{t("settings.api.local")}</GlassSelectItem>
+                                        <GlassSelectItem value="cloud">{t("settings.api.cloud")}</GlassSelectItem>
+                                      </GlassSelectContent>
+                                    </GlassSelect>
+                                  </label>
+                                </div>
 
               <label className="flex flex-col gap-1">
                 <span className="text-[11px] text-[var(--text-muted)]">
@@ -238,8 +243,13 @@ export function ApiProfilesPanel() {
             }}
           >
             <GlassSelectTrigger className="glass-select w-[140px]">
-              <GlassSelectValue />
-            </GlassSelectTrigger>
+                        {/* Bug#3 同源修复：children 回调确保 label 稳定渲染。*/}
+                        <GlassSelectValue>{(value) => {
+                          if (value === "local") return t("settings.api.local");
+                          if (value === "cloud") return t("settings.api.cloud");
+                          return "";
+                        }}</GlassSelectValue>
+                      </GlassSelectTrigger>
             <GlassSelectContent>
               <GlassSelectItem value="local">{t("settings.api.local")}</GlassSelectItem>
               <GlassSelectItem value="cloud">{t("settings.api.cloud")}</GlassSelectItem>

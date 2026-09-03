@@ -61,7 +61,17 @@ export function PresetPanel({
           }}
         >
           <GlassSelectTrigger id="preset-select" className="glass-select">
-            <GlassSelectValue placeholder={t("video.preset.placeholder")} />
+            {/* Bug#3 同源修复：children 回调确保 label 稳定渲染；fallback 到 placeholder。*/}
+            <GlassSelectValue>
+              {(value) => {
+                if (typeof value !== "string" || !value) {
+                  return t("video.preset.placeholder");
+                }
+                const preset = presets.find((p) => p.name === value);
+                if (!preset) return value;
+                return `${builtinPresetLabel(t, preset.name)}${preset.builtin ? t("video.preset.builtin") : ""}`;
+              }}
+            </GlassSelectValue>
           </GlassSelectTrigger>
           <GlassSelectContent>
             {presets.map((preset) => (

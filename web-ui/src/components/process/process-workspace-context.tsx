@@ -195,7 +195,7 @@ export function ProcessWorkspaceProvider({ children }: { children: ReactNode }) 
     setChrome({
       title: file?.name || inputPath.trim() || sectionLabel,
       breadcrumbs: [
-        { label: tHook("common.app"), href: "/app/dashboard" },
+        { label: tHook("common.app"), href: "/app" },
         {
           label: mode === "llm" ? tHook("nav.ai") : tHook("nav.video"),
           href: mode === "llm" ? "/app/ai" : "/app/video",

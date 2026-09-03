@@ -31,7 +31,7 @@ export function SystemSettingsPage() {
     setChrome({
       title: t("system.chromeTitle"),
       breadcrumbs: [
-        { label: t("common.app"), href: "/app/dashboard" },
+        { label: t("common.app"), href: "/app" },
         { label: t("nav.system") },
       ],
       status: "idle",

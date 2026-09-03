@@ -51,13 +51,16 @@ export function AppShell({
       >
         {topBar}
         <main
-          id="main-content"
-          className={cn(
-            "min-h-0 flex-1 overflow-x-clip overflow-y-auto px-[var(--workspace-pad)] py-[var(--workspace-pad)]",
-            motionPage,
-            mainClassName
-          )}
-        >
+                  id="main-content"
+                  className={cn(
+                    /* Bug#2 修复：移除 overflow-x-clip。
+                       原值会把右侧参数面板内超出 stage 宽度的内容（如下拉箭头、滑块末端、Select 触发器右缘）整段截断，且无水平滚动条恢复可见性（ui-misalign / ui-clipped）。
+                       改为仅保留竖向滚动；横向溢出由各子组件自身的 min-w-0 + w-full 约束自适应。*/
+                    "min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-[var(--workspace-pad)] py-[var(--workspace-pad)]",
+                    motionPage,
+                    mainClassName
+                  )}
+                >
           {children}
         </main>
       </div>

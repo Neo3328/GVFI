@@ -14,6 +14,12 @@ export interface GvfiDesktopBridge {
   setLocale?: (locale: string) => Promise<string>;
   getLocale?: () => Promise<string>;
   onMaximizedChange: (callback: (maximized: boolean) => void) => () => void;
+  /** Native open-file dialog; resolves to an absolute path, or null when cancelled. */
+  selectVideoFile?: () => Promise<string | null>;
+  /** Native directory picker; resolves to an absolute dir path, or null when cancelled. */
+  selectDirectory?: () => Promise<string | null>;
+  /** Reveal a file/folder in the OS file manager; resolves true on success. */
+  revealInFolder?: (targetPath: string) => Promise<boolean>;
 }
 
 declare global {

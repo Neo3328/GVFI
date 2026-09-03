@@ -8,7 +8,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Zap } from "lucide-react";
 import { CopyrightFooter } from "@/components/brand/copyright-footer";
 import { APP_NAME } from "@/lib/brand";
 import { AppShell } from "@/components/workspace/app-shell";
@@ -22,6 +21,7 @@ import { useWorkspaceChrome } from "@/components/workspace/workspace-chrome-cont
 import { useT } from "@/hooks/use-t";
 import { cn } from "@/lib/utils";
 import { glassFocusRing, glassMotion } from "@/components/glass/glass-styles";
+import { ZapIcon } from "@/icons";
 
 interface WorkspaceShellProps {
   children: React.ReactNode;
@@ -77,22 +77,32 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
   const t = useT();
   const nav = getWorkspaceNav(t);
   const surface = pageSurfaceForPath(pathname);
-  const { title, breadcrumbs, status, statusLabel } = useWorkspaceChrome();
+  const chrome = useWorkspaceChrome();
+  /* 根路由 /app 是全屏深色工作台（自带竖导航/标题栏/三栏/底栏），
+     不再叠加全局 Sidebar / TopBar，避免双导航与右侧挤压。旧主页 /app/dashboard 保持原壳。
+     注意：所有 Hook 必须在本 early-return 之前调用，遵守 rules-of-hooks。 */
+  const isFullScreenWorkbench = pathname === "/app" || pathname === "/app/";
+  if (isFullScreenWorkbench) {
+    return <>{children}</>;
+  }
+  const { title, breadcrumbs, status, statusLabel } = chrome;
   const isDashboard = surface === "dashboard";
 
   return (
     <>
       <AppShell
-        sidebar={
-          <Sidebar
-            className="flex"
-            items={nav}
-            tone="rail"
-            iconOnly
-            brand={
+              sidebar={
+                /* Bug#1 修复：之前 iconOnly=true 会让侧边栏只渲染图标列（截图中 5/7 项无图标无文字）。
+                   此处恢复为展开式（图标 + 文字标签），保留原设计系统的间距与样式变量不变。*/
+                <Sidebar
+                  className="flex"
+                  items={nav}
+                  tone="rail"
+                  iconOnly={false}
+                  brand={
               <div className="flex flex-col items-center gap-2 text-center">
                 <div className="flex size-9 items-center justify-center rounded-[var(--control-radius)] border border-[color-mix(in_srgb,#fff_22%,transparent)] bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.04))] bg-clip-padding shadow-[inset_0_1px_0_rgba(255,255,255,0.28)] backdrop-blur-md">
-                  <Zap className="size-4 text-[var(--accent)]" aria-hidden />
+                  <ZapIcon size={16} className="text-[var(--accent)]" aria-hidden />
                 </div>
                 <span className="hidden text-[10px] font-semibold tracking-wide text-[var(--text-muted)] lg:block">
                   {APP_NAME}

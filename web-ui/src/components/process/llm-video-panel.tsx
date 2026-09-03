@@ -103,8 +103,13 @@ export function LlmVideoPanel({
               }}
             >
               <GlassSelectTrigger className="glass-select">
-                <GlassSelectValue />
-              </GlassSelectTrigger>
+                              {/* Bug#3 同源修复：children 回调确保 label 稳定渲染。*/}
+                                              <GlassSelectValue>{(value) => {
+                                                if (typeof value !== "string") return "";
+                                                /* llmTaskLabel expects LlmTaskPresetId; callback guarantees a known preset id. */
+                                                return llmTaskLabel(t, value as Parameters<typeof llmTaskLabel>[1]);
+                                              }}</GlassSelectValue>
+                            </GlassSelectTrigger>
               <GlassSelectContent>
                 {LLM_TASK_PRESETS.map((item) => (
                   <GlassSelectItem key={item.id} value={item.id}>

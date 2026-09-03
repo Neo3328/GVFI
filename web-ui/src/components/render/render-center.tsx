@@ -105,7 +105,7 @@ export function RenderCenter() {
     setChrome({
       title: t("tasks.title"),
       breadcrumbs: [
-        { label: t("common.app"), href: "/app/dashboard" },
+        { label: t("common.app"), href: "/app" },
         { label: t("tasks.crumb") },
       ],
       status: loadError ? "offline" : active ? "warning" : "online",

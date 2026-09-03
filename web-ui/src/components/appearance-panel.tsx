@@ -86,24 +86,35 @@ export function AppearancePanel({ onLog }: AppearancePanelProps) {
           {t("locale.label")}
         </label>
         <GlassSelect
-          value={locale}
-          items={{
-            "zh-CN": t("locale.zhCN"),
-            en: t("locale.en"),
-          }}
-          onValueChange={(value) => {
-            if (typeof value !== "string" || !isLocale(value)) return;
-            setLocale(value as Locale);
-          }}
-        >
-          <GlassSelectTrigger id="locale-select" className="glass-select">
-            <GlassSelectValue />
-          </GlassSelectTrigger>
-          <GlassSelectContent>
-            <GlassSelectItem value="zh-CN">{t("locale.zhCN")}</GlassSelectItem>
-            <GlassSelectItem value="en">{t("locale.en")}</GlassSelectItem>
-          </GlassSelectContent>
-        </GlassSelect>
+                  value={locale}
+                  items={{
+                    "zh-CN": t("locale.zhCN"),
+                    en: t("locale.en"),
+                  }}
+                  onValueChange={(value) => {
+                    if (typeof value !== "string" || !isLocale(value)) return;
+                    setLocale(value as Locale);
+                  }}
+                >
+                  <GlassSelectTrigger id="locale-select" className="glass-select">
+                    {/* Bug#3 修复：原版 <GlassSelectValue /> 不传 children，依赖 base-ui 内部 items 查找。
+                        在打开 popup 前后状态切换时偶尔渲染空白（ui-white2.png）。改为显式回调，
+                        直接从 items 字典取出 label，避免双源合并失败。*/}
+                    <GlassSelectValue>
+                      {(value) =>
+                        value === "zh-CN"
+                          ? t("locale.zhCN")
+                          : value === "en"
+                            ? t("locale.en")
+                            : t("locale.label")
+                      }
+                    </GlassSelectValue>
+                  </GlassSelectTrigger>
+                  <GlassSelectContent>
+                    <GlassSelectItem value="zh-CN">{t("locale.zhCN")}</GlassSelectItem>
+                    <GlassSelectItem value="en">{t("locale.en")}</GlassSelectItem>
+                  </GlassSelectContent>
+                </GlassSelect>
       </div>
 
       <div className="flex flex-col gap-2 py-1">
@@ -130,7 +141,18 @@ export function AppearancePanel({ onLog }: AppearancePanelProps) {
           }}
         >
           <GlassSelectTrigger id="theme-select" className="glass-select">
-            <GlassSelectValue />
+            {/* Bug#3 修复（同语言下拉框原因）：用 children 回调显式返回 label，避免 base-ui 在 popup 关闭后渲染空白。*/}
+            <GlassSelectValue>
+              {(value) =>
+                value === "light"
+                  ? t("appearance.theme.light")
+                  : value === "dark"
+                    ? t("appearance.theme.dark")
+                    : value === "image"
+                      ? t("appearance.theme.image")
+                      : t("appearance.theme")
+              }
+            </GlassSelectValue>
           </GlassSelectTrigger>
           <GlassSelectContent>
             {THEME_KEYS.map((item) => (

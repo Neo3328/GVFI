@@ -30,7 +30,7 @@ export function AboutPage() {
     setChrome({
       title: t("about.chromeTitle"),
       breadcrumbs: [
-        { label: t("common.app"), href: "/app/dashboard" },
+        { label: t("common.app"), href: "/app" },
         { label: t("system.title"), href: "/app/system" },
         { label: t("about.chromeTitle") },
       ],
@@ -142,7 +142,7 @@ export function AboutPage() {
             </Link>
           </nav>
           <Link
-            href="/app/dashboard"
+            href="/app"
             className="glass-button inline-flex min-h-9 items-center px-4 text-[13px] no-underline"
           >
             {t("about.backHome")}

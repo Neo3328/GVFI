@@ -4,7 +4,7 @@
  * Copyright © 2026 Mr. Gong. All Rights Reserved.
  */
 
-const { app, BrowserWindow, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
 const { spawn } = require("child_process");
 const fs = require("fs");
 const http = require("http");
@@ -16,7 +16,9 @@ const ROOT = isPackaged
   ? path.join(process.resourcesPath, "standalone")
   : path.join(__dirname, "..");
 const PORT = Number(process.env.GVFI_PORT || 3456);
-const APP_URL = `http://127.0.0.1:${PORT}/app/dashboard`;
+/* 新默认主页：根路由 /app 直接渲染视频处理工作台 VideoWorkspacePage。
+   不再跳转到 /app/dashboard（旧主页文件保留，仍可通过该次级路由访问）。*/
+const APP_URL = `http://127.0.0.1:${PORT}/app`;
 
 let mainWindow = null;
 let splashWindow = null;
@@ -313,6 +315,49 @@ function registerWindowIpc() {
     return desktopI18n.setLocale(locale);
   });
   ipcMain.handle("gvfi:get-locale", () => desktopI18n.getLocale());
+
+  // ---- Native file / directory pickers (real, no fake fallback) ----
+  ipcMain.handle("gvfi:select-video-file", async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: "选择输入视频",
+      properties: ["openFile"],
+      filters: [
+        { name: "视频文件", extensions: ["mp4", "mkv", "mov", "avi", "webm", "flv", "wmv", "m4v", "mpg", "mpeg", "ts"] },
+        { name: "所有文件", extensions: ["*"] },
+      ],
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    return result.filePaths[0];
+  });
+
+  ipcMain.handle("gvfi:select-directory", async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: "选择文件夹",
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    return result.filePaths[0];
+  });
+
+  ipcMain.handle("gvfi:reveal-in-folder", async (_event, target) => {
+    if (!target || typeof target !== "string") return false;
+    try {
+      const exists = fs.existsSync(target);
+      if (!exists) return false;
+      const stat = fs.statSync(target);
+      if (stat.isDirectory()) {
+        await shell.openPath(target);
+      } else {
+        shell.showItemInFolder(target);
+      }
+      return true;
+    } catch (err) {
+      log(`[GVFI] reveal-in-folder failed: ${err && err.message}`);
+      return false;
+    }
+  });
 }
 
 function createWindow() {

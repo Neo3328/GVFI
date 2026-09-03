@@ -20,7 +20,7 @@ export function SettingsHubPage() {
     setChrome({
       title: t("settings.title"),
       breadcrumbs: [
-        { label: t("common.app"), href: "/app/dashboard" },
+        { label: t("common.app"), href: "/app" },
         { label: t("settings.crumb") },
       ],
       status: "idle",

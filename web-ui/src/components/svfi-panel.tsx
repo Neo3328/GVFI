@@ -67,7 +67,11 @@ export function SvfiPanel({
           disabled={!superResolution}
         >
           <GlassSelectTrigger id="sr-model" className="glass-select">
-            <GlassSelectValue />
+            {/* Bug#3 同源修复：children 回调确保 label 稳定渲染。*/}
+            <GlassSelectValue>{(value) => {
+              if (typeof value !== "string") return "";
+              return SR_MODEL_OPTIONS.find((item) => item.value === value)?.label ?? "";
+            }}</GlassSelectValue>
           </GlassSelectTrigger>
           <GlassSelectContent>
             {SR_MODEL_OPTIONS.map((item) => (
